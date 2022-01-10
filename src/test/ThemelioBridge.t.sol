@@ -27,17 +27,16 @@ contract ThemelioRelayTest is DSTest {
     function testComputeMerkleRoot() public {
         bytes32 txHash;
         uint256 txIndex;
-        bytes memory proof;
+        bytes32[] memory proof;
 
-        bridge.computeMerkleRoot(txHash, txIndex, proof);
+        bridge.computeMerkleRoot(txHash, proof);
     }
 
     function testVerifyTx() public {
         bytes memory rawTx;
-        uint256 txIndex;
         uint256 blockHeight;
-        bytes memory proof;
+        bytes32[] memory proof;
 
-        bridge.verifyTx(rawTx, txIndex, blockHeight, proof);
+        bridge.verifyTx(rawTx, blockHeight, proof);
     }
 }
