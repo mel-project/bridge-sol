@@ -24,7 +24,8 @@ contract ThemelioBridge is DSTest {
 
     mapping(uint256 => Header) private _headers;
 
-    event TxVerified(bytes32 indexed txHash, uint256 indexed blockHeight);
+    event HeaderRelayed(uint256 indexed height);
+    event TxVerified(bytes32 indexed txHash, uint256 indexed height);
 
     bytes32 private immutable DATA_BLOCK_HASH_KEY;
     bytes32 private immutable NODE_HASH_KEY;
@@ -56,11 +57,14 @@ contract ThemelioBridge is DSTest {
         return bytes32(blake3.finalize(hasherUpdate));
     }
 
-    function relayHeader(Header calldata header) external {
+    function relayHeader(Header calldata header) external returns (bool) {
         // confirm that header has >2/3 validator signatures
 
         require(_headers[header.height].relayer == address(0), ERR_ALREADY_RELAYED);
         _headers[header.height] = header;
+
+        emit HeaderRelayed(header.height);
+        return true;
     }
 
     function computeMerkleRoot(
@@ -80,7 +84,6 @@ contract ThemelioBridge is DSTest {
             }
             root = hashNodes(nodes);
         }
-
         return root;
     }
 
