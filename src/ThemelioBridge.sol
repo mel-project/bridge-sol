@@ -2,7 +2,7 @@
 pragma solidity 0.8.10;
 
 import 'ds-test/test.sol';
-import 'blake3-sol/Blake3Sol.sol';
+import 'blake3-sol/Blake3Sol.sol'; 
 
 contract ThemelioBridge is DSTest {
     struct Header {
@@ -31,7 +31,6 @@ contract ThemelioBridge is DSTest {
     bytes32 private immutable NODE_HASH_KEY;
 
     string private constant ERR_ALREADY_RELAYED = 'Block already relayed';
-    string private constant ERR_MERKLE_PROOF = 'Invalid Merkle proof structure';
 
     constructor() {
         Hasher memory nodeHasher = blake3.new_hasher();
@@ -72,10 +71,6 @@ contract ThemelioBridge is DSTest {
         uint256 txIndex,
         bytes32[] calldata proof
     ) public /**internal pure*/ returns (bytes32) {
-        require(proof.length > 0, ERR_MERKLE_PROOF);
-
-        if(proof.length == 1) return proof[0];
-
         bytes32 root = txHash;
         bytes memory nodes;
 

@@ -14,7 +14,7 @@ contract ThemelioRelayTest is DSTest {
     }
 
     function testBlake3() public {
-        Hasher memory hasher  = blake3.new_hasher();
+        Hasher memory hasher = blake3.new_hasher();
         hasher = blake3.update_hasher(hasher, unicode'hellohello?');
         bytes memory output = blake3.finalize(hasher);
 
