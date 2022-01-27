@@ -35,26 +35,26 @@ contract ThemelioBridge is DSTest {
 
     constructor() {
         Hasher memory nodeHasher = blake3.new_hasher();
-        Hasher memory nodeHasherUpdate = blake3.update_hasher(nodeHasher, 'smt_node');
-        NODE_HASH_KEY = bytes32(blake3.finalize(nodeHasherUpdate));
+        nodeHasher = blake3.update_hasher(nodeHasher, 'smt_node');
+        NODE_HASH_KEY = bytes32(blake3.finalize(nodeHasher));
 
         Hasher memory leafHasher = blake3.new_hasher();
-        Hasher memory leafHasherUpdate = blake3.update_hasher(leafHasher, 'smt_datablock');
-        DATA_BLOCK_HASH_KEY = bytes32(blake3.finalize(leafHasherUpdate));
+        leafHasher = blake3.update_hasher(leafHasher, 'smt_datablock');
+        DATA_BLOCK_HASH_KEY = bytes32(blake3.finalize(leafHasher));
     }
 
     function hashLeaf(bytes memory leaf) public /**view*/ returns (bytes32) {
         Hasher memory hasher = blake3.new_keyed(abi.encodePacked(DATA_BLOCK_HASH_KEY));
-        Hasher memory hasherUpdate = blake3.update_hasher(hasher, leaf);
+        hasher = blake3.update_hasher(hasher, leaf);
 
-        return bytes32(blake3.finalize(hasherUpdate));
+        return bytes32(blake3.finalize(hasher));
     }
 
     function hashNodes(bytes memory nodes) public /**view*/ returns (bytes32) {
         Hasher memory hasher = blake3.new_keyed(abi.encodePacked(NODE_HASH_KEY));
-        Hasher memory hasherUpdate = blake3.update_hasher(hasher, nodes);
+        hasher = blake3.update_hasher(hasher, nodes);
 
-        return bytes32(blake3.finalize(hasherUpdate));
+        return bytes32(blake3.finalize(hasher));
     }
 
     function relayHeader(Header calldata header) external returns (bool) {
@@ -69,19 +69,23 @@ contract ThemelioBridge is DSTest {
 
     function computeMerkleRoot(
         bytes32 txHash,
-        bytes32[] memory proof
-    ) public /**internal view*/ returns (bytes32) {
-        require(proof.length == 256, ERR_MERKLE_PROOF);
+        uint256 txIndex,
+        bytes32[] calldata proof
+    ) public /**internal pure*/ returns (bytes32) {
+        require(proof.length > 0, ERR_MERKLE_PROOF);
+
+        if(proof.length == 1) return proof[0];
 
         bytes32 root = txHash;
         bytes memory nodes;
 
-        for(uint256 i = 0; i < 256; i++) {
-            if((txHash >> i) & bytes32(uint256(1)) == 0) {
+        for(uint256 i = 0; i < proof.length; i++) {
+            if(txIndex % 2 == 0) {
                 nodes = abi.encodePacked(root, proof[i]);
             } else {
                 nodes = abi.encodePacked(proof[i], root);
             }
+            txIndex /= 2;
             root = hashNodes(nodes);
         }
         return root;
@@ -89,14 +93,15 @@ contract ThemelioBridge is DSTest {
 
     function verifyTx(
         bytes calldata rawTx,
+        uint256 txIndex,
         uint256 blockHeight,
         bytes32[] calldata proof
-    ) external /**view*/ returns (bool) {  
+    ) external /**view*/ returns (bool) {
         Header memory header = _headers[blockHeight];
         bytes32 merkleRoot = header.transactionsHash;
         bytes32 txHash = hashLeaf(rawTx);
 
-        if(computeMerkleRoot(txHash, proof) == merkleRoot) {
+        if(computeMerkleRoot(txHash, txIndex, proof) == merkleRoot) {
             emit TxVerified(txHash, blockHeight);
             return true;
         } else {
