@@ -22,7 +22,7 @@ contract ThemelioBridge is DSTest {
 
     Blake3Sol blake3 = new Blake3Sol();
 
-    mapping(uint256 => Header) private _headers;
+    mapping(uint256 => Header) public headers;
 
     event HeaderRelayed(uint256 indexed height);
     event TxVerified(bytes32 indexed txHash, uint256 indexed height);
@@ -59,8 +59,8 @@ contract ThemelioBridge is DSTest {
     function relayHeader(Header calldata header) external returns (bool) {
         // confirm that header has >2/3 validator signatures
 
-        require(_headers[header.height].relayer == address(0), ERR_ALREADY_RELAYED);
-        _headers[header.height] = header;
+        require(headers[header.height].relayer == address(0), ERR_ALREADY_RELAYED);
+        headers[header.height] = header;
 
         emit HeaderRelayed(header.height);
         return true;
@@ -92,7 +92,7 @@ contract ThemelioBridge is DSTest {
         uint256 blockHeight,
         bytes32[] calldata proof
     ) external /**view*/ returns (bool) {
-        Header memory header = _headers[blockHeight];
+        Header memory header = headers[blockHeight];
         bytes32 merkleRoot = header.transactionsHash;
         bytes32 txHash = hashLeaf(rawTx);
 
