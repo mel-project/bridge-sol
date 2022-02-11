@@ -97,7 +97,7 @@ contract ThemelioRelayTest is DSTest {
 
         assertEq(
             bridge.computeMerkleRoot(txHash, txIndex, proof),
-            bytes32(0x1cc3e4775bb50924a20e49c6835e663296543bbe7417512645a9e02147447b69)
+            0x1cc3e4775bb50924a20e49c6835e663296543bbe7417512645a9e02147447b69
         );
     }
 
@@ -118,21 +118,6 @@ contract ThemelioRelayTest is DSTest {
         );
 
         bridge.relayHeader(header);
-
-        (
-            bytes1 netId,
-            bytes32 previous,
-            uint64 height,
-            bytes32 historyHash,
-            bytes32 coinsHash,
-            bytes32 transactionsHash,
-            uint128 feePool,
-            uint128 feeMultiplier,
-            uint128 doscSpeed,
-            bytes32 poolsHash,
-            bytes32 stakeDocHash,
-            address relayer
-        ) = bridge.headers(438469);
 
         bytes memory rawTx = abi.encodePacked(
             bytes32(0x5101ccec6db0372f89da31ff8abe159565ec03a7f44090e1bee8eb8c1431a7a3),
@@ -158,3 +143,4 @@ contract ThemelioRelayTest is DSTest {
         assertTrue(bridge.verifyTx(rawTx, txIndex, blockHeight, proof));
     }
 }
+
