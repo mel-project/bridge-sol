@@ -4,6 +4,6 @@
 [submodule "blake3-sol"]
 	path = lib/blake3-sol
 	url = https://github.com/themeliolabs/blake3-sol
-[submodule "lib/hardhat"]
-	path = lib/hardhat
-	url = https://github.com/nomiclabs/hardhat
+[submodule "lib/blake3-sol"]
+	path = lib/blake3-sol
+	url = https://github.com/themeliolabs/blake3-sol
