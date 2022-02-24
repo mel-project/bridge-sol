@@ -7,3 +7,6 @@
 [submodule "lib/blake3-sol"]
 	path = lib/blake3-sol
 	url = https://github.com/themeliolabs/blake3-sol
+[submodule "lib/ed25519-sol"]
+	path = lib/ed25519-sol
+	url = https://github.com/themeliolabs/ed25519-sol
