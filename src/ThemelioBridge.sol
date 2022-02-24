@@ -2,7 +2,8 @@
 pragma solidity 0.8.10;
 
 import 'ds-test/test.sol';
-import 'blake3-sol/Blake3Sol.sol'; 
+import 'blake3-sol/Blake3Sol.sol';
+import 'ed25519-sol/Ed25519.sol';
 
 contract ThemelioBridge is DSTest {
     struct Header {

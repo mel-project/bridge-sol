@@ -1,9 +1,6 @@
 # Ethereum Bridge Contract
 
-The Ethereum bridge contract tracks the latest known block header of the
-Themelio chain. This is updated with an open function that anyone can call,
-`update_block_header`. In order to verify a block header is valid the contract
-must check that it is signed by >2/3 of the themelio block validator stake.
+The Ethereum bridge contract stores valid Themelio network block headers using the `relayHeader` function, which anyone can call. In order to verify that a block header is valid the contract must verifies that it has been signed by >2/3 of the Themelio block validator stake.
 
 ### Tracking Epochs
 
@@ -13,7 +10,7 @@ The validator set is a list of `StakeDoc`s seen in the
 
 ## Contract API
 
-### update_block_header
+### relayHeader
 arguments
     - The new block header
     - List of validator signatures of the block header
@@ -96,17 +93,7 @@ $ forge build
 
 ## Debugging
 
-We have the option of logging via two frameworks: [hardhat](https://github.com/nomiclabs/hardhat) and [ds-test](https://github.com/dapphub/ds-test)
-
-To log with `ds-test`, add this line to the top of your solidity file:
-```
-import "hardhat-core/console.sol";
-```
-
-Then you can print out debugging information like this:
-```
-console.log("Example print");
-```
+We have the option of logging via [ds-test](https://github.com/dapphub/ds-test)
 
 To log with `ds-test`, add this line to the top of your solidity file:
 ```
@@ -123,5 +110,5 @@ emit log("Other example print");
 
 Run:
 ```
-$ env RUST_LOG=forge=trace forge test --verbosity 3
+$ env RUST_LOG=forge=trace forge test --vvv
 ```
