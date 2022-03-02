@@ -1,11 +1,11 @@
 # Ethereum Bridge Contract
 
-The Ethereum bridge contract stores valid Themelio network block headers using the `relayHeader` function, which anyone can call. In order to verify that a block header is valid the contract must verifies that it has been signed by >2/3 of the Themelio block validator stake.
+The Ethereum bridge contract stores valid Themelio network block headers using the `relayHeader` function, which anyone can call. In order to verify that a block header is valid the contract must check that it has been signed by the owners of at least 2/3 of the staked syms for the current epoch.
 
 ### Tracking Epochs
 
-Therefore the contract also keeps track of the current themelio validator set.
-The validator set is a list of `StakeDoc`s seen in the
+Therefore the contract also keeps track of the current Themelio staker set.
+The staker set is a list of `StakeDoc`s seen in the
 [spec](https://docs.themelio.org/specifications/consensus-spec/#stakes).
 
 ## Contract API
@@ -13,13 +13,13 @@ The validator set is a list of `StakeDoc`s seen in the
 ### relayHeader
 arguments
     - The new block header
-    - List of validator signatures of the block header
+    - List of staker signatures of the block header
 
 First the function checks that the new block header height is within the same
 epoch as the previous known block header. A block in a new epoch would require
 a staker set as well.
 
-Epochs in themelio transition at multiples of 100,000 blocks.
+Epochs in Themelio transition at multiples of 100,000 blocks.
 
 Then verifies the signatures match a >2/3 staker majority (weighted by stake).
 
@@ -28,7 +28,7 @@ Finally updates the contract's latest known block header to the new one.
 ### update_block_header_with_stakers
 arguments
     - The new block header
-    - List of validator signatures of the block header
+    - List of staker signatures of the block header
     - A list of `StakeDoc`s representing the staker mapping at the block height
     - A merkle proof for the staker list
 
@@ -38,7 +38,7 @@ except block in a new epoch is allowed.
 
 ### mint
 arguments
-    - The encoded "freeze" tx on themelio as bytes
+    - The encoded "freeze" tx on Themelio as bytes
     - A merkle state proof the freeze tx
 
 If the latest known block header does not match the height the merkle proof is
@@ -58,7 +58,7 @@ This function performs an erc20 transferFrom, which must be authorized by the
 owner first, to take ownership of the Wmel and then burns it.
 
 The contract stores the (address, amount) tuple in a mapping which is used on
-the themelio bridge contract to prove an address's latest burn.
+the Themelio bridge contract to prove an address's latest burn.
 
 TODO should the amount overwrite or accumulate?
 
