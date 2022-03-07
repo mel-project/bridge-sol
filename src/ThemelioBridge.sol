@@ -11,8 +11,6 @@ contract ThemelioBridge is DSTest {
         mapping(bytes32 => uint256) stakers;
     }
 
-    Blake3Sol blake3 = new Blake3Sol();
-
     mapping(uint256 => bytes) public headers;
     mapping(uint256 => EpochInfo) public epochs;
 
@@ -23,8 +21,10 @@ contract ThemelioBridge is DSTest {
     bytes32 private immutable NODE_HASH_KEY;
 
     string private constant ERR_ALREADY_RELAYED = 'Block already relayed';
-    string private constant ERR_INSUFFICIENT_SIGNATURES = 'Insufficient signatures, need >2/3 of total stake represented.';
-    string private constant ERR_INVALID_SIGNATURES = 'Signatures are improperly formatted.';
+    string private constant ERR_INSUFFICIENT_SIGNATURES = 'Insufficient signatures.';
+    string private constant ERR_INVALID_SIGNATURES = 'Improperly formatted signatures.';
+
+    Blake3Sol blake3 = new Blake3Sol();
 
     constructor() {
         Hasher memory nodeHasher = blake3.new_hasher();
@@ -66,21 +66,27 @@ contract ThemelioBridge is DSTest {
 
         if(heightLengthByte < 0xfb) {
             merkleRoot = bytes32(slice(34, 98, header));
+
             return merkleRoot;
         } else if (heightLengthByte == 0xfb) {
             merkleRoot = bytes32(slice(38, 102, header));
+
             return merkleRoot;
         } else if (heightLengthByte == 0xfc) {
             merkleRoot = bytes32(slice(42, 106, header));
+
             return merkleRoot;
         } else if (heightLengthByte == 0xfd) {
             merkleRoot = bytes32(slice(50, 114, header));
+
             return merkleRoot;
         } else if (heightLengthByte == 0xfe) {
             merkleRoot = bytes32(slice(66, 130, header));
+
             return merkleRoot;
         } else {
             assert(false);
+
             return merkleRoot;
         }
     }
@@ -91,21 +97,27 @@ contract ThemelioBridge is DSTest {
 
         if(heightLengthByte < 0xfb) {
             blockHeight = uint8(heightLengthByte);
+
             return blockHeight;
         } else if (heightLengthByte == 0xfb) {
             blockHeight = uint16(bytes2(header[34:38]));
+
             return blockHeight;
         } else if (heightLengthByte == 0xfc) {
             blockHeight = uint32(bytes4(header[34:42]));
+
             return blockHeight;
         } else if (heightLengthByte == 0xfd) {
             blockHeight = uint64(bytes8(header[34:50]));
+
             return blockHeight;
         } else if (heightLengthByte == 0xfe) {
             blockHeight = uint128(bytes16(header[34:66]));
+
             return blockHeight;
         } else {
             assert(false);
+
             return blockHeight;
         }
     }
@@ -142,6 +154,7 @@ contract ThemelioBridge is DSTest {
         }
 
         require(totalSignerSyms > ((epochSyms * 2) / 3), ERR_INSUFFICIENT_SIGNATURES);
+
         headers[blockHeight] = header;
         emit HeaderRelayed(blockHeight);
     }
@@ -163,6 +176,7 @@ contract ThemelioBridge is DSTest {
             txIndex /= 2;
             root = hashNodes(nodes);
         }
+
         return root;
     }
 
@@ -178,6 +192,7 @@ contract ThemelioBridge is DSTest {
 
         if(computeMerkleRoot(txHash, txIndex, proof) == merkleRoot) {
             emit TxVerified(txHash, blockHeight);
+
             return true;
         } else {
             return false;
