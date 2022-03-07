@@ -50,15 +50,67 @@ contract ThemelioBridge is DSTest {
         return bytes32(blake3.finalize(hasher));
     }
 
+    function slice(uint256 start, uint256 end, bytes memory data) internal pure returns (bytes memory) {
+        bytes memory dataSlice = new bytes(end - start + 1);
+
+        for (uint256 i = 0; i < (end - start + 1); i++) {
+            dataSlice[i] = data[i + start - 1];
+        }
+
+        return dataSlice;
+    }
+
     function extractMerkleRoot(bytes memory header) internal pure returns (bytes32) {
+        bytes1 heightLengthByte = bytes1(slice(32, 34, header));
+        bytes32 merkleRoot;
 
+        if(heightLengthByte < 0xfb) {
+            merkleRoot = bytes32(slice(34, 98, header));
+            return merkleRoot;
+        } else if (heightLengthByte == 0xfb) {
+            merkleRoot = bytes32(slice(38, 102, header));
+            return merkleRoot;
+        } else if (heightLengthByte == 0xfc) {
+            merkleRoot = bytes32(slice(42, 106, header));
+            return merkleRoot;
+        } else if (heightLengthByte == 0xfd) {
+            merkleRoot = bytes32(slice(50, 114, header));
+            return merkleRoot;
+        } else if (heightLengthByte == 0xfe) {
+            merkleRoot = bytes32(slice(66, 130, header));
+            return merkleRoot;
+        } else {
+            assert(false);
+            return merkleRoot;
+        }
     }
 
-    function extractBlockHeight(bytes memory header) internal pure returns (uint256) {
+    function extractBlockHeight(bytes calldata header) internal pure returns (uint256) {
+        bytes1 heightLengthByte = bytes1(header[32:34]);
+        uint256 blockHeight;
 
+        if(heightLengthByte < 0xfb) {
+            blockHeight = uint8(heightLengthByte);
+            return blockHeight;
+        } else if (heightLengthByte == 0xfb) {
+            blockHeight = uint16(bytes2(header[34:38]));
+            return blockHeight;
+        } else if (heightLengthByte == 0xfc) {
+            blockHeight = uint32(bytes4(header[34:42]));
+            return blockHeight;
+        } else if (heightLengthByte == 0xfd) {
+            blockHeight = uint64(bytes8(header[34:50]));
+            return blockHeight;
+        } else if (heightLengthByte == 0xfe) {
+            blockHeight = uint128(bytes16(header[34:66]));
+            return blockHeight;
+        } else {
+            assert(false);
+            return blockHeight;
+        }
     }
 
-    function extractSender(bytes memory header) internal pure returns (address) {
+    function extractSender(bytes memory transaction) internal pure returns (address) {
 
     }
 
