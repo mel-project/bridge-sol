@@ -5,6 +5,13 @@ import 'ds-test/test.sol';
 import '../ThemelioBridge.sol';
 
 contract ThemelioBridgeTest is DSTest, ThemelioBridge {
+    // for external calls
+    ThemelioBridge bridge;
+    
+    function setUp() public {
+        bridge = new ThemelioBridge();
+    }
+
     function testBlake3() public {
         Hasher memory hasher = blake3.new_hasher();
         hasher = blake3.update_hasher(hasher, unicode'hellohello?');
@@ -134,5 +141,59 @@ contract ThemelioBridgeTest is DSTest, ThemelioBridge {
 
         assertTrue(bridge.verifyTx(rawTx, txIndex, blockHeight, proof));
     }*/
+
+    function decodeIntegerTest(bytes calldata header, uint256 offset) public pure returns (uint256) {
+        uint256 integer = decodeInteger(header, offset);
+
+        return integer;
+    }
+
+    function testExtractBlockHeader() public {
+
+    }
 }
 
+contract ThemelioBridgeTestInternalCalldata is DSTest {
+    ThemelioBridgeTest bridgeTest;
+
+    function setUp() public {
+        bridgeTest = new ThemelioBridgeTest();
+    }
+
+    function testDecodeIntegerHelper() public {
+        bytes memory header0 = abi.encodePacked(
+            bytes1(0xfa)
+        );
+        uint256 integer0 = bridgeTest.decodeIntegerTest(header0, 0);
+        uint256 int0 = 0xfa;
+        assertEq(integer0, int0);
+
+        bytes memory header1 = abi.encodePacked(
+            bytes4(0x00fb1111)
+        );
+        uint256 integer1 = bridgeTest.decodeIntegerTest(header1, 1);
+        uint256 int1 = 0x1111;
+        assertEq(integer1, int1);
+
+        bytes memory header2 = abi.encodePacked(
+            bytes7(0x0000fc22222222)
+        );
+        uint256 integer2 = bridgeTest.decodeIntegerTest(header2, 2);
+        uint256 int2 = 0x22222222;
+        assertEq(integer2, int2);
+
+        bytes memory header3 = abi.encodePacked(
+            bytes12(0x000000fd3333333333333333)
+        );
+        uint256 integer3 = bridgeTest.decodeIntegerTest(header3, 3);
+        uint256 int3 = 0x3333333333333333;
+        assertEq(integer3, int3);
+
+        bytes memory header4 = abi.encodePacked(
+            bytes21(0x00000000fe44444444444444444444444444444444)
+        );
+        uint256 integer4 = bridgeTest.decodeIntegerTest(header4, 4);
+        uint256 int4 = 0x44444444444444444444444444444444;
+        assertEq(integer4, int4);
+    }
+}
