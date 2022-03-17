@@ -234,12 +234,8 @@ contract ThemelioBridge is DSTest {
         return (value, recipient);
     }
 
-    function extractMelAmount() internal pure returns (uint256) {
-
-    }
-
     function extractTokenType() internal pure /*returns ENUM*/ {
-
+        // Todo
     }
 
     function relayHeader(
