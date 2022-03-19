@@ -24,7 +24,6 @@ contract ThemelioBridge is DSTest {
     string private constant ERR_INSUFFICIENT_SIGNATURES = 'Insufficient signatures.';
     string private constant ERR_INVALID_SIGNATURES = 'Improperly formatted signatures.';
     string private constant ERR_OUT_OF_BOUNDS = 'Out of bounds slice.';
-    string private constant ERR_INVALID_SLICE_ARGS = 'Invalid slice arguments.';
 
     Blake3Sol blake3 = new Blake3Sol();
 
@@ -53,89 +52,89 @@ contract ThemelioBridge is DSTest {
     }
 
     function slice(bytes memory data, uint256 start, uint256 end) internal pure returns (bytes memory) {
-        require(start <= end, ERR_INVALID_SLICE_ARGS);
-        require(data.length >= end, ERR_OUT_OF_BOUNDS);
+        uint256 dataLength = data.length;
 
-        bytes memory dataSlice = new bytes(end - start);
+        if (start <= end) {
+            require(start >= 0 && end <= dataLength, ERR_OUT_OF_BOUNDS);
 
-        for (uint256 i = 0; i < (end - start); ++i) {
-            dataSlice[i] = data[i + start];
+            uint256 sliceLength = end - start;
+            bytes memory dataSlice = new bytes(sliceLength);
+
+            for (uint256 i = 0; i < sliceLength; ++i) {
+                dataSlice[i] = data[start + i];
+            }
+
+            return dataSlice;
+        } else {
+            require(start < dataLength && int256(end) >= -1, ERR_OUT_OF_BOUNDS);
+
+            uint256 sliceLength = start - end;
+            bytes memory dataSlice = new bytes(sliceLength);
+
+            for (uint256 i = 0; i < sliceLength; ++i) {
+                dataSlice[i] = data[start - i];
+            }
+
+            return dataSlice;
         }
-
-        return dataSlice;
     }
 
     function decodeInteger(bytes calldata data, uint256 offset) internal pure returns (uint256) {
         bytes1 lengthByte = bytes1(data[offset:offset + 1]);
         uint256 integer;
 
-        if(lengthByte < 0xfb) {
+        if (lengthByte < 0xfb) {
             integer = uint8(lengthByte);
-
-            return integer;
         } else if (lengthByte == 0xfb) {
-            integer = uint16(bytes2(data[offset + 1:offset + 3]));
-
-            return integer;
+            integer = uint16(bytes2(slice(data, offset + 2, offset)));// data[offset + 1:offset + 3]));
         } else if (lengthByte == 0xfc) {
-            integer = uint32(bytes4(data[offset + 1:offset + 5]));
-
-            return integer;
+            integer = uint32(bytes4(slice(data, offset + 4, offset)));// data[offset + 1:offset + 5]));
         } else if (lengthByte == 0xfd) {
-            integer = uint64(bytes8(data[offset + 1:offset + 9]));
-
-            return integer;
+            integer = uint64(bytes8(slice(data, offset + 8, offset)));// data[offset + 1:offset + 9]));
         } else if (lengthByte == 0xfe) {
-            integer = uint128(bytes16(data[offset + 1:offset + 17]));
-
-            return integer;
+            integer = uint128(bytes16(slice(data, offset + 16, offset)));// data[offset + 1:offset + 17]));
         } else {
             assert(false);
-
-            return integer;
         }
+
+        return integer;
     }
 
     function encodedIntegerSize(bytes memory data, uint256 offset) internal pure returns (uint256) {
         bytes1 lengthByte = bytes1(slice(data, offset, offset + 1));
         uint256 size;
 
-        if(lengthByte < 0xfb) {
+        if (lengthByte < 0xfb) {
             size = 1;
-
-            return size;
         } else if (lengthByte == 0xfb) {
-            size = 2;
-
-            return size;
+            size = 3;
         } else if (lengthByte == 0xfc) {
-            size = 4;
-
-            return size;
+            size = 5;
         } else if (lengthByte == 0xfd) {
-            size = 8;
-
-            return size;
+            size = 9;
         } else if (lengthByte == 0xfe) {
-            size = 16;
-
-            return size;
+            size = 17;
         } else {
             assert(false);
-
-            return size;
         }
+
+        return size;
     }
 
     function extractMerkleRoot(bytes memory header) internal pure returns (bytes32) {
-        uint256 heightSize = encodedIntegerSize(header, 32);
-        bytes32 merkleRoot = bytes32(slice(header, heightSize + 32, heightSize + 64));
+        // get size of 'block_height' using 33 as the offset to skip 'network' (1 byte) and 'previous' (32 bytes)
+        uint256 offset = 33;
+        uint256 heightSize = encodedIntegerSize(header, offset);
+        // we can get the offset of 'merkle_root' by adding 'heightSize' + 64 to skip 'history_hash' (32 bytes) and 'coins_hash' (32 bytes) 
+        offset += heightSize + 64;
+        bytes32 merkleRoot = bytes32(slice(header, offset, offset + 32));
 
         return merkleRoot;
     }
 
     function extractBlockHeight(bytes calldata header) internal pure returns (uint256) {
-        uint256 blockHeight = decodeInteger(header, 32);
+        // using an offset of 33 to skip 'network' (1 byte) and 'previous' (32 bytes)
+        uint256 blockHeight = decodeInteger(header, 33);
 
         return blockHeight;
     }
@@ -215,7 +214,7 @@ contract ThemelioBridge is DSTest {
         uint256 inputsLength = decodeInteger(transaction, offset);
         offset += encodedIntegerSize(transaction, offset);
 
-        for(uint256 i = 0; i < inputsLength; ++i) {
+        for (uint256 i = 0; i < inputsLength; ++i) {
             // aggregate size of each CoinData which is one hash (32 bytes) and one u8 integer (1-3 byte encoding)
             offset += encodedIntegerSize(transaction, offset) + 32;
         }
@@ -252,10 +251,10 @@ contract ThemelioBridge is DSTest {
         uint256 totalSignerSyms = 0;
         uint256 signerSyms;
 
-        for(uint256 i = 0; i < signers.length; ++i) {
+        for (uint256 i = 0; i < signers.length; ++i) {
             signerSyms = epochs[blockHeight / 100000].stakers[signers[i]];
 
-            if(signerSyms > 0 && Ed25519.verify(
+            if (signerSyms > 0 && Ed25519.verify(
                     signers[i],
                     bytes32(signatures[i * 64:(i * 64) + 32]),
                     bytes32(signatures[(i * 64) + 32:(i * 64) + 64]),
@@ -279,8 +278,8 @@ contract ThemelioBridge is DSTest {
         bytes32 root = txHash;
         bytes memory nodes;
 
-        for(uint256 i = 0; i < proof.length; ++i) {
-            if(txIndex % 2 == 0) {
+        for (uint256 i = 0; i < proof.length; ++i) {
+            if (txIndex % 2 == 0) {
                 nodes = abi.encodePacked(root, proof[i]);
             } else {
                 nodes = abi.encodePacked(proof[i], root);
@@ -302,7 +301,7 @@ contract ThemelioBridge is DSTest {
         bytes32 merkleRoot = extractMerkleRoot(header);
         bytes32 txHash = hashLeaf(rawTx);
 
-        if(computeMerkleRoot(txHash, txIndex, proof) == merkleRoot) {
+        if (computeMerkleRoot(txHash, txIndex, proof) == merkleRoot) {
             emit TxVerified(txHash, blockHeight);
 
             return true;

@@ -37,110 +37,11 @@ contract ThemelioBridgeTest is DSTest, ThemelioBridge {
         );
     }
 
-    /*function testRelayHeader() public {
-        ThemelioBridge.Header memory header = ThemelioBridge.Header(
-            0xff,
-            0x9bfb7b21c884b2bbafc999275b3c66eb08af3fb95dd615eea0cd7554ce7709ce,
-            438469,
-            0xad746b334b83634c0b24c85238bdc982c90576db984a8f6411e7ef05aa776b6d,
-            0xc36524f2ee84cad7751099e7736f5513f18cb2be98467ac5813ed7905d1057a6,
-            0x1cc3e4775bb50924a20e49c6835e663296543bbe7417512645a9e02147447b69,
-            9987237428,
-            1003,
-            22369621,
-            0x7d97fbf0afe5facfb25f803527bf0e8cefe26dd3146fe3889a43d1fd4a347f88,
-            0x92707d70a55d32778eced56feb672a3e25a8dc5d5278adb542e61edd2f2d3f44,
-            0x4fDD02c537AA4cAB34b4a89740Ef516938e5dfEc
-        );
+    function testRelayHeader() public {}
 
-        bridge.relayHeader(header);
+    function testComputeMerkleRoot() public {}
 
-        (
-            bytes1 netId,
-            bytes32 previous,
-            uint64 height,
-            bytes32 historyHash,
-            bytes32 coinsHash,
-            bytes32 transactionsHash,
-            uint128 feePool,
-            uint128 feeMultiplier,
-            uint128 doscSpeed,
-            bytes32 poolsHash,
-            bytes32 stakeDocHash,
-            address relayer
-        ) = bridge.headers(438469);
-
-        assertEq(transactionsHash, header.transactionsHash);
-    }*/
-
-    /*function testComputeMerkleRoot() public {
-        bytes32 txHash = hashLeaf(abi.encodePacked(
-            bytes32(0x5101ccec6db0372f89da31ff8abe159565ec03a7f44090e1bee8eb8c1431a7a3),
-            bytes32(0xd0d10102a27607c66bc1ee1cbe054db137072bb6810a0af0c2c26352c8aa2854),
-            bytes32(0xa4c28368fca0860100016d00a27607c66bc1ee1cbe054db137072bb6810a0af0),
-            bytes32(0xc2c26352c8aa2854a4c28368fc6c80b3eb016d001701a2343230303039663130),
-            bytes32(0x3030303030303030303030303030303030303030303030303030303030303030),
-            bytes32(0x3030303030303030303030303030303030303030303030303030303030303634),
-            bytes32(0x3230303030353035306630323065313462616633323930383231666432333464),
-            bytes32(0x3562346531356665376661303464633166646137613461623634653538383339),
-            bytes32(0x65333565363962353664386665343230303031333230303230023733014033fb),
-            bytes32(0x3834ba3ccae482bd733f516d2233a23629c45a3ef81e5782af12d29824a14674),
-            bytes30(0x272e6c25bda6d37752725215f13f55f393b9b3fee7e15594ffa1ed29d70b)
-        ));
-        uint256 txIndex = 1;
-        bytes32[] memory proof = new bytes32[](3);
-
-        proof[0] = bytes32(0x8e23d629378af3f260a06239876d07a00df5b3c64c2cbf1361402db735486847);
-        proof[1] = bytes32(0xb2772a61ca1750e7d628fb44ce64cfcc1bf6f9293ded3e73bf85c3a5960bb4b4);
-        proof[2] = bytes32(0xb6c263510f89558cf64f094899e7ce7e9d50b11fad02f5ee20a10bb07a67b47f);
-
-        assertEq(
-            computeMerkleRoot(txHash, txIndex, proof),
-            0x1cc3e4775bb50924a20e49c6835e663296543bbe7417512645a9e02147447b69
-        );
-    }*/
-
-    /*function testVerifyTx() public {
-        ThemelioBridge.Header memory header = ThemelioBridge.Header(
-            0xff,
-            0x9bfb7b21c884b2bbafc999275b3c66eb08af3fb95dd615eea0cd7554ce7709ce,
-            438469,
-            0xad746b334b83634c0b24c85238bdc982c90576db984a8f6411e7ef05aa776b6d,
-            0xc36524f2ee84cad7751099e7736f5513f18cb2be98467ac5813ed7905d1057a6,
-            0x1cc3e4775bb50924a20e49c6835e663296543bbe7417512645a9e02147447b69,
-            9987237428,
-            1003,
-            22369621,
-            0x7d97fbf0afe5facfb25f803527bf0e8cefe26dd3146fe3889a43d1fd4a347f88,
-            0x92707d70a55d32778eced56feb672a3e25a8dc5d5278adb542e61edd2f2d3f44,
-            0x4fDD02c537AA4cAB34b4a89740Ef516938e5dfEc
-        );
-
-        bridge.relayHeader(header);
-
-        bytes memory rawTx = abi.encodePacked(
-            bytes32(0x5101ccec6db0372f89da31ff8abe159565ec03a7f44090e1bee8eb8c1431a7a3),
-            bytes32(0xd0d10102a27607c66bc1ee1cbe054db137072bb6810a0af0c2c26352c8aa2854),
-            bytes32(0xa4c28368fca0860100016d00a27607c66bc1ee1cbe054db137072bb6810a0af0),
-            bytes32(0xc2c26352c8aa2854a4c28368fc6c80b3eb016d001701a2343230303039663130),
-            bytes32(0x3030303030303030303030303030303030303030303030303030303030303030),
-            bytes32(0x3030303030303030303030303030303030303030303030303030303030303634),
-            bytes32(0x3230303030353035306630323065313462616633323930383231666432333464),
-            bytes32(0x3562346531356665376661303464633166646137613461623634653538383339),
-            bytes32(0x65333565363962353664386665343230303031333230303230023733014033fb),
-            bytes32(0x3834ba3ccae482bd733f516d2233a23629c45a3ef81e5782af12d29824a14674),
-            bytes30(0x272e6c25bda6d37752725215f13f55f393b9b3fee7e15594ffa1ed29d70b)
-        );
-        uint256 txIndex = 1;
-        uint256 blockHeight = 438469;
-        bytes32[] memory proof = new bytes32[](3);
-
-        proof[0] = bytes32(0x8e23d629378af3f260a06239876d07a00df5b3c64c2cbf1361402db735486847);
-        proof[1] = bytes32(0xb2772a61ca1750e7d628fb44ce64cfcc1bf6f9293ded3e73bf85c3a5960bb4b4);
-        proof[2] = bytes32(0xb6c263510f89558cf64f094899e7ce7e9d50b11fad02f5ee20a10bb07a67b47f);
-
-        assertTrue(bridge.verifyTx(rawTx, txIndex, blockHeight, proof));
-    }*/
+    function testVerifyTx() public {}
 
     function decodeIntegerTest(bytes calldata header, uint256 offset) public pure returns (uint256) {
         uint256 integer = decodeInteger(header, offset);
@@ -148,9 +49,58 @@ contract ThemelioBridgeTest is DSTest, ThemelioBridge {
         return integer;
     }
 
-    function testExtractBlockHeader() public {
+    function testEncodedIntegerSize() public {
+        // 250 with no padding
+        bytes memory oneByteInteger = abi.encodePacked(bytes1(0xfa));
+        uint256 oneByteSize = encodedIntegerSize(oneByteInteger, 0);
+        assertEq(oneByteSize, 1);
 
+        // 251 with 1 byte of padding on both sides
+        bytes memory threeByteInteger = abi.encodePacked(bytes5(0xfffbfb00ff));
+        uint256 threeByteSize = encodedIntegerSize(threeByteInteger, 1);
+        assertEq(threeByteSize, 3);
+
+        // 2**16 with 2 bytes of padding on both sides
+        bytes memory fiveByteInteger = abi.encodePacked(bytes9(0xfffffc00000100ffff));
+                uint256 fiveByteSize = encodedIntegerSize(fiveByteInteger, 2);
+        assertEq(fiveByteSize, 5);
+
+        // 2**32 with 3 bytes of padding on both sides
+        bytes memory nineByteInteger = abi.encodePacked(bytes15(0xfffffffd0000000001000000ffffff));
+        uint256 nineByteSize = encodedIntegerSize(nineByteInteger, 3);
+        assertEq(nineByteSize, 9);
+
+        // 2**64 with 4 bytes of padding on both sides
+        bytes memory seventeenByteInteger = abi.encodePacked(bytes25(0xfffffffffe00000000000000000100000000000000ffffffff));
+        uint256 seventeenByteSize = encodedIntegerSize(seventeenByteInteger, 4);
+        assertEq(seventeenByteSize, 17);
     }
+
+    function testExtractMerkleRoot() public {
+        bytes memory header = abi.encodePacked(
+            bytes32(0xff6b91090007737cd4cc72ac2067ab3441218f0977d00039c2363867bafd2e44),
+            bytes32(0xf4fda84c8c112efd7da407a7bbab3660ca201e02b3ac54ea0775839e2fb4b4f6),
+            bytes32(0xf458ebef7d1bb11fff52cd0b0d522541a034493c8bce35d5c78616da0644b758),
+            bytes32(0x8980bc3fd95e678b2155cc31bac5a1ce87db5f32c719f5209984d6aea2582981),
+            bytes32(0x0b153d97ddb22b004f9efec8ffe0630521d94ec973dea0a1369884fec037ff47),
+            bytes32(0xba4c2d0ba0167d711026711ffe026c833667f9a7602473a7b5053d4d3798d768),
+            bytes32(0x161cc8276a1dcfcf68a4b63b85f9960ef20792d8260e16eb93620066c905bba0),
+            bytes29(0x71d65be9bc30b11a68a0819886d2ce85b9414e00719a706a77d8bc0772)
+        );
+        bytes32 merkleRoot = extractMerkleRoot(header);
+
+        assertEq(merkleRoot, bytes32(0xcc31bac5a1ce87db5f32c719f5209984d6aea25829810b153d97ddb22b004f9e));
+    }
+
+    function extractBlockHeightTest(bytes calldata header) public returns (uint256) {
+        uint256 blockHeight = extractBlockHeight(header);
+
+        return blockHeight;
+    }
+
+    function testExtractValueAndRecipient() public {}
+
+    function testExtractTokenType() public {}
 }
 
 contract ThemelioBridgeTestInternalCalldata is DSTest {
@@ -196,4 +146,28 @@ contract ThemelioBridgeTestInternalCalldata is DSTest {
         uint256 int4 = 0x44444444444444444444444444444444;
         assertEq(integer4, int4);
     }
+
+    function testExtractBlockHeightHelper() public {
+        bytes memory header = abi.encodePacked(
+            bytes32(0xff2886e61b7756ec3fd75b0f89f3dc8d8dd2f7b44401c4e2fb55cc037980e44b),
+            bytes32(0xbafd5928e58213d64dc5f1d25074f72f9e1457562e45913d8eb2ed461e1396be),
+            bytes32(0x39ca087bb7de7c178811418f7da89b5e89e56ade852bc77909f5043339c1b8cc),
+            bytes32(0x4b0d2060e16b824a8f44e53545413058167cef39efc8a9da6d3a620d1719fd91),
+            bytes32(0x0c081d64a0f698d153cefefbffffca93a032754fe28625fc5239e5fe94c2ae0a),
+            bytes32(0xef2efde355dc11aff5446783feb859bcadd36dbe0ed6e6d9d0f13d41f68fd2d0),
+            bytes32(0x6c66cd36ba998c346e481522724ff71b19c04e8841616bf2afe880ca063b232b),
+            bytes29(0x90a52d3801d0d9775ac49ee59050d115aeff4796c9e3d11bc010341590)
+        );
+        uint256 blockHeight = bridgeTest.extractBlockHeightTest(header);
+
+        assertEq(blockHeight, 14217254977967302745);
+    }
+
+// expected: 14217254977967302745
+// hex: c54dd61382e52859
+// encoded: fd5928e58213d64dc5
+
+// actual: 6424637215285333445
+// hex: 5928e58213d64dc5
+// encoded: fdc54dd61382e52859
 }
