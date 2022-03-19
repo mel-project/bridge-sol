@@ -55,7 +55,12 @@ contract ThemelioBridge is DSTest {
         uint256 dataLength = data.length;
 
         if (start <= end) {
-            require(start >= 0 && end <= dataLength, ERR_OUT_OF_BOUNDS);
+            require(
+                start < dataLength &&
+                start >= 0 &&
+                end <= dataLength,
+                ERR_OUT_OF_BOUNDS
+            );
 
             uint256 sliceLength = end - start;
             bytes memory dataSlice = new bytes(sliceLength);
@@ -66,7 +71,12 @@ contract ThemelioBridge is DSTest {
 
             return dataSlice;
         } else {
-            require(start < dataLength && int256(end) >= -1, ERR_OUT_OF_BOUNDS);
+            require(
+                start < dataLength &&
+                start >= 0 &&
+                int256(end) >= -1,
+                ERR_OUT_OF_BOUNDS
+            );
 
             uint256 sliceLength = start - end;
             bytes memory dataSlice = new bytes(sliceLength);

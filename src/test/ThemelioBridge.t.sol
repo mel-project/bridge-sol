@@ -43,7 +43,7 @@ contract ThemelioBridgeTest is DSTest, ThemelioBridge {
 
     function testVerifyTx() public {}
 
-    function decodeIntegerTest(bytes calldata header, uint256 offset) public pure returns (uint256) {
+    function decodeIntegerTestHelper(bytes calldata header, uint256 offset) public pure returns (uint256) {
         uint256 integer = decodeInteger(header, offset);
 
         return integer;
@@ -92,13 +92,17 @@ contract ThemelioBridgeTest is DSTest, ThemelioBridge {
         assertEq(merkleRoot, bytes32(0xcc31bac5a1ce87db5f32c719f5209984d6aea25829810b153d97ddb22b004f9e));
     }
 
-    function extractBlockHeightTest(bytes calldata header) public returns (uint256) {
+    function extractBlockHeightTestHelper(bytes calldata header) public pure returns (uint256) {
         uint256 blockHeight = extractBlockHeight(header);
 
         return blockHeight;
     }
 
-    function testExtractValueAndRecipient() public {}
+    function extractValueAndRecipientTestHelper(bytes calldata transaction) public returns (uint256, address) {
+        (uint256 value, address recipient) = extractValueAndRecipient(transaction);
+
+        return (value, recipient);
+    }
 
     function testExtractTokenType() public {}
 }
@@ -110,44 +114,44 @@ contract ThemelioBridgeTestInternalCalldata is DSTest {
         bridgeTest = new ThemelioBridgeTest();
     }
 
-    function testDecodeIntegerHelper() public {
+    function testDecodeInteger() public {
         bytes memory header0 = abi.encodePacked(
             bytes1(0xfa)
         );
-        uint256 integer0 = bridgeTest.decodeIntegerTest(header0, 0);
+        uint256 integer0 = bridgeTest.decodeIntegerTestHelper(header0, 0);
         uint256 int0 = 0xfa;
         assertEq(integer0, int0);
 
         bytes memory header1 = abi.encodePacked(
             bytes4(0x00fb1111)
         );
-        uint256 integer1 = bridgeTest.decodeIntegerTest(header1, 1);
+        uint256 integer1 = bridgeTest.decodeIntegerTestHelper(header1, 1);
         uint256 int1 = 0x1111;
         assertEq(integer1, int1);
 
         bytes memory header2 = abi.encodePacked(
             bytes7(0x0000fc22222222)
         );
-        uint256 integer2 = bridgeTest.decodeIntegerTest(header2, 2);
+        uint256 integer2 = bridgeTest.decodeIntegerTestHelper(header2, 2);
         uint256 int2 = 0x22222222;
         assertEq(integer2, int2);
 
         bytes memory header3 = abi.encodePacked(
             bytes12(0x000000fd3333333333333333)
         );
-        uint256 integer3 = bridgeTest.decodeIntegerTest(header3, 3);
+        uint256 integer3 = bridgeTest.decodeIntegerTestHelper(header3, 3);
         uint256 int3 = 0x3333333333333333;
         assertEq(integer3, int3);
 
         bytes memory header4 = abi.encodePacked(
             bytes21(0x00000000fe44444444444444444444444444444444)
         );
-        uint256 integer4 = bridgeTest.decodeIntegerTest(header4, 4);
+        uint256 integer4 = bridgeTest.decodeIntegerTestHelper(header4, 4);
         uint256 int4 = 0x44444444444444444444444444444444;
         assertEq(integer4, int4);
     }
 
-    function testExtractBlockHeightHelper() public {
+    function testExtractBlockHeight() public {
         bytes memory header = abi.encodePacked(
             bytes32(0xff2886e61b7756ec3fd75b0f89f3dc8d8dd2f7b44401c4e2fb55cc037980e44b),
             bytes32(0xbafd5928e58213d64dc5f1d25074f72f9e1457562e45913d8eb2ed461e1396be),
@@ -158,16 +162,24 @@ contract ThemelioBridgeTestInternalCalldata is DSTest {
             bytes32(0x6c66cd36ba998c346e481522724ff71b19c04e8841616bf2afe880ca063b232b),
             bytes29(0x90a52d3801d0d9775ac49ee59050d115aeff4796c9e3d11bc010341590)
         );
-        uint256 blockHeight = bridgeTest.extractBlockHeightTest(header);
+        uint256 blockHeight = bridgeTest.extractBlockHeightTestHelper(header);
 
         assertEq(blockHeight, 14217254977967302745);
     }
 
-// expected: 14217254977967302745
-// hex: c54dd61382e52859
-// encoded: fd5928e58213d64dc5
+    function testExtractValueAndRecipient() public {
+        bytes memory transaction = abi.encodePacked(
+            bytes32(0x51010a1a82a7f70497fbbb549a63b4f11fe2062fc8eb78908138d5ec6c4c37b4),
+            bytes32(0xd46d9602918b542ba2682549c3e246dc41ea843d3f7c565a45f4ee4529e314e6),
+            bytes32(0xf4ababe4feea64accf835d2e8c75071bb47bc74bde016d14c505b3263fec82f8),
+            bytes32(0xb624f4ba9c01b20e506b5e1e868010bfd9908ba0027dbb1f063b9ef1f20cae1f),
+            bytes32(0x75e2ccc9596eac88253175b1fedd531bfa008451b726a8125afd34db9e016d00),
+            bytes26(0xfe49707269c1dd7303bae99ab55ffd4db401017b02ddce010105)
+        );
 
-// actual: 6424637215285333445
-// hex: 5928e58213d64dc5
-// encoded: fdc54dd61382e52859
+        (uint256 value, address recipient) = bridgeTest.extractValueAndRecipientTestHelper(transaction);
+
+        assertEq(value, 295482083328956529783620102020496385258);
+        assertEq(recipient, 0xc505B3263fEc82F8b624f4BA9C01b20E506b5E1e);
+    }
 }
