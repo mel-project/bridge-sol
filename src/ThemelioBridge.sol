@@ -149,73 +149,6 @@ contract ThemelioBridge is DSTest {
         return blockHeight;
     }
 
-    // Transaction {
-    //     kind: Swap, // which kinds
-    //     inputs: [
-    //         CoinID {
-    //             txhash: TxHash(#<456902932e51a2929e2f785588e6c7d5a3fd42646221b7fd7bef340f7dd57c25>),
-    //             index: 140
-    //         }
-    //     ],
-    //     outputs: [
-    //         CoinData {
-    //             covhash: Address(#<e9e4c5412b909e3a481447c1c2472c0aaf55f33033e073caa695aec06c34f8ad>),
-    //             value: CoinValue(279235865177937708309490630372912481497),
-    //             denom: Mel,
-    //             additional_data: []
-    //         },
-    //         CoinData {
-    //             covhash: Address(#<157e0328affa2e0fd834eb2cde74df8e22726a84b4c29fd0077d29ef96199a96>),
-    //             value: CoinValue(199401219767320404375163367744579493820),
-    //             denom: Mel,
-    //             additional_data: []
-    //         }
-    //     ],
-    //     fee: CoinValue(29425059478154847386909779684147829571),
-    //     covenants: [[142]],
-    //     data: [220, 153],
-    //     sigs: [[215]] 
-    // }
-
-    // Transaction {
-    //     kind: 51
-    //     inputs: 01 [
-    //         CoinID {
-    //             txhash: 456902932e51a2929e2f785588e6c7d5a3fd42646221b7fd7bef340f7dd57c25
-    //             index: 8c
-    //         }
-    //     ],
-    //     outputs: 02 [
-    //             CoinData {
-    //                 covhash: e9e4c5412b909e3a481447c1c2472c0aaf55f33033e073caa695aec06c34f8ad
-    //                 value: fe-d944ab34cdbce561e929b5fd15df12d2
-    //                 denom: 016d
-    //                 additional_data: 00 []
-    //             },
-    //             CoinData {
-    //                 covhash: 157e0328affa2e0fd834eb2cde74df8e22726a84b4c29fd0077d29ef96199a96
-    //                 value: fe-bcdf66bf896a96598dfb28a52b470396
-    //                 denom: 016d
-    //                 additional_data: 00 []
-    //             }
-    //     ],
-    //     fee: fe-439ba7336e52f4d64666dde5700f2316
-    //     covenants:01 [
-    //         01 [
-    //             8e
-    //         ]
-    //     ],
-    //     data: 02 [
-    //         dc,
-    //         99
-    //     ],
-    //     sigs: 01 [
-    //         01 [
-    //             d7
-    //         ]
-    //     ]
-    // }
-
     function extractValueAndRecipient(bytes calldata transaction) internal pure returns (uint256, address) {
         // skip 'kind' enum (1 byte)
         uint256 offset = 1;
@@ -243,15 +176,15 @@ contract ThemelioBridge is DSTest {
         return (value, recipient);
     }
 
-    function extractTokenType() internal pure /*returns ENUM*/ {
-        // Todo
-    }
+    function extractTokenType(bytes calldata transaction) internal pure {}
+
+    function relayStakers(bytes calldata stakerInfo) external returns (bool) {}
 
     function relayHeader(
         bytes calldata header,
         bytes32[] calldata signers,
         bytes calldata signatures
-    ) external {
+    ) external returns (bool) {
         require(signatures.length % 64 == 0, ERR_INVALID_SIGNATURES);
 
         uint256 blockHeight = extractBlockHeight(header);
@@ -278,6 +211,8 @@ contract ThemelioBridge is DSTest {
 
         headers[blockHeight] = header;
         emit HeaderRelayed(blockHeight);
+
+        return true;
     }
 
     function computeMerkleRoot(
