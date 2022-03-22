@@ -4,7 +4,7 @@ pragma solidity 0.8.10;
 import 'ds-test/test.sol';
 import '../ThemelioBridge.sol';
 
-contract ThemelioBridgeTest is DSTest, ThemelioBridge { 
+contract ThemelioBridgeTest is ThemelioBridge, DSTest { 
     function testEd25519() public {
         bytes memory message = abi.encodePacked("The foundation of a trustless Internet");
         bytes32 publicKey = 0xd82042fffbb34d09630aa9c56a2c3f0f2be196f28aaea9cc7332b509c7fc69da;
@@ -135,11 +135,15 @@ contract ThemelioBridgeTest is DSTest, ThemelioBridge {
     ) public {
         uint256 blockHeight = 2106792883676695184;
         uint256 epoch = blockHeight / 100000;
+        uint256 signersLength = signers.length;
+        uint256 totalSyms = 0;
 
-        epochs[epoch].stakers[signers[0]] = 30;
-        epochs[epoch].stakers[signers[1]] = 30;
-        epochs[epoch].stakers[signers[2]] = 31;
-        epochs[epoch].stakedSyms = 91;
+        for (uint256 i = 0; i < signersLength; ++i) {
+            epochs[epoch].stakers[signers[i]] = i + 30;
+            totalSyms += i + 30;
+        }
+
+        epochs[epoch].stakedSyms = totalSyms;
     }
 
     function computeMerkleRootTestHelper(
@@ -264,6 +268,39 @@ contract ThemelioBridgeTestInternalCalldata is DSTest {
         );
 
         bridgeTest.relayHeaderTestHelper(signers);
+
+        bool success = bridgeTest.relayHeader(header, signers, signatures);
+        assertTrue(success);
+    }
+
+    function testFailRelayHeader() public {
+        bytes memory header = abi.encodePacked(
+            bytes32(0xffa011c4104d79413ef82b91c5dc1d93991b144d0a5c388f56c49997cb90fe61),
+            bytes32(0xdcfd90cade26f7d43c1dae753f62c43a2e9e8980092d74b176d44e66934e7d4f),
+            bytes32(0x695dab16ad3709ab4ddd18e38c16fef2b41f08ca978f073fd284dc4afb38847c),
+            bytes32(0xb429c88ca67f20e2fceac8fc42d07e3c70edb34d2580a56577e7efba232ec576),
+            bytes32(0x53d9589ea14aeaf0a538fee973f4378fbe51d158637bed4a909ee8fe44a095b0),
+            bytes32(0x9d5fb644423e6805bded708afe9ecbc17767c13584eb68a2f813ddfd3b099c23),
+            bytes32(0x89c2290dd6def728f395ce85c4067636d33c2b4708872728f8308508331b73c0),
+            bytes29(0xcee7078be495c4144b8d486a34ec81fc893d515a79ed2b1b860b381f63)
+        );
+
+        bytes32[] memory signers = new bytes32[](3);
+        signers[0] = 0x2eb2115fe909017c0dcff17846dba5da36ccc56ddf01506a1ebca94ab0f65bc9; // 30 syms staked
+        signers[1] = 0x419b43ad463c65f7ef872bb2eb3aa6ac5fd094351703dfed73656627b3bcdd7d; // 31 syms staked
+        signers[2] = 0x00083c8fe73cfdb00f1c3f8998aeb87f9d2534d6ee21fc442b4fe40eba03e39e; // 32 syms staked
+
+        // we are only including signatures for the first 2 signers so staked syms of signers < 2/3
+        bytes memory signatures = abi.encodePacked(
+            bytes32(0xab10f3f8e8fd7987b903bee83c4d935db6e41c8cdb0149e81569b50f737fe79f),
+            bytes32(0x77f8fb24f0ebdaa0634b79358a5d576c36897eea06985a38af811e930c702702),
+            bytes32(0xd5e16061798104ca5fd82587fd499239df5f72d7a76dbabce4b0fcc90b297957),
+            bytes32(0x0fa9456df1c04d95286cd3b1cf25ba0676670171c22e5085f6346a13f2f3ae0a)
+        );
+
+        bridgeTest.relayHeaderTestHelper(signers);
+
+        delete signers[2]; // removing the last signer so array is properly structured
 
         bool success = bridgeTest.relayHeader(header, signers, signatures);
         assertTrue(success);

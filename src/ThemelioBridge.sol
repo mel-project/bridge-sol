@@ -95,13 +95,13 @@ contract ThemelioBridge {
         if (lengthByte < 0xfb) {
             integer = uint8(lengthByte);
         } else if (lengthByte == 0xfb) {
-            integer = uint16(bytes2(slice(data, offset + 2, offset)));// data[offset + 1:offset + 3]));
+            integer = uint16(bytes2(slice(data, offset + 2, offset)));
         } else if (lengthByte == 0xfc) {
-            integer = uint32(bytes4(slice(data, offset + 4, offset)));// data[offset + 1:offset + 5]));
+            integer = uint32(bytes4(slice(data, offset + 4, offset)));
         } else if (lengthByte == 0xfd) {
-            integer = uint64(bytes8(slice(data, offset + 8, offset)));// data[offset + 1:offset + 9]));
+            integer = uint64(bytes8(slice(data, offset + 8, offset)));
         } else if (lengthByte == 0xfe) {
-            integer = uint128(bytes16(slice(data, offset + 16, offset)));// data[offset + 1:offset + 17]));
+            integer = uint128(bytes16(slice(data, offset + 16, offset)));
         } else {
             assert(false);
         }
@@ -134,8 +134,10 @@ contract ThemelioBridge {
         // get size of 'block_height' using 33 as the offset to skip 'network' (1 byte) and 'previous' (32 bytes)
         uint256 offset = 33;
         uint256 heightSize = encodedIntegerSize(header, offset);
+
         // we can get the offset of 'merkle_root' by adding 'heightSize' + 64 to skip 'history_hash' (32 bytes) and 'coins_hash' (32 bytes) 
         offset += heightSize + 64;
+
         bytes32 merkleRoot = bytes32(slice(header, offset, offset + 32));
 
         return merkleRoot;
