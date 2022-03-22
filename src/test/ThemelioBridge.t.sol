@@ -28,14 +28,14 @@ contract ThemelioBridgeTest is ThemelioBridge, DSTest {
 
     function testHashLeaf() public {
         assertEq(
-            hashLeaf(abi.encodePacked('datablock')),
+            _hashLeaf(abi.encodePacked('datablock')),
             0x6ccea12fef78d2af66a4bca268cdbeccc47b3ee3ec9fbf83da1a67b526e9da2e
         );
     }
 
     function testHashNode() public {
         assertEq(
-            hashNodes(abi.encodePacked('node')),
+            _hashNodes(abi.encodePacked('node')),
             0x7b568d1038ae40d3683670f02841d47a11794b6a629c2c02fedd5856e868cc2b
         );
     }
@@ -51,18 +51,18 @@ contract ThemelioBridgeTest is ThemelioBridge, DSTest {
         // start <= end, regular slice
         start = 2;
         end = 5;
-        result = slice(data, start, end);
+        result = _slice(data, start, end);
         assertEq0(result, abi.encodePacked(bytes3(0x456789)));
 
         // start > end, reverse slice
         start = 7;
         end = 0;
-        result = slice(data, start, end);
+        result = _slice(data, start, end);
         assertEq0(result, abi.encodePacked(bytes7(0xefcdab89674523)));
     }
 
     function decodeIntegerTestHelper(bytes calldata header, uint256 offset) public pure returns (uint256) {
-        uint256 integer = decodeInteger(header, offset);
+        uint256 integer = _decodeInteger(header, offset);
 
         return integer;
     }
@@ -70,29 +70,29 @@ contract ThemelioBridgeTest is ThemelioBridge, DSTest {
     function testEncodedIntegerSize() public {
         // 250 with no padding
         bytes memory oneByteInteger = abi.encodePacked(bytes1(0xfa));
-        uint256 oneByteSize = encodedIntegerSize(oneByteInteger, 0);
+        uint256 oneByteSize = _encodedIntegerSize(oneByteInteger, 0);
         assertEq(oneByteSize, 1);
 
         // 251 with 1 byte of padding on both sides
         bytes memory threeByteInteger = abi.encodePacked(bytes5(0xfffbfb00ff));
-        uint256 threeByteSize = encodedIntegerSize(threeByteInteger, 1);
+        uint256 threeByteSize = _encodedIntegerSize(threeByteInteger, 1);
         assertEq(threeByteSize, 3);
 
         // 2**16 with 2 bytes of padding on both sides
         bytes memory fiveByteInteger = abi.encodePacked(bytes9(0xfffffc00000100ffff));
-                uint256 fiveByteSize = encodedIntegerSize(fiveByteInteger, 2);
+                uint256 fiveByteSize = _encodedIntegerSize(fiveByteInteger, 2);
         assertEq(fiveByteSize, 5);
 
         // 2**32 with 3 bytes of padding on both sides
         bytes memory nineByteInteger = abi.encodePacked(bytes15(0xfffffffd0000000001000000ffffff));
-        uint256 nineByteSize = encodedIntegerSize(nineByteInteger, 3);
+        uint256 nineByteSize = _encodedIntegerSize(nineByteInteger, 3);
         assertEq(nineByteSize, 9);
 
         // 2**64 with 4 bytes of padding on both sides
         bytes memory seventeenByteInteger = abi.encodePacked(
             bytes25(0xfffffffffe00000000000000000100000000000000ffffffff)
         );
-        uint256 seventeenByteSize = encodedIntegerSize(seventeenByteInteger, 4);
+        uint256 seventeenByteSize = _encodedIntegerSize(seventeenByteInteger, 4);
         assertEq(seventeenByteSize, 17);
     }
 
@@ -107,13 +107,13 @@ contract ThemelioBridgeTest is ThemelioBridge, DSTest {
             bytes32(0x161cc8276a1dcfcf68a4b63b85f9960ef20792d8260e16eb93620066c905bba0),
             bytes29(0x71d65be9bc30b11a68a0819886d2ce85b9414e00719a706a77d8bc0772)
         );
-        bytes32 merkleRoot = extractMerkleRoot(header);
+        bytes32 merkleRoot = _extractMerkleRoot(header);
 
         assertEq(merkleRoot, bytes32(0xcc31bac5a1ce87db5f32c719f5209984d6aea25829810b153d97ddb22b004f9e));
     }
 
     function extractBlockHeightTestHelper(bytes calldata header) public pure returns (uint256) {
-        uint256 blockHeight = extractBlockHeight(header);
+        uint256 blockHeight = _extractBlockHeight(header);
 
         return blockHeight;
     }
@@ -121,7 +121,7 @@ contract ThemelioBridgeTest is ThemelioBridge, DSTest {
     function extractValueAndRecipientTestHelper(
         bytes calldata transaction
     ) public pure returns (uint256, address) {
-        (uint256 value, address recipient) = extractValueAndRecipient(transaction);
+        (uint256 value, address recipient) = _extractValueAndRecipient(transaction);
 
         return (value, recipient);
     }
@@ -155,7 +155,7 @@ contract ThemelioBridgeTest is ThemelioBridge, DSTest {
     ) public returns (bytes32) {
         headers[blockHeight] = header;
 
-        bytes32 merkleRoot = computeMerkleRoot(txHash, index, proof);
+        bytes32 merkleRoot = _computeMerkleRoot(txHash, index, proof);
 
         return merkleRoot;
     }
