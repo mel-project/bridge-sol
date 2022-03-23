@@ -4,7 +4,13 @@ pragma solidity 0.8.10;
 import 'ds-test/test.sol';
 import '../ThemelioBridge.sol';
 
-contract ThemelioBridgeTest is ThemelioBridge, DSTest { 
+contract ThemelioBridgeTest is ThemelioBridge, DSTest {
+    function testDecimals() public {
+        uint256 decimals = decimals();
+
+        assertEq(decimals, 9);
+    }
+
     function testEd25519() public {
         bytes memory message = abi.encodePacked("The foundation of a trustless Internet");
         bytes32 publicKey = 0xd82042fffbb34d09630aa9c56a2c3f0f2be196f28aaea9cc7332b509c7fc69da;
@@ -350,7 +356,7 @@ contract ThemelioBridgeTestInternalCalldata is DSTest {
         );
         uint256 blockHeight = 11699990686140247438;
 
-        bytes memory rawTx = abi.encodePacked(
+        bytes memory transaction = abi.encodePacked(
             bytes32(0x5101ac47ce6d06e6b937043484412f7f8ecffc5227284f81e5d5d093d5c4c57d),
             bytes32(0x0ba71202766a5980aa7d6c7c05294d217eb09872ea8579fbb4e7ed129fa2140f),
             bytes32(0xee549cc9fe0f9c28281dfe5cca35b0647af83c3b73016d14762346cea1cb891d),
@@ -364,10 +370,15 @@ contract ThemelioBridgeTestInternalCalldata is DSTest {
         proof[0] = 0x1a2582eb25c727ff0d4fe22c9d921e2b6186b6160a2c72f0fb8cb2e5f126bfb1;
         proof[1] = 0xf12599cbd9d49c0aad7aa00257dd4a1dd2b1a41b7b71cebc7a8217a121586339;
 
+        uint256 value = 153168801660958298760728062610398288911;
+        address recipient = 0x762346cea1cb891dbC4b30d328598F4c9568227d;
+
         bridgeTest.verifyTxTestHelper(header, blockHeight);
 
-        bool success = bridgeTest.verifyTx(rawTx, txIndex, blockHeight, proof);
-
+        bool success = bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
         assertTrue(success);
+
+        uint256 recipientBalance = bridgeTest.balanceOf(recipient);
+        assertEq(recipientBalance, value);
     }
 }

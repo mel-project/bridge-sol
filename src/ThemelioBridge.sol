@@ -3,8 +3,9 @@ pragma solidity 0.8.10;
 
 import 'blake3-sol/Blake3Sol.sol';
 import 'ed25519-sol/Ed25519.sol';
+import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 
-contract ThemelioBridge {
+contract ThemelioBridge is ERC20 {
     struct EpochInfo {
         uint256 stakedSyms;
         mapping(bytes32 => uint256) stakers;
@@ -19,14 +20,15 @@ contract ThemelioBridge {
     bytes32 private immutable DATA_BLOCK_HASH_KEY;
     bytes32 private immutable NODE_HASH_KEY;
 
-    string private constant ERR_ALREADY_RELAYED = 'Block already relayed.';
+    string private constant ERR_OUT_OF_BOUNDS = 'Out of bounds slice.';
+    string private constant ERR_ALREADY_RELAYED = 'Header already relayed.';
     string private constant ERR_INSUFFICIENT_SIGNATURES = 'Insufficient signatures.';
     string private constant ERR_INVALID_SIGNATURES = 'Improperly formatted signatures.';
-    string private constant ERR_OUT_OF_BOUNDS = 'Out of bounds slice.';
+    string private constant ERR_UNRELAYED_HEADER = 'Header must be relayed first.';
 
     Blake3Sol blake3 = new Blake3Sol();
 
-    constructor() {
+    constructor() ERC20 ('wrapped mel', 'wMEL') {
         Hasher memory node_hasher = blake3.new_hasher();
         node_hasher = blake3.update_hasher(node_hasher, 'smt_node');
         NODE_HASH_KEY = bytes32(blake3.finalize(node_hasher));
@@ -34,6 +36,10 @@ contract ThemelioBridge {
         Hasher memory leaf_hasher = blake3.new_hasher();
         leaf_hasher = blake3.update_hasher(leaf_hasher, 'smt_datablock');
         DATA_BLOCK_HASH_KEY = bytes32(blake3.finalize(leaf_hasher));
+    }
+
+    function decimals() public pure override returns (uint8) {
+        return 9;
     }
 
     function _hashLeaf(bytes memory leaf) internal returns (bytes32) {
@@ -238,16 +244,24 @@ contract ThemelioBridge {
     }
 
     function verifyTx(
-        bytes calldata rawTx_,
+        bytes calldata transaction_,
         uint256 txIndex_,
         uint256 blockHeight_,
         bytes32[] calldata proof_
     ) external returns (bool) {
         bytes memory header = headers[blockHeight_];
+        require(header.length > 0, ERR_UNRELAYED_HEADER);
+
         bytes32 merkleRoot = _extractMerkleRoot(header);
-        bytes32 txHash = _hashLeaf(rawTx_);
+        bytes32 txHash = _hashLeaf(transaction_);
 
         if (_computeMerkleRoot(txHash, txIndex_, proof_) == merkleRoot) {
+            uint256 value;
+            address recipient;
+
+            (value, recipient) = _extractValueAndRecipient(transaction_);
+            _mint(recipient, value);
+
             emit TxVerified(txHash, blockHeight_);
 
             return true;
