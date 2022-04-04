@@ -21,7 +21,7 @@ contract ThemelioBridgeTest is ThemelioBridge, DSTest {
         assertTrue(success);
     }
 
-    function testBlake3() public {
+    function testBlake3Hasher() public {
         Hasher memory hasher = blake3.new_hasher();
         hasher = blake3.update_hasher(hasher, unicode'hellohello?');
         bytes memory output = blake3.finalize(hasher);
@@ -29,6 +29,17 @@ contract ThemelioBridgeTest is ThemelioBridge, DSTest {
         assertEq(
             bytes32(output),
             0x10e6acb2cfcc4bb07588ad5b8e85f6a13f19e24f3302826effd93ce1ebbece6e
+        );
+    }
+
+    function testBlake3KeyedHasher() public {
+        Hasher memory hasher = blake3.new_keyed(unicode'hellohello!');
+        hasher = blake3.update_hasher(hasher, unicode'hellohello?');
+        bytes memory output = blake3.finalize(hasher);
+
+        assertEq(
+            bytes32(output),
+            0x0edd7e645d2bc1bba1f323f6339a3d0448ec6b675991e8dc76d2396eb0dffca2
         );
     }
 
@@ -149,7 +160,7 @@ contract ThemelioBridgeTest is ThemelioBridge, DSTest {
             totalSyms += i + 30;
         }
 
-        epochs[epoch].stakedSyms = totalSyms;
+        epochs[epoch].totalStakedSyms = totalSyms;
     }
 
     function computeMerkleRootTestHelper(

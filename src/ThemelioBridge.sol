@@ -7,7 +7,7 @@ import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 
 contract ThemelioBridge is ERC20 {
     struct EpochInfo {
-        uint256 stakedSyms;
+        uint256 totalStakedSyms;
         mapping(bytes32 => uint256) stakers;
     }
 
@@ -16,6 +16,8 @@ contract ThemelioBridge is ERC20 {
 
     event HeaderRelayed(uint256 indexed height);
     event TxVerified(bytes32 indexed tx_hash, uint256 indexed height);
+    event TokensMinted(address indexed recipient, uint256 indexed value);
+    event TokensBurned(address indexed recipient, uint256 indexed value);
 
     bytes32 private immutable DATA_BLOCK_HASH_KEY;
     bytes32 private immutable NODE_HASH_KEY;
@@ -24,6 +26,7 @@ contract ThemelioBridge is ERC20 {
     string private constant ERR_ALREADY_RELAYED = 'Header already relayed.';
     string private constant ERR_INSUFFICIENT_SIGNATURES = 'Insufficient signatures.';
     string private constant ERR_INVALID_SIGNATURES = 'Improperly formatted signatures.';
+    string private constant ERR_TX_UNVERIFIED = 'Transaction unable to be verified.';
     string private constant ERR_UNRELAYED_HEADER = 'Header must be relayed first.';
 
     Blake3Sol blake3 = new Blake3Sol();
@@ -40,6 +43,13 @@ contract ThemelioBridge is ERC20 {
 
     function decimals() public pure override returns (uint8) {
         return 9;
+    }
+
+    function burn(uint256 value) external {
+        address sender = _msgSender();
+        _burn(sender, value);
+
+        emit TokensBurned(sender, value);
     }
 
     function _hashLeaf(bytes memory leaf) internal returns (bytes32) {
@@ -185,7 +195,24 @@ contract ThemelioBridge is ERC20 {
 
     function _extractTokenType(bytes calldata transaction_) internal pure {}
 
-    function relayStakers(bytes calldata stakerInfo_) external returns (bool) {}
+    // temporary implementation for testing on Rinkeby
+    function relayStakers(
+        uint256 epoch_,
+        bytes32[] calldata stakers_,
+        uint256[] calldata stakerSyms_
+    ) external returns (bool) {
+        uint256 totalSyms = 0;
+        uint256 stakersLength = stakers_.length;
+
+        for (uint256 i = 0; i < stakersLength; ++i) {
+            epochs[epoch_].stakers[stakers_[i]] = stakerSyms_[i];
+            totalSyms += stakerSyms_[i];
+        }
+
+        epochs[epoch_].totalStakedSyms = totalSyms;
+
+        return true;
+    }
 
     function relayHeader(
         bytes calldata header_,
@@ -197,7 +224,7 @@ contract ThemelioBridge is ERC20 {
         uint256 blockHeight = _extractBlockHeight(header_);
         require(headers[blockHeight].length == 0, ERR_ALREADY_RELAYED);
 
-        uint256 epochSyms = epochs[blockHeight / 100000].stakedSyms;
+        uint256 epochSyms = epochs[blockHeight / 100000].totalStakedSyms;
         uint256 totalSignerSyms = 0;
         uint256 signerSyms;
 
@@ -266,6 +293,8 @@ contract ThemelioBridge is ERC20 {
 
             return true;
         } else {
+            require(false, ERR_TX_UNVERIFIED);
+
             return false;
         }
     }
