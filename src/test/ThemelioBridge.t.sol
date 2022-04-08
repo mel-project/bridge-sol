@@ -275,14 +275,13 @@ contract ThemelioBridgeTestInternalCalldata is DSTest {
         signers[1] = 0x419b43ad463c65f7ef872bb2eb3aa6ac5fd094351703dfed73656627b3bcdd7d;
         signers[2] = 0x00083c8fe73cfdb00f1c3f8998aeb87f9d2534d6ee21fc442b4fe40eba03e39e;
 
-        bytes memory signatures = abi.encodePacked(
-            bytes32(0xab10f3f8e8fd7987b903bee83c4d935db6e41c8cdb0149e81569b50f737fe79f),
-            bytes32(0x77f8fb24f0ebdaa0634b79358a5d576c36897eea06985a38af811e930c702702),
-            bytes32(0xd5e16061798104ca5fd82587fd499239df5f72d7a76dbabce4b0fcc90b297957),
-            bytes32(0x0fa9456df1c04d95286cd3b1cf25ba0676670171c22e5085f6346a13f2f3ae0a),
-            bytes32(0xc2a3f158b19db3c9e6be2e01578af8e49c6ce9bf158177efb2c18b558b853f40),
-            bytes32(0xd9d2aad475adf60bcf454130a1612f6128364c9d66ad7fe5eea5ca3522e16c01)
-        );
+        bytes32[] memory signatures = new bytes32[](6);
+        signatures[0] = 0xab10f3f8e8fd7987b903bee83c4d935db6e41c8cdb0149e81569b50f737fe79f;
+        signatures[1] = 0x77f8fb24f0ebdaa0634b79358a5d576c36897eea06985a38af811e930c702702;
+        signatures[2] = 0xd5e16061798104ca5fd82587fd499239df5f72d7a76dbabce4b0fcc90b297957;
+        signatures[3] = 0x0fa9456df1c04d95286cd3b1cf25ba0676670171c22e5085f6346a13f2f3ae0a;
+        signatures[4] = 0xc2a3f158b19db3c9e6be2e01578af8e49c6ce9bf158177efb2c18b558b853f40;
+        signatures[5] = 0xd9d2aad475adf60bcf454130a1612f6128364c9d66ad7fe5eea5ca3522e16c01;
 
         bridgeTest.relayHeaderTestHelper(signers);
 
@@ -308,12 +307,11 @@ contract ThemelioBridgeTestInternalCalldata is DSTest {
         signers[2] = 0x00083c8fe73cfdb00f1c3f8998aeb87f9d2534d6ee21fc442b4fe40eba03e39e; // 32 syms staked
 
         // we are only including signatures for the first 2 signers so staked syms of signers < 2/3
-        bytes memory signatures = abi.encodePacked(
-            bytes32(0xab10f3f8e8fd7987b903bee83c4d935db6e41c8cdb0149e81569b50f737fe79f),
-            bytes32(0x77f8fb24f0ebdaa0634b79358a5d576c36897eea06985a38af811e930c702702),
-            bytes32(0xd5e16061798104ca5fd82587fd499239df5f72d7a76dbabce4b0fcc90b297957),
-            bytes32(0x0fa9456df1c04d95286cd3b1cf25ba0676670171c22e5085f6346a13f2f3ae0a)
-        );
+        bytes32[] memory signatures = new bytes32[](4);
+        signatures[0] = 0xab10f3f8e8fd7987b903bee83c4d935db6e41c8cdb0149e81569b50f737fe79f;
+        signatures[1] = 0x77f8fb24f0ebdaa0634b79358a5d576c36897eea06985a38af811e930c702702;
+        signatures[2] = 0xd5e16061798104ca5fd82587fd499239df5f72d7a76dbabce4b0fcc90b297957;
+        signatures[3] = 0x0fa9456df1c04d95286cd3b1cf25ba0676670171c22e5085f6346a13f2f3ae0a;
 
         bridgeTest.relayHeaderTestHelper(signers);
 

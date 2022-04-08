@@ -19,6 +19,8 @@ contract ThemelioBridge is ERC20 {
     event TokensMinted(address indexed recipient, uint256 indexed value);
     event TokensBurned(address indexed recipient, uint256 indexed value);
 
+    uint256 private constant EPOCH_LENGTH = 100_000;
+
     bytes32 private immutable DATA_BLOCK_HASH_KEY;
     bytes32 private immutable NODE_HASH_KEY;
 
@@ -217,24 +219,24 @@ contract ThemelioBridge is ERC20 {
     function relayHeader(
         bytes calldata header_,
         bytes32[] calldata signers_,
-        bytes calldata signatures_
+        bytes32[] calldata signatures_
     ) external returns (bool) {
-        require(signatures_.length % 64 == 0, ERR_INVALID_SIGNATURES);
+        require(signatures_.length == signers_.length * 2, ERR_INVALID_SIGNATURES);
 
         uint256 blockHeight = _extractBlockHeight(header_);
         require(headers[blockHeight].length == 0, ERR_ALREADY_RELAYED);
 
-        uint256 epochSyms = epochs[blockHeight / 100000].totalStakedSyms;
+        uint256 epochSyms = epochs[blockHeight / EPOCH_LENGTH].totalStakedSyms;
         uint256 totalSignerSyms = 0;
         uint256 signerSyms;
 
         for (uint256 i = 0; i < signers_.length; ++i) {
-            signerSyms = epochs[blockHeight / 100000].stakers[signers_[i]];
+            signerSyms = epochs[blockHeight / EPOCH_LENGTH].stakers[signers_[i]];
 
             if (signerSyms > 0 && Ed25519.verify(
                     signers_[i],
-                    bytes32(signatures_[i * 64:(i * 64) + 32]),
-                    bytes32(signatures_[(i * 64) + 32:(i * 64) + 64]),
+                    signatures_[i * 2],
+                    signatures_[(i * 2) + 1],
                     header_
             )) {
                 totalSignerSyms += signerSyms;
