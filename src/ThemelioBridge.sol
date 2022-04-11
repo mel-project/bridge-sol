@@ -11,9 +11,10 @@ contract ThemelioBridge is ERC20 {
         mapping(bytes32 => uint256) stakers;
     }
 
-    mapping(uint256 => bytes) public headers;
-    mapping(uint256 => EpochInfo) public epochs;
+    mapping(uint256 => bytes) private headers;
+    mapping(uint256 => EpochInfo) private epochs;
 
+    event StakersRelayed(uint256 indexed epoch, bytes32[] indexed stakers, uint256[] symsStaked);
     event HeaderRelayed(uint256 indexed height);
     event TxVerified(bytes32 indexed tx_hash, uint256 indexed height);
     event TokensMinted(address indexed recipient, uint256 indexed value);
@@ -212,6 +213,7 @@ contract ThemelioBridge is ERC20 {
         }
 
         epochs[epoch_].totalStakedSyms = totalSyms;
+        emit StakersRelayed(epoch_, stakers_, stakerSyms_);
 
         return true;
     }
