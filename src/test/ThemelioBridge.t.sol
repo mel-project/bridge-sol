@@ -145,13 +145,18 @@ contract ThemelioBridgeTest is ThemelioBridge, DSTest {
 
     function testExtractTokenType() public {}
 
-    function testRelayStakers() public {}
+    function relayStakersHelper(uint256 epoch, bytes32 staker) public view returns (uint256, uint256) {
+        uint256 totalStakedSyms = epochs[epoch].totalStakedSyms;
+        uint256 stakedSyms = epochs[epoch].stakers[staker];
+
+        return (totalStakedSyms, stakedSyms);
+    }
 
     function relayHeaderTestHelper(
         bytes32[] calldata signers
     ) public {
         uint256 blockHeight = 2106792883676695184;
-        uint256 epoch = blockHeight / 100000;
+        uint256 epoch = blockHeight / 100_000;
         uint256 signersLength = signers.length;
         uint256 totalSyms = 0;
 
@@ -256,6 +261,24 @@ contract ThemelioBridgeTestInternalCalldata is DSTest {
 
         assertEq(value, 295482083328956529783620102020496385258);
         assertEq(recipient, 0xc505B3263fEc82F8b624f4BA9C01b20E506b5E1e);
+    }
+
+    function testRelayStakers() public {
+        uint256 height = 5496244452461458740;
+        uint256 epoch = height / 100_000;
+
+        bytes32[] memory stakers = new bytes32[](1);
+        stakers[0] = 0x7978bba95d52660fcf0e53382459df76a8d291c88f91530de234a479ec76c853;
+
+        uint256[] memory stakerSyms = new uint256[](1);
+        stakerSyms[0] = 0x316;
+
+        bridgeTest.relayStakers(epoch, stakers, stakerSyms);
+
+        (uint256 totalStakedSyms, uint256 stakerSymsResult) = bridgeTest.relayStakersHelper(epoch, stakers[0]);
+
+        assertEq(stakerSymsResult, stakerSyms[0]);
+        assertEq(totalStakedSyms, 0x316);
     }
 
     function testRelayHeader() public {

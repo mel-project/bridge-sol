@@ -20,7 +20,7 @@ contract ThemelioBridge is ERC20 {
     event TokensMinted(address indexed recipient, uint256 indexed value);
     event TokensBurned(address indexed recipient, uint256 indexed value);
 
-    uint256 private constant EPOCH_LENGTH = 100_000;
+    uint256 private constant EPOCH_LENGTH = 200_000;
 
     bytes32 private immutable DATA_BLOCK_HASH_KEY;
     bytes32 private immutable NODE_HASH_KEY;
