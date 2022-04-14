@@ -154,7 +154,7 @@ contract ThemelioBridge is ERC20 {
         uint256 offset = 33;
         uint256 heightSize = _encodedIntegerSize(header, offset);
 
-        // we can get the offset of 'merkle_root' by adding 'heightSize' + 64 to skip 'history_hash' (32 bytes) and 'coins_hash' (32 bytes) 
+        // we can get the offset of 'transactions_root' by adding 'heightSize' + 64 to skip 'history_hash' (32 bytes) and 'coins_hash' (32 bytes) 
         offset += heightSize + 64;
 
         bytes32 merkleRoot = bytes32(_slice(header, offset, offset + 32));
