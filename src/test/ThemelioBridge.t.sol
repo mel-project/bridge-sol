@@ -45,9 +45,9 @@ contract ThemelioBridgeTest is ThemelioBridge, DSTest {
         );
     }
 
-    function testHashLeaf() public {
+    function testHashDatablock() public {
         assertEq(
-            _hashLeaf(abi.encodePacked('datablock')),
+            _hashDatablock(abi.encodePacked('datablock')),
             0x6ccea12fef78d2af66a4bca268cdbeccc47b3ee3ec9fbf83da1a67b526e9da2e
         );
     }

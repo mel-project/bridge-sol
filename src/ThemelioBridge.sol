@@ -10,8 +10,8 @@ import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 * @author Marco Serrano (https://github.com/sadministrator)
 * @notice This contract allows users to relay Themelio staker sets, block headers, and transactions
 *         for the purpose of creating tokenized versions of Themelio assets, on the Ethereum
-*         network, which were previously locked up in a sister contract existing on the Themelio
-*         network. Check us out at https://themelio.org !!!
+*         network, which have been previously locked up in a sister contract existing on the
+*         Themelio network. Check us out at https://themelio.org !!!
 * @dev Themelio staker sets are verified per epoch, with each epoch's staker set being verified by
 *      the previous epoch's staker set using ed25519 signature verification (the base epoch being
 *      introduced manually in the constructor, which can very easily be verified manually).
