@@ -8,7 +8,7 @@ network.
 Themelio staker sets are verified per epoch, with each epoch's staker set being verified by
 the previous epoch's staker set using ed25519 signature verification (the base epoch being
 introduced manually in the constructor, which can very easily be verified manually).
-The staker set is an array of `StakeDoc`s seen in the[spec](https://docs.themelio.org/specifications/consensus-spec/#stakes).
+The staker set is an array of `StakeDoc`s seen in the [spec](https://docs.themelio.org/specifications/consensus-spec/#stakes).
 Themelio block headers are then validated by verifying their included staker signatures
 using ed25519 signature verification. Transactions are verified using the 'transactions_root'
 Merkle root of their respective block headers by including a Merkle proof which is used to verify

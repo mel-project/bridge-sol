@@ -7,24 +7,34 @@ import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 
 /**
 * @title ThemelioBridge: A bridge relay for transferring Themelio assets to Ethereum and back
+*
 * @author Marco Serrano (https://github.com/sadministrator)
+*
 * @notice This contract allows users to relay Themelio staker sets, block headers, and transactions
 *         for the purpose of creating tokenized versions of Themelio assets, on the Ethereum
 *         network, which have been previously locked up in a sister contract existing on the
 *         Themelio network. Check us out at https://themelio.org !!!
+*
 * @dev Themelio staker sets are verified per epoch, with each epoch's staker set being verified by
 *      the previous epoch's staker set using ed25519 signature verification (the base epoch being
 *      introduced manually in the constructor, which can very easily be verified manually).
-*      Themelio block headers are then validated by verifying their included staker signatures
-*      using ed25519. Transactions are verified using the 'transactions_root' Merkle root of
+*
+*      Themelio block headers are validated by verifying that the included staker signatures
+*      are authentic (using ed25519 signature verification) and that the total syms staked by all
+*      stakers that signed the header are greater than 2/3 of the total staked syms for that epoch.
+*
+*      Transactions are verified using the 'transactions_root' Merkle root of
 *      their respective block headers by including a Merkle proof which is used to verify the
 *      transaction is a member of the 'transactions_root' tree. Upon successful verification of
 *      a compliant transaction, the specified amount of Themelio assets are minted on the
 *      Ethereum network as tokens and transferred to the address specified in the
-*      'additional_data' field of the first output of the Themelio transaction. To transfer
-*      tokenized Themelio assets back to the Themelio network the token holder must burn their
-*      tokens on the Ethereum network and use the resulting transaction as a receipt which must
-*      be submitted to the sister contract on the Themelio network to release the specified assets.
+*      'additional_data' field of the first output of the Themelio transaction.
+*
+*      To transfer tokenized Themelio assets back to the Themelio network the token holder must burn
+*      their tokens on the Ethereum network and use the resulting transaction as a receipt which
+*      must be submitted to the sister contract on the Themelio network to release the specified
+*      assets.
+*
 *      Questions or concerns? Come chat with us on Discord! https://discord.com/invite/VedNp7EXFc
 */
 contract ThemelioBridge is ERC20 {
@@ -96,7 +106,9 @@ contract ThemelioBridge is ERC20 {
     /* =========== ERC-20 Functions =========== */
     /**
     * @notice Returns the number of decimals in wrapped mel (wMEL).
+    *
     * @dev Overrides ERC20.decimals().
+    *
     * @return The number of decimals in wrapped mel (wMEL).
     */
     function decimals() public pure override returns (uint8) {
@@ -106,9 +118,12 @@ contract ThemelioBridge is ERC20 {
     /**
     * @notice Burns the specified amount of wrapped mels and emits a 'TokensBurned' event which
     *         specifies the Themelio address the assets will be released to.
+    *
     * @dev The process for releasing burned assets will take place in the Themelio network
     *      after the tokens have been burned in the Ethereum network.
+    *
     * @param value  The number of tokens to be burned.
+    *
     * @param themelioRecipient The Themelio address the burned tokens will be transferred to on the
     *        Themelio network.
     */
@@ -123,10 +138,13 @@ contract ThemelioBridge is ERC20 {
 
     /**
     * @notice Computes and returns the datablock hash of its input.
+    *
     * @dev Computes and returns the blake3 keyed hash of its input argument using as its key the
     *      blake3 hash of 'smt_datablock'.
+    *
     * @param datablock The bytes of a bincode-serialized Themelio transaction that is a datablock in a
     *        'transaction_hash' Merkle tree.
+    *
     * @return The blake3 keyed hash of a Merkle tree datablock input argument.
     */
     function _hashDatablock(bytes memory datablock) internal returns (bytes32) {
@@ -138,10 +156,13 @@ contract ThemelioBridge is ERC20 {
 
     /**
     * @notice Computes and returns the node hash of its input.
+    *
     * @dev Computes and returns the blake3 keyed hash of its input argument using as its key the
     *      blake3 hash of 'smt_node'.
+    *
     * @param nodes The bytes of two concatenated hashes that are nodes in a 'transaction_hash'
     *        Merkle tree.
+    *
     * @return The blake3 keyed hash of two concatenated Merkle tree nodes.
     */
     function _hashNodes(bytes memory nodes) internal returns (bytes32) {
@@ -154,11 +175,16 @@ contract ThemelioBridge is ERC20 {
     /**
     * @notice Slices the `data` argument from its `start` index (inclusive) to its
     *         `end` index (exclusive), and returns the slice as new 'bytes' array.
+    *
     * @dev Additionaly, can also return 'inverted slices' where `start` > `end` in order to better
     *      accomodate switching between big and little endianness in incompatible systems.
+    *
     * @param data The data to be sliced, in bytes.
+    *
     * @param start The start index of the slice (inclusive).
+    *
     * @param end The end index of the slice (exclusive).
+    *
     * @return A newly created 'bytes' variable containing the slice.
     */
     function _slice(bytes memory data, uint256 start, uint256 end) internal pure returns (bytes memory) {
@@ -201,10 +227,14 @@ contract ThemelioBridge is ERC20 {
 
     /**
     * @notice Decodes and returns integers encoded at a specified offset within a 'bytes' array.
+    *
     * @dev Decodes and returns integers encoded using the 'bincode' Rust crate with
     *      'with_varint_encoding' and 'reject_trailing_bytes' flags set.
+    *
     * @param data_ The data, in bytes, which contains an encoded integer.
+    *
     * @param offset The offset, in bytes, where our encoded integer is located at, within `data`.
+    *
     * @return The decoded integer.
     */
     function _decodeInteger(bytes calldata data_, uint256 offset) internal pure returns (uint256) {
@@ -230,10 +260,14 @@ contract ThemelioBridge is ERC20 {
 
     /**
     * @notice Decodes and returns an encoded integer's size, in bytes.
+    *
     * @dev Decodes and returns the size of integers encoded using the bincode Rust crate with
     *      'with_varint_encoding' and 'reject_trailing_bytes' flags set.
+    *
     * @param data The data, in bytes, which contains an encoded integer.
+    *
     * @param offset The offset, in bytes, where our encoded integer is located at, within `data`.
+    *
     * @return The encoded integer's size, in bytes.
     */
     function _encodedIntegerSize(bytes memory data, uint256 offset) internal pure returns (uint256) {
@@ -260,9 +294,12 @@ contract ThemelioBridge is ERC20 {
     /**
     * @notice Extracts and returns the 'transactions_root' Merkle root from serialized Themelio
     *         block headers.
+    *
     * @dev The block headers are themelio_structs::Header structs serialized using the bincode crate
     *      with 'with_varint_encoding' and 'reject_trailing_bytes' flags set.
+    *
     * @param header The serialized Themelio block header.
+    *
     * @return The 32-byte 'transactions_hash' Merkle root.
     */
     function _extractMerkleRoot(bytes memory header) internal pure returns (bytes32) {
@@ -280,9 +317,12 @@ contract ThemelioBridge is ERC20 {
 
     /**
     * @notice Extracts and decodes the height of a Themelio header.
+    *
     * @dev Extracts and decodes the encoded 'height' field's value from a serialized Themelio
     *      header.
+    *
     * @param header_ A serialized Themelio block header.
+    *
     * @return The decoded block height of a Themelio block header.
     */
     function _extractBlockHeight(bytes calldata header_) internal pure returns (uint256) {
@@ -294,10 +334,14 @@ contract ThemelioBridge is ERC20 {
 
     /**
     * @notice Extracts and decodes the value and recipient of a Themelio bridge transaction.
+    *
     * @dev Extracts and decodes 'value' and 'additional_data' fields in the first CoinData struct in
     *      the 'outputs' array of a bincode serialized themelio_structs::Transaction struct.
+    *
     * @param transaction_ A serialized Themelio transaction.
+    *
     * @return value The 'value' field in the first output of a Themelio transaction.
+    *
     * @return recipient The 'additional_data' field in the first output of a Themelio transaction.
     */
     function _extractValueAndRecipient(bytes calldata transaction_) internal pure returns (uint256, address) {
@@ -329,7 +373,9 @@ contract ThemelioBridge is ERC20 {
 
     /**
     * @notice Extracts and decodes the token type of a Themelio transaction
+    *
     * @dev TBD
+    *
     * @param transaction_ A serialized Themelio transaction.
     * return The token type of the first output of the transaction.
     */
@@ -339,10 +385,14 @@ contract ThemelioBridge is ERC20 {
     /**
     * @notice This is a temporary implementation for purposes of more easily testing on Ethereum
     *         testnets.
+    *
     * @dev
+    *
     * @param stakers_ A list of staker public keys.
+    *
     * @param stakerSyms_ A list of integers which correspond to the amount of syms staked by each
     *        staker, in the same order as `stakers_`.
+    *
     * @return 'true' if relay was successful, otherwise reverts.
     */
     function relayStakers(
@@ -368,15 +418,20 @@ contract ThemelioBridge is ERC20 {
     * @notice Accepts incoming Themelio headers, validates them by verifying the signatures of
     *         stakers in the header's epoch, and stores the header for future transaction
     *         verification, upon successful validation.
+    *
     * @dev The serialized header is accompanied by an array of stakers (`signers_`) that have signed 
     *      the header. Their signatures are included in another accompanying array (`signatures_`).
     *      Each signature is checked using ed25519 verification and their staked syms are added
     *      together. If at the end of the calculations the amount of staked syms from stakers that
     *      have signed is more than 2/3 of the total staked syms for that epoch then the header is
     *      successfully validated and is stored for future transaction verifications.
+    *
     * @param header_ A serialized transaction header.
-    * @param signers_ An array of Themelio staker public keys
+    *
+    * @param signers_ An array of Themelio staker public keys.
+    *
     * @param signatures_ An array of signatures of `header_` by each staker in `signers_`.
+    *
     * @return 'true' if header was successfully validated, otherwise reverts.
     */
     function relayHeader(
@@ -416,13 +471,18 @@ contract ThemelioBridge is ERC20 {
 
     /**
     * @notice Computes the a Merkle root given a hash and a Merkle proof.
+    *
     * @dev Hashes an original 'tx_hash' together with each hash in a Merkle proof in order to derive
     *      a Merkle root.
+    *
     * @param txHash The hash of a serialized Themelio transaction.
+    *
     * @param txIndex The index of the Themelio transaction. This is used to determine whether the
     *        'tx_hash' should be concatenated on the left or the right before hashing.
+    *
     * @param proof_ An array of blake3 hashes which together form the Merkle proof for this
     *        particular Themelio transaction.
+    *
     * @return The Merkle root obtained by hashing 'tx_hash' together with each hash in 'proof' in
     *         sequence.
     */
@@ -450,6 +510,7 @@ contract ThemelioBridge is ERC20 {
     /**
     * @notice Verifies the validity of a Themelio transaction by hashing it and obtaining its Merkle
     *         root using the provided Merkle proof `proof_`.
+    *
     * @dev The serialized Themelio transaction is first hashed using a blake3 keyed datablock hash
     *      and then sent together with its index in the 'transactions_hash' Merkle tree, `txIndex_`,
     *      and with its Merkle proof, `proof_, to calculate its Merkle root. If its Merkle root
@@ -459,10 +520,15 @@ contract ThemelioBridge is ERC20 {
     *      'additional_data' field in the first output of the transaction and the corresponding
     *      'value' amount of tokens are minted to the Ethereum address contained in
     *      'additional_data'.
+    *
     * @param transaction_ The serialized Themelio transaction.
+    *
     * @param txIndex_ The transaction's index within the 'transactions_root' Merkle tree.
+    *
     * @param blockHeight_ The block height of the block header in which the transaction exists.
+    *
     * @param proof_ The array of hashes which comprise the Merkle proof for the transaction.
+    *
     * @return 'true' if the transaction is successfully validated, otherwise it reverts.
     */
     function verifyTx(
