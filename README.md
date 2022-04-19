@@ -29,14 +29,15 @@ assets.
 
 ## Themelio Bridge contract address:
 
-* [testnet Rinkeby](https://rinkeby.etherscan.io/address/0x77653c46fbbadb73a389f99bc2a19ab5efb2ec01)
+* [Rinkeby testnet](https://rinkeby.etherscan.io/address/0x77653c46fbbadb73a389f99bc2a19ab5efb2ec01)
+
 
 
 ## API
 
-##### relayStakers(epoch, stakers, stakerSyms) returns (bool)
+### relayStakers(epoch, stakers, stakerSyms) returns (bool)
 
-This implementation is incomplete and will change in the near future.
+*This implementation is incomplete and will change in the near future.*
 
 Stores Themelio staker set information for a particular epoch once the information has been verified
 through ed25519 signature verification of >2/3 sym holders from the previous epoch.
@@ -50,7 +51,7 @@ Returns `true` if the staker set was successfully verified and stored, reverts o
 
 ----
 
-##### relayHeader(header, signers, signatures) returns (bool)
+### relayHeader(header, signers, signatures) returns (bool)
 
 Stores header information for a particular block height once the header has been verified through
 ed25519 signature verification of >2/3 sym holders from the previous epoch.
@@ -64,7 +65,7 @@ Returns `true` if the header was successfully verified and stored, reverts other
 
 ----
 
-##### verifyTx(transaction, txIndex, blockHeight, proof) returns (bool)
+### verifyTx(transaction, txIndex, blockHeight, proof) returns (bool)
 
 Verifies the presence of a transaction on the Bitcoin blockchain, primarily that the transaction is
 on Bitcoin's main chain and has at least 6 confirmations.
