@@ -50,6 +50,20 @@ contract ThemelioBridge is ERC20 {
     mapping(uint256 => bytes) internal headers; // necessary for validating transactions
     mapping(uint256 => EpochInfo) internal epochs; // necessary for validating headers
 
+    /* =========== Constants =========== */
+    uint256 private constant EPOCH_LENGTH = 200_000;
+
+    bytes32 private immutable DATA_BLOCK_HASH_KEY;
+    bytes32 private immutable NODE_HASH_KEY;
+
+    string private constant ERR_OUT_OF_BOUNDS = 'Out of bounds slice.';
+    string private constant ERR_ALREADY_RELAYED = 'Header already relayed.';
+    string private constant ERR_INSUFFICIENT_SIGNATURES = 'Insufficient signatures.';
+    string private constant ERR_INVALID_SIGNATURES = 'Improperly formatted signatures.';
+    string private constant ERR_TX_UNVERIFIED = 'Transaction unable to be verified.';
+    string private constant ERR_UNRELAYED_HEADER = 'Header must be relayed first.';
+
+    Blake3Sol blake3 = new Blake3Sol();
 
     /* =========== Bridge Events =========== */
     event StakersRelayed(
@@ -73,22 +87,6 @@ contract ThemelioBridge is ERC20 {
         uint256 indexed value,
         bytes32 indexed themelioRecipient
     );
-
-    /* =========== Constants =========== */
-    uint256 private constant EPOCH_LENGTH = 200_000;
-
-    bytes32 private immutable DATA_BLOCK_HASH_KEY;
-    bytes32 private immutable NODE_HASH_KEY;
-
-    string private constant ERR_OUT_OF_BOUNDS = 'Out of bounds slice.';
-    string private constant ERR_ALREADY_RELAYED = 'Header already relayed.';
-    string private constant ERR_INSUFFICIENT_SIGNATURES = 'Insufficient signatures.';
-    string private constant ERR_INVALID_SIGNATURES = 'Improperly formatted signatures.';
-    string private constant ERR_TX_UNVERIFIED = 'Transaction unable to be verified.';
-    string private constant ERR_UNRELAYED_HEADER = 'Header must be relayed first.';
-
-    Blake3Sol blake3 = new Blake3Sol();
-
 
     /**
     * @dev   Constructor is only responsible for creating the keyed hash keys and submitting the
