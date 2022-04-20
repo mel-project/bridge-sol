@@ -14,12 +14,12 @@ Themelio block headers are validated by verifying that the included staker signa
 are authentic (using ed25519 signature verification) and that the total syms staked by all
 stakers that signed the header are greater than 2/3 of the total staked syms for that epoch.
 
-Transactions are verified using the 'transactions_root' Merkle root of
-their respective block headers by including a Merkle proof which is used to verify the
-transaction is a member of the 'transactions_root' tree. Upon successful verification of
-a compliant transaction, the specified amount of Themelio assets are minted on the
-Ethereum network as tokens and transferred to the address specified in the
-'additional_data' field of the first output of the Themelio transaction.
+Transactions are verified using the `transactions_root` Merkle root stored in their respective
+block headers, in addition to a Merkle proof containing their siblings which, together, are used to
+verify that the transaction is a member of the `transactions_root` Merkle tree, and thus, is
+included in that block. Upon successful verification of a compliant transaction, the specified
+amount of Themelio assets are minted on the Ethereum network as tokens and transferred to the
+address specified in the `additional_data` field of the first output of the Themelio transaction.
 
 To transfer tokenized Themelio assets back to the Themelio network the token holder must burn
 their tokens on the Ethereum network and use the resulting transaction as a receipt which
@@ -39,8 +39,8 @@ assets.
 
 *This implementation is incomplete and will change in the near future.*
 
-Stores Themelio staker set information for a particular epoch once the information has been verified
-through ed25519 signature verification of >2/3 sym holders from the previous epoch.
+Stores Themelio staker set information for a particular epoch once the information has been
+verified through ed25519 signature verification of >2/3 sym holders from the previous epoch.
 
 * `epoch`: the epoch height in `uint256`
 * `stakers`: list of staker public keys `bytes32[]`

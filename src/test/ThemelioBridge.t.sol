@@ -80,7 +80,10 @@ contract ThemelioBridgeTest is ThemelioBridge, DSTest {
         assertEq0(result, abi.encodePacked(bytes7(0xefcdab89674523)));
     }
 
-    function decodeIntegerTestHelper(bytes calldata header, uint256 offset) public pure returns (uint256) {
+    function decodeIntegerTestHelper(
+        bytes calldata header,
+        uint256 offset
+    ) public pure returns (uint256) {
         uint256 integer = _decodeInteger(header, offset);
 
         return integer;
@@ -128,7 +131,10 @@ contract ThemelioBridgeTest is ThemelioBridge, DSTest {
         );
         bytes32 merkleRoot = _extractMerkleRoot(header);
 
-        assertEq(merkleRoot, bytes32(0xcc31bac5a1ce87db5f32c719f5209984d6aea25829810b153d97ddb22b004f9e));
+        assertEq(
+            merkleRoot,
+            bytes32(0xcc31bac5a1ce87db5f32c719f5209984d6aea25829810b153d97ddb22b004f9e)
+        );
     }
 
     function extractBlockHeightTestHelper(bytes calldata header) public pure returns (uint256) {
@@ -147,7 +153,10 @@ contract ThemelioBridgeTest is ThemelioBridge, DSTest {
 
     function testExtractTokenType() public {}
 
-    function relayStakersHelper(uint256 epoch, bytes32 staker) public view returns (uint256, uint256) {
+    function relayStakersHelper(
+        uint256 epoch,
+        bytes32 staker
+    ) public view returns (uint256, uint256) {
         uint256 totalStakedSyms = epochs[epoch].totalStakedSyms;
         uint256 stakedSyms = epochs[epoch].stakers[staker];
 
@@ -259,7 +268,8 @@ contract ThemelioBridgeTestInternalCalldata is DSTest {
             bytes26(0xfe49707269c1dd7303bae99ab55ffd4db401017b02ddce010105)
         );
 
-        (uint256 value, address recipient) = bridgeTest.extractValueAndRecipientTestHelper(transaction);
+        (uint256 value, address recipient) =
+            bridgeTest.extractValueAndRecipientTestHelper(transaction);
 
         assertEq(value, 295482083328956529783620102020496385258);
         assertEq(recipient, 0xc505B3263fEc82F8b624f4BA9C01b20E506b5E1e);
@@ -277,7 +287,8 @@ contract ThemelioBridgeTestInternalCalldata is DSTest {
 
         bridgeTest.relayStakers(epoch, stakers, stakerSyms);
 
-        (uint256 totalStakedSyms, uint256 stakerSymsResult) = bridgeTest.relayStakersHelper(epoch, stakers[0]);
+        (uint256 totalStakedSyms, uint256 stakerSymsResult) =
+            bridgeTest.relayStakersHelper(epoch, stakers[0]);
 
         assertEq(stakerSymsResult, stakerSyms[0]);
         assertEq(totalStakedSyms, 0x316);
@@ -327,9 +338,12 @@ contract ThemelioBridgeTestInternalCalldata is DSTest {
         );
 
         bytes32[] memory signers = new bytes32[](3);
-        signers[0] = 0x2eb2115fe909017c0dcff17846dba5da36ccc56ddf01506a1ebca94ab0f65bc9; // 30 syms staked
-        signers[1] = 0x419b43ad463c65f7ef872bb2eb3aa6ac5fd094351703dfed73656627b3bcdd7d; // 31 syms staked
-        signers[2] = 0x00083c8fe73cfdb00f1c3f8998aeb87f9d2534d6ee21fc442b4fe40eba03e39e; // 32 syms staked
+        // 30 syms staked
+        signers[0] = 0x2eb2115fe909017c0dcff17846dba5da36ccc56ddf01506a1ebca94ab0f65bc9;
+        // 31 syms staked
+        signers[1] = 0x419b43ad463c65f7ef872bb2eb3aa6ac5fd094351703dfed73656627b3bcdd7d;
+        // 32 syms staked
+        signers[2] = 0x00083c8fe73cfdb00f1c3f8998aeb87f9d2534d6ee21fc442b4fe40eba03e39e;
 
         // we are only including signatures for the first 2 signers so staked syms of signers < 2/3
         bytes32[] memory signatures = new bytes32[](4);
