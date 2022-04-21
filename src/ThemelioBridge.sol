@@ -47,21 +47,61 @@ contract ThemelioBridge is ERC20 {
         mapping(bytes32 => uint256) stakers; // staker pub key => individual staked sym amount
     }
 
-    mapping(uint256 => bytes) internal headers; // necessary for validating transactions
-    mapping(uint256 => EpochInfo) internal epochs; // necessary for validating headers
+    mapping(uint256 => bytes) public headers; // necessary for validating transactions
+    mapping(uint256 => EpochInfo) public epochs; // necessary for validating headers
 
     /* =========== Constants =========== */
     uint256 private constant EPOCH_LENGTH = 200_000;
 
-    bytes32 private immutable DATA_BLOCK_HASH_KEY;
+    bytes32 private immutable DATA_BLOCK_HASH_KEY; // todo: precompute these
     bytes32 private immutable NODE_HASH_KEY;
 
-    string private constant ERR_OUT_OF_BOUNDS = 'Out of bounds slice.';
-    string private constant ERR_ALREADY_RELAYED = 'Header already relayed.';
-    string private constant ERR_INSUFFICIENT_SIGNATURES = 'Insufficient signatures.';
-    string private constant ERR_INVALID_SIGNATURES = 'Improperly formatted signatures.';
-    string private constant ERR_TX_UNVERIFIED = 'Transaction unable to be verified.';
-    string private constant ERR_UNRELAYED_HEADER = 'Header must be relayed first.';
+    /* =========== Errors =========== */
+    /**
+    * Slice is out of bounds. `start` must be greater than -1 and less than `dataLength`. `end`
+    * must be greater than -2 and less than `dataLength` + 1.
+    * @param start Starting index (inclusive).
+    * @param end Ending index (exclusive).
+    * @param dataLength Length of data to be sliced.
+    */
+    error OutOfBoundsSlice(uint256 start, uint256 end, uint256 dataLength);
+
+    /**
+    * Header at height `height` has already been relayed.
+    * @param height Block height of the header being relayed.
+    */
+    error HeaderAlreadyRelayed(uint256 height);
+
+    /**
+    * Insufficient signatures to validate header. The total syms of stakers whose signatures were
+    * able to be validated (`signerSyms`) must be greater than 2/3 of the total staked syms for
+    * that epoch (`epochSyms`).
+    * @param signerSyms Total syms of stakers whose signatures were verified in this transaction.
+    * @param epochSyms Total amount of syms for the epoch.
+    */
+    error InsufficientSignatures(uint256 signerSyms, uint256 epochSyms);
+
+    /**
+    * The length of the signatures array (`signaturesLength`) must be exactly twice the length of
+    * the signers array (`sigersLength`).
+    * @param signersLength Length of the bytes32 array containing staker public keys.
+    * @param signaturesLength Length of the bytes32 array containing the staker signatures.
+    */
+    error InvalidSignatures(uint256 signersLength, uint256 signaturesLength);
+
+    /**
+    * The transaction was unable to be verified. This could be because of incorrect serialization
+    * of the transaction, incorrect block height, incorrect transaction index, or improperly
+    * formatted Merkle proof.
+    */
+    error TxNotVerified();
+
+    /**
+    * The header at block height `height` has not been relayed yet. Please relay it before
+    * attempting to verify transactions at that block height.
+    * @param height Block height of the header in which the transaction was included.
+    */
+    error MissingHeader(uint256 height);
 
     Blake3Sol blake3 = new Blake3Sol();
 
@@ -71,17 +111,21 @@ contract ThemelioBridge is ERC20 {
         bytes32[] stakers,
         uint256[] symsStaked
     );
+
     event HeaderRelayed(
         uint256 indexed height
     );
+
     event TxVerified(
         bytes32 indexed tx_hash,
         uint256 indexed height
     );
+
     event TokensMinted(
         address indexed recipient,
         uint256 indexed value
     );
+
     event TokensBurned(
         address indexed recipient,
         uint256 indexed value,
@@ -192,10 +236,14 @@ contract ThemelioBridge is ERC20 {
         bytes32[] calldata signers_,
         bytes32[] calldata signatures_
     ) external returns (bool) {
-        require(signatures_.length == signers_.length * 2, ERR_INVALID_SIGNATURES);
+        if (signatures_.length != signers_.length * 2) {
+            revert InvalidSignatures(signers_.length, signatures_.length);
+        }
 
         uint256 blockHeight = _extractBlockHeight(header_);
-        require(headers[blockHeight].length == 0, ERR_ALREADY_RELAYED);
+        if (headers[blockHeight].length != 0) {
+            revert HeaderAlreadyRelayed(blockHeight);
+        }
 
         uint256 epochSyms = epochs[blockHeight / EPOCH_LENGTH].totalStakedSyms;
         uint256 totalSignerSyms = 0;
@@ -214,7 +262,9 @@ contract ThemelioBridge is ERC20 {
             }
         }
 
-        require(totalSignerSyms > ((epochSyms * 2) / 3), ERR_INSUFFICIENT_SIGNATURES);
+        if (totalSignerSyms <= ((epochSyms * 2) / 3)) {
+            revert InsufficientSignatures(totalSignerSyms, epochSyms);
+        }
 
         headers[blockHeight] = header_;
         emit HeaderRelayed(blockHeight);
@@ -253,7 +303,9 @@ contract ThemelioBridge is ERC20 {
         bytes32[] calldata proof_
     ) external returns (bool) {
         bytes memory header = headers[blockHeight_];
-        require(header.length > 0, ERR_UNRELAYED_HEADER);
+        if (header.length == 0) {
+            revert MissingHeader(blockHeight_);
+        }
 
         bytes32 merkleRoot = _extractMerkleRoot(header);
         bytes32 txHash = _hashDatablock(transaction_);
@@ -266,9 +318,7 @@ contract ThemelioBridge is ERC20 {
 
             return true;
         } else {
-            require(false, ERR_TX_UNVERIFIED);
-
-            return false;
+            revert TxNotVerified();
         }
     }
 
@@ -332,12 +382,9 @@ contract ThemelioBridge is ERC20 {
         uint256 dataLength = data.length;
 
         if (start <= end) {
-            require(
-                start < dataLength &&
-                start >= 0 &&
-                end <= dataLength,
-                ERR_OUT_OF_BOUNDS
-            );
+            if (!(start < dataLength && start >= 0 && end <= dataLength)) {
+                revert OutOfBoundsSlice(start, end, dataLength);
+            }
 
             uint256 sliceLength = end - start;
             bytes memory dataSlice = new bytes(sliceLength);
@@ -348,12 +395,13 @@ contract ThemelioBridge is ERC20 {
 
             return dataSlice;
         } else {
-            require(
-                start < dataLength &&
-                start >= 0 &&
-                int256(end) >= -1,
-                ERR_OUT_OF_BOUNDS
-            );
+            if (!(start < dataLength && start >= 0 && int256(end) >= -1)) {
+                revert OutOfBoundsSlice({
+                    start: start,
+                    end: end,
+                    dataLength: dataLength
+                });
+            }
 
             uint256 sliceLength = start - end;
             bytes memory dataSlice = new bytes(sliceLength);
