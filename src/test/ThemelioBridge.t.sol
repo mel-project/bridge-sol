@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.10;
 
-import 'ds-test/test.sol';
+import 'forge-std/Test.sol';
 import '../ThemelioBridge.sol';
 
 uint256 constant EPOCH_LENGTH = 200_000;
 
-contract ThemelioBridgeTest is ThemelioBridge {//, DSTest {
+contract ThemelioBridgeTest is ThemelioBridge, Test {
     function testDecimals() public {
         uint256 decimals = decimals();
 
@@ -198,7 +198,7 @@ contract ThemelioBridgeTest is ThemelioBridge {//, DSTest {
     }
 }
 
-contract ThemelioBridgeTestInternalCalldata is DSTest {
+contract ThemelioBridgeTestInternalCalldata is Test {
     ThemelioBridgeTest bridgeTest;
 
     function setUp() public {
@@ -326,6 +326,8 @@ contract ThemelioBridgeTestInternalCalldata is DSTest {
     }
 
     function testFailRelayHeader() public {
+        vm.expectRevert(ThemelioBridge.InsufficientSignatures);
+
         bytes memory header = abi.encodePacked(
             bytes32(0xffa011c4104d79413ef82b91c5dc1d93991b144d0a5c388f56c49997cb90fe61),
             bytes32(0xdcfd90cade26f7d43c1dae753f62c43a2e9e8980092d74b176d44e66934e7d4f),

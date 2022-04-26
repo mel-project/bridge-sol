@@ -4,7 +4,6 @@ pragma solidity 0.8.10;
 import 'blake3-sol/Blake3Sol.sol';
 import 'ed25519-sol/Ed25519.sol';
 import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
-import 'ds-test/test.sol'; // remove
 
 /**
 * @title ThemelioBridge: A relay bridge for transferring Themelio assets to Ethereum and back
@@ -41,7 +40,7 @@ import 'ds-test/test.sol'; // remove
 *
 *      Questions or concerns? Come chat with us on Discord! https://discord.com/invite/VedNp7EXFc
 */
-contract ThemelioBridge is ERC20, DSTest {
+contract ThemelioBridge is ERC20 {
     /* =========== Themelio Staker Set and Header Storage =========== */
 
     // EpochInfo contains all relevent epoch information required for Themelio header validation
