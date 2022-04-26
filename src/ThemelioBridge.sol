@@ -4,6 +4,7 @@ pragma solidity 0.8.10;
 import 'blake3-sol/Blake3Sol.sol';
 import 'ed25519-sol/Ed25519.sol';
 import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
+import 'ds-test/test.sol'; // remove
 
 /**
 * @title ThemelioBridge: A relay bridge for transferring Themelio assets to Ethereum and back
@@ -16,16 +17,18 @@ import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 *         contract previously existing on the Themelio network. Check us out at
 *         https://themelio.org !
 *
-* @dev Themelio staker sets are verified per epoch, with each epoch's staker set being verified by
-*      the previous epoch's staker set using ed25519 signature verification (the base epoch being
-*      introduced manually in the constructor, which can very easily be verified manually).
+* @dev Themelio staker sets are verified per epoch (each epoch comprising 200,000 blocks), with
+*      each epoch's staker set being verified by the previous epoch's staker set using ed25519
+*      signature verification (the base epoch staker set being introduced manually in the
+*      constructor, the authenticity of which can be verified very easily by manually checking that
+*      that it coincides with the epoch's staker set on-chain).
 *
 *      Themelio block headers are validated by verifying that the included staker signatures
 *      are authentic (using ed25519 signature verification) and that the total syms staked by all
 *      stakers that signed the header are greater than 2/3 of the total staked syms for that epoch.
 *
 *      Transactions are verified using the 'transactions_root' Merkle root of
-*      their respective block headers by including a Merkle proof which is used to verify the
+*      their respective block headers by including a Merkle proof which is used to verify that the
 *      transaction is a member of the 'transactions_root' tree. Upon successful verification of
 *      a compliant transaction, the specified amount of Themelio assets are minted on the
 *      Ethereum network as tokens and transferred to the address specified in the
@@ -34,11 +37,11 @@ import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 *      To transfer tokenized Themelio assets back to the Themelio network the token holder must
 *      burn their tokens on the Ethereum network and use the resulting transaction as a receipt
 *      which must be submitted to the sister contract on the Themelio network to release the
-*      specified assets.
+*      locked assets.
 *
 *      Questions or concerns? Come chat with us on Discord! https://discord.com/invite/VedNp7EXFc
 */
-contract ThemelioBridge is ERC20 {
+contract ThemelioBridge is ERC20, DSTest {
     /* =========== Themelio Staker Set and Header Storage =========== */
 
     // EpochInfo contains all relevent epoch information required for Themelio header validation
@@ -51,12 +54,14 @@ contract ThemelioBridge is ERC20 {
     mapping(uint256 => EpochInfo) public epochs; // necessary for validating headers
 
     /* =========== Constants =========== */
+
     uint256 private constant EPOCH_LENGTH = 200_000;
 
     bytes32 private immutable DATA_BLOCK_HASH_KEY; // todo: precompute these
     bytes32 private immutable NODE_HASH_KEY;
 
     /* =========== Errors =========== */
+
     /**
     * Slice is out of bounds. `start` must be greater than -1 and less than `dataLength`. `end`
     * must be greater than -2 and less than `dataLength` + 1.
@@ -106,6 +111,7 @@ contract ThemelioBridge is ERC20 {
     Blake3Sol blake3 = new Blake3Sol();
 
     /* =========== Bridge Events =========== */
+
     event StakersRelayed(
         uint256 indexed epoch,
         bytes32[] stakers,
@@ -147,6 +153,7 @@ contract ThemelioBridge is ERC20 {
     }
 
     /* =========== ERC-20 Functions =========== */
+
     /**
     * @notice Returns the number of decimals in wrapped mel (wMEL).
     *
@@ -178,8 +185,9 @@ contract ThemelioBridge is ERC20 {
     }
 
     /* =========== Themelio Staker Set, Header, and Transaction Verification =========== */
+
     /**
-    * @notice This is a temporary implementation for purposes of more easily testing on Ethereum
+    * @notice This is a temporary implementation for the purpose to facilitate testing on Ethereum
     *         testnets.
     *
     * @dev
@@ -336,10 +344,20 @@ contract ThemelioBridge is ERC20 {
     * @return The blake3 keyed hash of a Merkle tree datablock input argument.
     */
     function _hashDatablock(bytes memory datablock) internal returns (bytes32) {
+        uint256 memPtr;
+        assembly {
+            memPtr := mload(0x40)
+        }
+
         Hasher memory hasher = blake3.new_keyed(abi.encodePacked(DATA_BLOCK_HASH_KEY));
         hasher = blake3.update_hasher(hasher, datablock);
+        bytes32 hash = bytes32(blake3.finalize(hasher));
 
-        return bytes32(blake3.finalize(hasher));
+        assembly {
+            mstore(0x40, memPtr)
+        }
+
+        return hash;
     }
 
     /**
@@ -354,17 +372,27 @@ contract ThemelioBridge is ERC20 {
     * @return The blake3 keyed hash of two concatenated Merkle tree nodes.
     */
     function _hashNodes(bytes memory nodes) internal returns (bytes32) {
+        uint256 memPtr;
+        assembly {
+            memPtr := mload(0x40)
+        }
+
         Hasher memory hasher = blake3.new_keyed(abi.encodePacked(NODE_HASH_KEY));
         hasher = blake3.update_hasher(hasher, nodes);
+        bytes32 hash = bytes32(blake3.finalize(hasher));
 
-        return bytes32(blake3.finalize(hasher));
+        assembly {
+            mstore(0x40, memPtr)
+        }
+
+        return hash;
     }
 
     /**
     * @notice Slices the `data` argument from its `start` index (inclusive) to its
-    *         `end` index (exclusive), and returns the slice as new 'bytes' array.
+    *         `end` index (exclusive), and returns the slice as a new 'bytes' array.
     *
-    * @dev Additionaly, can also return 'inverted slices' where `start` > `end` in order to better
+    * @dev It can also return 'inverted slices' where `start` > `end` in order to better
     *      accomodate switching between big and little endianness in incompatible systems.
     *
     * @param data The data to be sliced, in bytes.
@@ -610,6 +638,7 @@ contract ThemelioBridge is ERC20 {
             } else {
                 nodes = abi.encodePacked(proof_[i], root);
             }
+
             txIndex /= 2;
             root = _hashNodes(nodes);
         }

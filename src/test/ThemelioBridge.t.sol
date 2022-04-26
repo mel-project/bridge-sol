@@ -6,7 +6,7 @@ import '../ThemelioBridge.sol';
 
 uint256 constant EPOCH_LENGTH = 200_000;
 
-contract ThemelioBridgeTest is ThemelioBridge, DSTest {
+contract ThemelioBridgeTest is ThemelioBridge {//, DSTest {
     function testDecimals() public {
         uint256 decimals = decimals();
 
