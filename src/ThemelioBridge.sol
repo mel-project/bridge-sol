@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.10;
+pragma solidity 0.8.13;
 
 import 'blake3-sol/Blake3Sol.sol';
 import 'ed25519-sol/Ed25519.sol';
@@ -41,6 +41,8 @@ import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 *      Questions or concerns? Come chat with us on Discord! https://discord.com/invite/VedNp7EXFc
 */
 contract ThemelioBridge is ERC20 {
+    using Blake3Sol for Blake3Sol.Hasher;
+
     /* =========== Themelio Staker Set and Header Storage =========== */
 
     // EpochInfo contains all relevent epoch information required for Themelio header validation
@@ -54,10 +56,12 @@ contract ThemelioBridge is ERC20 {
 
     /* =========== Constants =========== */
 
-    uint256 private constant EPOCH_LENGTH = 200_000;
+    uint256 internal constant EPOCH_LENGTH = 200_000;
 
-    bytes32 private immutable DATA_BLOCK_HASH_KEY; // todo: precompute these
-    bytes32 private immutable NODE_HASH_KEY;
+    bytes32 internal constant DATA_BLOCK_HASH_KEY =
+        0xc811f2ef6eb6bd09fb973c747cbf349e682393ca4d8df88e5f0bcd564c10a84b;
+    bytes32 internal constant NODE_HASH_KEY =
+        0xd943cb6e931507cafe2357fbe5cce15af420a84c67251eddb0bf934b7bbbef91;
 
     /* =========== Errors =========== */
 
@@ -107,8 +111,6 @@ contract ThemelioBridge is ERC20 {
     */
     error MissingHeader(uint256 height);
 
-    Blake3Sol blake3 = new Blake3Sol();
-
     /* =========== Bridge Events =========== */
 
     event StakersRelayed(
@@ -138,18 +140,10 @@ contract ThemelioBridge is ERC20 {
     );
 
     /**
-    * @dev   Constructor is only responsible for creating the keyed hash keys and submitting the
-    *        ERC-20 token name and ticker symbol to the ERC-20 constructor.
+    * @dev   Constructor is only responsible for submitting the token name and ticker symbol to the
+    *        ERC-20 constructor.
     */
-    constructor() ERC20 ('wrapped mel', 'wMEL') {
-        Hasher memory node_hasher = blake3.new_hasher();
-        node_hasher = blake3.update_hasher(node_hasher, 'smt_node');
-        NODE_HASH_KEY = bytes32(blake3.finalize(node_hasher));
-
-        Hasher memory datablock_hasher = blake3.new_hasher();
-        datablock_hasher = blake3.update_hasher(datablock_hasher, 'smt_datablock');
-        DATA_BLOCK_HASH_KEY = bytes32(blake3.finalize(datablock_hasher));
-    }
+    constructor() ERC20 ('wrapped mel', 'wMEL') {}
 
     /* =========== ERC-20 Functions =========== */
 
@@ -342,15 +336,15 @@ contract ThemelioBridge is ERC20 {
     *
     * @return The blake3 keyed hash of a Merkle tree datablock input argument.
     */
-    function _hashDatablock(bytes memory datablock) internal returns (bytes32) {
+    function _hashDatablock(bytes memory datablock) internal pure returns (bytes32) {
         uint256 memPtr;
         assembly {
             memPtr := mload(0x40)
         }
 
-        Hasher memory hasher = blake3.new_keyed(abi.encodePacked(DATA_BLOCK_HASH_KEY));
-        hasher = blake3.update_hasher(hasher, datablock);
-        bytes32 hash = bytes32(blake3.finalize(hasher));
+        Blake3Sol.Hasher memory hasher = Blake3Sol.new_keyed(abi.encodePacked(DATA_BLOCK_HASH_KEY));
+        hasher = hasher.update_hasher(datablock);
+        bytes32 hash = bytes32(hasher.finalize());
 
         assembly {
             mstore(0x40, memPtr)
@@ -370,15 +364,15 @@ contract ThemelioBridge is ERC20 {
     *
     * @return The blake3 keyed hash of two concatenated Merkle tree nodes.
     */
-    function _hashNodes(bytes memory nodes) internal returns (bytes32) {
+    function _hashNodes(bytes memory nodes) internal pure returns (bytes32) {
         uint256 memPtr;
         assembly {
             memPtr := mload(0x40)
         }
 
-        Hasher memory hasher = blake3.new_keyed(abi.encodePacked(NODE_HASH_KEY));
-        hasher = blake3.update_hasher(hasher, nodes);
-        bytes32 hash = bytes32(blake3.finalize(hasher));
+        Blake3Sol.Hasher memory hasher = Blake3Sol.new_keyed(abi.encodePacked(NODE_HASH_KEY));
+        hasher = hasher.update_hasher(nodes);
+        bytes32 hash = bytes32(hasher.finalize());
 
         assembly {
             mstore(0x40, memPtr)
@@ -627,7 +621,7 @@ contract ThemelioBridge is ERC20 {
         bytes32 txHash,
         uint256 txIndex,
         bytes32[] calldata proof_
-    ) internal returns (bytes32) {
+    ) internal pure returns (bytes32) {
         bytes32 root = txHash;
         bytes memory nodes;
 

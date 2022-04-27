@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.10;
+pragma solidity 0.8.13;
 
 import 'forge-std/Test.sol';
 import '../ThemelioBridge.sol';
@@ -7,6 +7,8 @@ import '../ThemelioBridge.sol';
 uint256 constant EPOCH_LENGTH = 200_000;
 
 contract ThemelioBridgeTest is ThemelioBridge, Test {
+    using Blake3Sol for Blake3Sol.Hasher;
+
     function testDecimals() public {
         uint256 decimals = decimals();
 
@@ -24,9 +26,9 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
     }
 
     function testBlake3Hasher() public {
-        Hasher memory hasher = blake3.new_hasher();
-        hasher = blake3.update_hasher(hasher, unicode'hellohello?');
-        bytes memory output = blake3.finalize(hasher);
+        Blake3Sol.Hasher memory hasher = Blake3Sol.new_hasher();
+        hasher = hasher.update_hasher(unicode'hellohello?');
+        bytes memory output = hasher.finalize();
 
         assertEq(
             bytes32(output),
@@ -35,9 +37,9 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
     }
 
     function testBlake3KeyedHasher() public {
-        Hasher memory hasher = blake3.new_keyed(unicode'hellohello!');
-        hasher = blake3.update_hasher(hasher, unicode'hellohello?');
-        bytes memory output = blake3.finalize(hasher);
+        Blake3Sol.Hasher memory hasher = Blake3Sol.new_keyed(unicode'hellohello!');
+        hasher = hasher.update_hasher(unicode'hellohello?');
+        bytes memory output = hasher.finalize();
 
         assertEq(
             bytes32(output),
