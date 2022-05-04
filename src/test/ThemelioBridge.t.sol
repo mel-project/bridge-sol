@@ -9,6 +9,10 @@ uint256 constant EPOCH_LENGTH = 200_000;
 contract ThemelioBridgeTest is ThemelioBridge, Test {
     using Blake3Sol for Blake3Sol.Hasher;
 
+    function testName() public {}
+
+    function testSymbol() public {}
+
     function testDecimals() public {
         uint256 decimals = decimals();
 
@@ -16,7 +20,7 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
     }
 
     function testEd25519() public {
-        bytes memory message = abi.encodePacked("The foundation of a trustless Internet");
+        bytes memory message = abi.encodePacked('The foundation of a trustless Internet');
         bytes32 publicKey = 0xd82042fffbb34d09630aa9c56a2c3f0f2be196f28aaea9cc7332b509c7fc69da;
         bytes32 r = 0x8854ac521549d8d45d1743d187d8da9ea15d7ece91d0024cac14ad344a0206e2;
         bytes32 S = 0x0101137835043d999fe08b6e946cf5f120a5eaa10681dfa698c963d4ba65220c;
@@ -24,6 +28,21 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         bool success = Ed25519.verify(publicKey, r, S, message);
         assertTrue(success);
     }
+
+    function testEd25519Differential() public {
+        string[] memory cmds = new string[](2);
+
+        cmds[0] = 'cargo';
+        cmds[1] = 'run';
+        cmds[2] = '~/dev/bridge-utils/target/debug/bridge-utils';
+
+        bytes memory result = vm.ffi(cmds);
+        string memory result2 = abi.decode(result, (string));
+
+        emit log(result2);
+    }
+
+    function testBlake3Differential() public {}
 
     function testBlake3Hasher() public {
         Blake3Sol.Hasher memory hasher = Blake3Sol.new_hasher();
