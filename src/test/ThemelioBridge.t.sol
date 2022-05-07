@@ -3,13 +3,17 @@ pragma solidity 0.8.13;
 
 import 'forge-std/Test.sol';
 import '../ThemelioBridge.sol';
+import './utils/ByteStrings.sol';
 
 uint256 constant EPOCH_LENGTH = 200_000;
 
 contract ThemelioBridgeTest is ThemelioBridge, Test {
     using Blake3Sol for Blake3Sol.Hasher;
+    using ByteStrings for bytes;
 
     function testName() public {}
+
+    function testBurn() public {}
 
     function testSymbol() public {}
 
@@ -29,20 +33,22 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         assertTrue(success);
     }
 
-    function testEd25519Differential() public {
-        string[] memory cmds = new string[](2);
+    function testBlake3Differential(bytes memory data) public {
+        string[] memory cmds = new string[](3);
 
-        cmds[0] = 'cargo';
-        cmds[1] = 'run';
-        cmds[2] = '~/dev/bridge-utils/target/debug/bridge-utils';
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[1] = '--blake3';
+        cmds[2] = data.toHexString();
 
         bytes memory result = vm.ffi(cmds);
-        string memory result2 = abi.decode(result, (string));
+        bytes32 rustHash = abi.decode(result, (bytes32));
 
-        emit log(result2);
+        bytes32 solHash = _hashNodes(data);
+
+        assertEq(solHash, rustHash);
     }
 
-    function testBlake3Differential() public {}
+    function testEd25519Differential() public {}
 
     function testBlake3Hasher() public {
         Blake3Sol.Hasher memory hasher = Blake3Sol.new_hasher();

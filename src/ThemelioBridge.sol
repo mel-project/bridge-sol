@@ -134,7 +134,7 @@ contract ThemelioBridge is ERC20 {
     );
 
     event TokensBurned(
-        address indexed recipient,
+        address indexed sender,
         uint256 indexed value,
         bytes32 indexed themelioRecipient
     );
@@ -337,20 +337,10 @@ contract ThemelioBridge is ERC20 {
     * @return The blake3 keyed hash of a Merkle tree datablock input argument.
     */
     function _hashDatablock(bytes memory datablock) internal pure returns (bytes32) {
-        uint256 memPtr;
-        assembly {
-            memPtr := mload(0x40)
-        }
-
         Blake3Sol.Hasher memory hasher = Blake3Sol.new_keyed(abi.encodePacked(DATA_BLOCK_HASH_KEY));
         hasher = hasher.update_hasher(datablock);
-        bytes32 hash = bytes32(hasher.finalize());
 
-        assembly {
-            mstore(0x40, memPtr)
-        }
-
-        return hash;
+        return bytes32(hasher.finalize());
     }
 
     /**
@@ -365,20 +355,10 @@ contract ThemelioBridge is ERC20 {
     * @return The blake3 keyed hash of two concatenated Merkle tree nodes.
     */
     function _hashNodes(bytes memory nodes) internal pure returns (bytes32) {
-        uint256 memPtr;
-        assembly {
-            memPtr := mload(0x40)
-        }
-
         Blake3Sol.Hasher memory hasher = Blake3Sol.new_keyed(abi.encodePacked(NODE_HASH_KEY));
         hasher = hasher.update_hasher(nodes);
-        bytes32 hash = bytes32(hasher.finalize());
-
-        assembly {
-            mstore(0x40, memPtr)
-        }
-
-        return hash;
+        
+        return bytes32(hasher.finalize());
     }
 
     /**
@@ -603,7 +583,7 @@ contract ThemelioBridge is ERC20 {
     /**
     * @notice Computes the a Merkle root given a hash and a Merkle proof.
     *
-    * @dev Hashes an original 'tx_hash' together with each hash in a Merkle proof in order to
+    * @dev Hashes a transaction's hash together with each hash in a Merkle proof in order to
     *      derive a Merkle root.
     *
     * @param txHash The hash of a serialized Themelio transaction.
