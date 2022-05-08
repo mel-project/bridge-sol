@@ -25,11 +25,11 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
 
     function testEd25519() public {
         bytes memory message = abi.encodePacked('The foundation of a trustless Internet');
-        bytes32 publicKey = 0xd82042fffbb34d09630aa9c56a2c3f0f2be196f28aaea9cc7332b509c7fc69da;
+        bytes32 signer = 0xd82042fffbb34d09630aa9c56a2c3f0f2be196f28aaea9cc7332b509c7fc69da;
         bytes32 r = 0x8854ac521549d8d45d1743d187d8da9ea15d7ece91d0024cac14ad344a0206e2;
         bytes32 S = 0x0101137835043d999fe08b6e946cf5f120a5eaa10681dfa698c963d4ba65220c;
 
-        bool success = Ed25519.verify(publicKey, r, S, message);
+        bool success = Ed25519.verify(signer, r, S, message);
         assertTrue(success);
     }
 
@@ -48,7 +48,20 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         assertEq(solHash, rustHash);
     }
 
-    function testEd25519Differential() public {}
+    function testEd25519Differential(bytes memory message) public {
+        string[] memory cmds = new string[](3);
+
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[1] = '--ed25519';
+        cmds[2] = message.toHexString();
+
+        bytes memory result = vm.ffi(cmds);
+        emit log_bytes(result);
+
+        (bytes32 signer, bytes32 r, bytes32 S) = abi.decode(result, (bytes32, bytes32, bytes32));
+
+        assertTrue(Ed25519.verify(signer, r, S, message));
+    }
 
     function testBlake3Hasher() public {
         Blake3Sol.Hasher memory hasher = Blake3Sol.new_hasher();
