@@ -4,6 +4,7 @@ pragma solidity 0.8.13;
 import 'forge-std/Test.sol';
 import '../ThemelioBridge.sol';
 import './utils/ByteStrings.sol';
+import 'openzeppelin-contracts/contracts/utils/Strings.sol';
 
 uint256 constant EPOCH_LENGTH = 200_000;
 
@@ -31,36 +32,6 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
 
         bool success = Ed25519.verify(signer, r, S, message);
         assertTrue(success);
-    }
-
-    function testBlake3Differential(bytes memory data) public {
-        string[] memory cmds = new string[](3);
-
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-        cmds[1] = '--blake3';
-        cmds[2] = data.toHexString();
-
-        bytes memory result = vm.ffi(cmds);
-        bytes32 rustHash = abi.decode(result, (bytes32));
-
-        bytes32 solHash = _hashNodes(data);
-
-        assertEq(solHash, rustHash);
-    }
-
-    function testEd25519Differential(bytes memory message) public {
-        string[] memory cmds = new string[](3);
-
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-        cmds[1] = '--ed25519';
-        cmds[2] = message.toHexString();
-
-        bytes memory result = vm.ffi(cmds);
-        emit log_bytes(result);
-
-        (bytes32 signer, bytes32 r, bytes32 S) = abi.decode(result, (bytes32, bytes32, bytes32));
-
-        assertTrue(Ed25519.verify(signer, r, S, message));
     }
 
     function testBlake3Hasher() public {
@@ -236,9 +207,59 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
     function verifyTxTestHelper(bytes calldata header, uint256 blockHeight) public {
         headers[blockHeight] = header;
     }
+
+        /* =========== Differential Fuzz Tests =========== */
+    function testBlake3DifferentialFFI(bytes memory data) public {
+        string[] memory cmds = new string[](3);
+
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[1] = '--blake3';
+        cmds[2] = data.toHexString();
+
+        bytes memory result = vm.ffi(cmds);
+        bytes32 rustHash = abi.decode(result, (bytes32));
+
+        bytes32 solHash = _hashNodes(data);
+
+        assertEq(solHash, rustHash);
+    }
+
+    function testEd25519DifferentialFFI(bytes memory message) public {
+        string[] memory cmds = new string[](3);
+
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[1] = '--ed25519';
+        cmds[2] = message.toHexString();
+
+        bytes memory result = vm.ffi(cmds);
+        emit log_bytes(result);
+
+        (bytes32 signer, bytes32 r, bytes32 S) = abi.decode(result, (bytes32, bytes32, bytes32));
+
+        assertTrue(Ed25519.verify(signer, r, S, message));
+    }
+
+    function testSliceDifferentialFFI() public {}
+
+    function decodeIntegerDifferentialFFIHelper(bytes calldata data)
+        public pure returns (uint256) {
+        return _decodeInteger(data, 0);
+    }
+
+    function testEncodedIntegerSizeDifferentialFFI() public {}
+
+    function testExtractMerkleRootDifferentialFFI() public {}
+
+    function testExtractBlockHeightDifferentialFFI() public {}
+
+    function testExtractValueAndRecipientDifferentialFFI() public {}
+
+    function testExtractTokenTypeDifferentialFFI() public {}
 }
 
 contract ThemelioBridgeTestInternalCalldata is Test {
+    using Strings for uint;
+
     ThemelioBridgeTest bridgeTest;
 
     function setUp() public {
@@ -482,5 +503,19 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
         uint256 recipientBalance = bridgeTest.balanceOf(recipient);
         assertEq(recipientBalance, value);
+    }
+
+        /* =========== Differential Fuzz Tests =========== */
+    function testDecodeIntegerDifferentialFFI(uint128 integer) public {
+        string[] memory cmds = new string[](3);
+
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[1] = '--decode-integer';
+        cmds[2] = uint256(integer).toString();
+
+        bytes memory result = vm.ffi(cmds);
+        uint256 decodedInteger = bridgeTest.decodeIntegerDifferentialFFIHelper(result);
+
+        assertEq(decodedInteger, integer);
     }
 }
