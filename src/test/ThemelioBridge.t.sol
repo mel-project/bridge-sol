@@ -529,6 +529,55 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         assertEq(recipientBalance, value);
     }
 
+    function testCannotVerifyTxTwice() public {
+        bytes memory header = abi.encodePacked(
+            bytes32(0xffa1b613c71ca1f47c6a45545d890cba063880070509cf4541f02e22e3b28ddc),
+            bytes32(0x8cfd8eadc4328ab75ea2ea46ded74db70b4f05a3612857293f309efc84530d8e),
+            bytes32(0x78d6cf8dabc39fdc3894b4cea0b16e0f68ac0ed5879663b3a48e6a1147e52c98),
+            bytes32(0x6f584d94ade7ed7e589c580997689374a72c83aaa25fd2517e1e60c17034413d),
+            bytes32(0x513e090435941fb318cefe8bfccde8afa6e9647f90002c43c6f357fe4b634e35),
+            bytes32(0xb09f97f57be427435337f529fe05bc948f2af0adb2deb26e4bc2efe9b4cbe98b),
+            bytes32(0x3c9b3bdd656aab25f358cad06af43a4802d474341db980c9d9d6c81ab4f7490f),
+            bytes29(0xc7be550aefa27eb01a33d51138deda54823601f2f87283ce88f04a5831)
+        );
+        uint256 blockHeight = 11699990686140247438;
+
+        bytes memory transaction = abi.encodePacked(
+            bytes32(0x5101ac47ce6d06e6b937043484412f7f8ecffc5227284f81e5d5d093d5c4c57d),
+            bytes32(0x0ba71202766a5980aa7d6c7c05294d217eb09872ea8579fbb4e7ed129fa2140f),
+            bytes32(0xee549cc9fe0f9c28281dfe5cca35b0647af83c3b73016d14762346cea1cb891d),
+            bytes32(0xbc4b30d328598f4c9568227de69e61600cd3347a796664f34e4cb1e0b31f453b),
+            bytes32(0xb8fa84e20ac43b36074a4394feb61cd4ef5a811fd2f8144b8b3f3a8a10016d00),
+            bytes26(0xfe113c98493ad256720c5f8cfb32000af301018c028a8101018f)
+        );
+        uint256 txIndex = 3;
+
+        bytes32[] memory proof = new bytes32[](2);
+        proof[0] = 0x1a2582eb25c727ff0d4fe22c9d921e2b6186b6160a2c72f0fb8cb2e5f126bfb1;
+        proof[1] = 0xf12599cbd9d49c0aad7aa00257dd4a1dd2b1a41b7b71cebc7a8217a121586339;
+
+        uint256 value = 153168801660958298760728062610398288911;
+        address recipient = 0x762346cea1cb891dbC4b30d328598F4c9568227d;
+
+        bridgeTest.verifyTxTestHelper(header, blockHeight);
+
+        bool success = bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
+        assertTrue(success);
+
+        uint256 recipientBalance = bridgeTest.balanceOf(recipient);
+        assertEq(recipientBalance, value);
+
+        // expect a revert due to already verified tx
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ThemelioBridge.TxAlreadyVerified.selector,
+                0xd0deea06e5ab0f53bd4e7c64ec733c815ab200a70d11db3dcb55553343157b7f
+            )
+        );
+
+        bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
+    }
+
         /* =========== Differential Fuzz Tests =========== */
     function testDecodeIntegerDifferentialFFI(uint128 integer) public {
         string[] memory cmds = new string[](3);

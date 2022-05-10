@@ -53,6 +53,7 @@ contract ThemelioBridge is ERC20 {
 
     mapping(uint256 => bytes) public headers; // necessary for validating transactions
     mapping(uint256 => EpochInfo) public epochs; // necessary for validating headers
+    mapping(bytes32 => bool) public spends; // keeps track of successful token redemptions
 
     /* =========== Constants =========== */
 
@@ -96,6 +97,13 @@ contract ThemelioBridge is ERC20 {
     * @param signaturesLength Length of the bytes32 array containing the staker signatures.
     */
     error InvalidSignatures(uint256 signersLength, uint256 signaturesLength);
+
+    /**
+    * Transactions can only be verified once. The transaction with hash `txHash` has previously
+    * been verified.
+    * @param txHash The hash of the transaction that has already been verified.
+    */
+    error TxAlreadyVerified(bytes32 txHash);
 
     /**
     * The transaction was unable to be verified. This could be because of incorrect serialization
@@ -311,7 +319,13 @@ contract ThemelioBridge is ERC20 {
         bytes32 merkleRoot = _extractMerkleRoot(header);
         bytes32 txHash = _hashDatablock(transaction_);
 
+        if(spends[txHash] == true) {
+            revert TxAlreadyVerified(txHash);
+        }
+
         if (_computeMerkleRoot(txHash, txIndex_, proof_) == merkleRoot) {
+            spends[txHash] = true;
+
             (uint256 value, address recipient) = _extractValueAndRecipient(transaction_);
             _mint(recipient, value);
 
