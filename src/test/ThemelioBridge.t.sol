@@ -11,6 +11,7 @@ uint256 constant EPOCH_LENGTH = 200_000;
 contract ThemelioBridgeTest is ThemelioBridge, Test {
     using Blake3Sol for Blake3Sol.Hasher;
     using ByteStrings for bytes;
+    using Strings for uint256;
 
     function testName() public {}
 
@@ -212,7 +213,7 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
     function testBlake3DifferentialFFI(bytes memory data) public {
         string[] memory cmds = new string[](3);
 
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
         cmds[1] = '--blake3';
         cmds[2] = data.toHexString();
 
@@ -227,19 +228,42 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
     function testEd25519DifferentialFFI(bytes memory message) public {
         string[] memory cmds = new string[](3);
 
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
         cmds[1] = '--ed25519';
         cmds[2] = message.toHexString();
 
         bytes memory result = vm.ffi(cmds);
-        emit log_bytes(result);
 
         (bytes32 signer, bytes32 r, bytes32 S) = abi.decode(result, (bytes32, bytes32, bytes32));
 
         assertTrue(Ed25519.verify(signer, r, S, message));
     }
 
-    function testSliceDifferentialFFI() public {}
+    function testSliceDifferentialFFI(bytes memory data, uint8 start, uint8 end) public {
+        uint256 dataLength = data.length;
+
+        if (start <= end) {
+            vm.assume(start >= 0 && end <= dataLength);
+        } else {
+            vm.assume(start < dataLength && end >= 0);
+        }
+
+        string[] memory cmds = new string[](7);
+
+        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[1] = '--slice';
+        cmds[2] = data.toHexString();
+        cmds[3] = '--start';
+        cmds[4] = uint256(start).toString();
+        cmds[5] = '--end';
+        cmds[6] = uint256(end).toString();
+
+        bytes memory results = vm.ffi(cmds);
+
+        bytes memory slice = _slice(data, start, end);
+
+        assertEq(slice, results);
+    }
 
     function decodeIntegerDifferentialFFIHelper(bytes calldata data)
         public pure returns (uint256) {
@@ -509,7 +533,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     function testDecodeIntegerDifferentialFFI(uint128 integer) public {
         string[] memory cmds = new string[](3);
 
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
         cmds[1] = '--decode-integer';
         cmds[2] = uint256(integer).toString();
 

@@ -378,12 +378,13 @@ contract ThemelioBridge is ERC20 {
     */
     function _slice(
         bytes memory data,
-        uint256 start, uint256 end
+        uint256 start,
+        uint256 end
     ) internal pure returns (bytes memory) {
         uint256 dataLength = data.length;
 
         if (start <= end) {
-            if (!(start < dataLength && start >= 0 && end <= dataLength)) {
+            if (!(start >= 0 && end <= dataLength)) {
                 revert OutOfBoundsSlice(start, end, dataLength);
             }
 
@@ -396,7 +397,7 @@ contract ThemelioBridge is ERC20 {
 
             return dataSlice;
         } else {
-            if (!(start < dataLength && start >= 0 && int256(end) >= -1)) {
+            if (!(start < dataLength && end >= 0)) {
                 revert OutOfBoundsSlice({
                     start: start,
                     end: end,
