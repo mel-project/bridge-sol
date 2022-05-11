@@ -258,11 +258,11 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         cmds[5] = '--end';
         cmds[6] = uint256(end).toString();
 
-        bytes memory results = vm.ffi(cmds);
+        bytes memory result = vm.ffi(cmds);
 
         bytes memory slice = _slice(data, start, end);
 
-        assertEq(slice, results);
+        assertEq(slice, result);
     }
 
     function decodeIntegerDifferentialFFIHelper(bytes calldata data)
@@ -270,7 +270,36 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         return _decodeInteger(data, 0);
     }
 
-    function testEncodedIntegerSizeDifferentialFFI() public {}
+    function testEncodedIntegerSizeDifferentialFFI(uint128 integer) public {
+        string[] memory cmds = new string[](3);
+
+        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[1] = '--integer-size';
+        cmds[2] = uint256(integer).toString();
+
+        bytes memory result = vm.ffi(cmds);
+
+        (bytes memory encodedInteger, uint256 integerSize) = abi.decode(result, (bytes, uint256));
+
+        uint256 encodedIntegerSize = _encodedIntegerSize(encodedInteger, 0);
+
+        assertEq(encodedIntegerSize, integerSize);
+    }
+
+    // function testEncodedIntegerSizeDifferentialFFI(bytes data, uint256 offset) public {
+    //     uint256 integer = 983598103915;
+
+    //     string[] memory cmds = new string[](3);
+
+    //     cmds[0] = '../bridge-differential-tests/target/debug/bridge_differential_tests';
+    //     cmds[1] = '--integer-size';
+    //     cmds[2] = uint256(integer).toString();
+
+    //     //bytes memory result = vm.ffi(cmds);
+    //     (uint256 encodedInteger, uint256 integerSize) = abi.decode(result, (uint256, uint256));
+
+    //     //uint256 encodedIntegerSize = _encodedIntegerSize()
+    // }
 
     function testExtractMerkleRootDifferentialFFI() public {}
 
