@@ -286,22 +286,21 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         assertEq(encodedIntegerSize, integerSize);
     }
 
-    // function testEncodedIntegerSizeDifferentialFFI(bytes data, uint256 offset) public {
-    //     uint256 integer = 983598103915;
+    function testExtractMerkleRootDifferentialFFI(uint128 modifierNum) public {
+        string[] memory cmds = new string[](3);
 
-    //     string[] memory cmds = new string[](3);
+        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[1] = '--extract-merkle-root';
+        cmds[2] = uint256(modifierNum).toString();
 
-    //     cmds[0] = '../bridge-differential-tests/target/debug/bridge_differential_tests';
-    //     cmds[1] = '--integer-size';
-    //     cmds[2] = uint256(integer).toString();
+        bytes memory result = vm.ffi(cmds);
 
-    //     //bytes memory result = vm.ffi(cmds);
-    //     (uint256 encodedInteger, uint256 integerSize) = abi.decode(result, (uint256, uint256));
+        (bytes memory header, bytes32 merkleRoot) = abi.decode(result, (bytes, bytes32));
 
-    //     //uint256 encodedIntegerSize = _encodedIntegerSize()
-    // }
+        bytes32 extractedMerkleRoot = _extractMerkleRoot(header);
 
-    function testExtractMerkleRootDifferentialFFI() public {}
+        assertEq(extractedMerkleRoot, merkleRoot);
+    }
 
     function testExtractBlockHeightDifferentialFFI() public {}
 
