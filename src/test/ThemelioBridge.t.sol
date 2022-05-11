@@ -302,7 +302,12 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         assertEq(extractedMerkleRoot, merkleRoot);
     }
 
-    function testExtractBlockHeightDifferentialFFI() public {}
+    function extractBlockHeightDifferentialFFIHelper(bytes calldata header)
+        public pure returns (uint256) {
+        uint256 blockHeight = _extractBlockHeight(header);
+
+        return blockHeight;
+    }
 
     function testExtractValueAndRecipientDifferentialFFI() public {}
 
@@ -316,6 +321,15 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
     function setUp() public {
         bridgeTest = new ThemelioBridgeTest();
+    }
+
+    function testCargoBuild() public {
+        string[] memory cmds = new string[](2);
+
+        cmds[0] = 'cargo';
+        cmds[1] = 'build';
+
+        vm.ffi(cmds);
     }
 
     function testDecodeInteger() public {
@@ -618,5 +632,21 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         uint256 decodedInteger = bridgeTest.decodeIntegerDifferentialFFIHelper(result);
 
         assertEq(decodedInteger, integer);
+    }
+
+    function testExtractBlockHeightDifferentialFFI(uint128 modifierNum, uint64 blockHeight) public {
+        string[] memory cmds = new string[](5);
+
+        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[1] = '--extract-block-height';
+        cmds[2] = uint256(blockHeight).toString();
+        cmds[3] = '--modifier';
+        cmds[4] = uint256(modifierNum).toString();
+
+        bytes memory header = vm.ffi(cmds);
+
+        uint256 extractedBlockHeight = bridgeTest.extractBlockHeightDifferentialFFIHelper(header);
+
+        assertEq(extractedBlockHeight, blockHeight);
     }
 }
