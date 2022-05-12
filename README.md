@@ -108,7 +108,7 @@ $ forge build
 ## Testing
 
 To run all tests, including tests which use Foreign Function Interfaces to differentially fuzz test
-our functions against reference implementations in Rust, run:
+our Solidity functions against reference implementations in Rust, run:
 ```
 $ forge test --vvv --ffi
 ```
