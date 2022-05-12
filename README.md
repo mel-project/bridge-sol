@@ -107,7 +107,13 @@ $ forge build
 
 ## Testing
 
-Run:
+To run all tests, including tests which use Foreign Function Interfaces to differentially fuzz test
+our functions against reference implementations in Rust, run:
 ```
-$ env RUST_LOG=forge=trace forge test --vvv
+$ forge test --vvv --ffi
+```
+
+If you only want to run the regular Solidity tests, you can use:
+```
+$ forge test --vvv --no-match-test FFI
 ```
