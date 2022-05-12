@@ -309,13 +309,19 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         return blockHeight;
     }
 
-    function testExtractValueAndRecipientDifferentialFFI() public {}
+    function extractValueAndRecipientDifferentialFFIHelper(bytes calldata header)
+        public pure returns (uint256, address) {
+        (uint256 extractedValue, address extractedRecipient) = _extractValueAndRecipient(header);
+
+        return (extractedValue, extractedRecipient);
+    }
 
     function testExtractTokenTypeDifferentialFFI() public {}
 }
 
 contract ThemelioBridgeTestInternalCalldata is Test {
     using Strings for uint;
+    using ByteStrings for bytes;
 
     ThemelioBridgeTest bridgeTest;
 
@@ -324,10 +330,12 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     }
 
     function testCargoBuild() public {
-        string[] memory cmds = new string[](2);
+        string[] memory cmds = new string[](3);
 
         cmds[0] = 'cargo';
         cmds[1] = 'build';
+        cmds[2] = '--manifest-path';
+        cmds[2] = './src/test/differential/Cargo.toml';
 
         vm.ffi(cmds);
     }
@@ -648,5 +656,29 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         uint256 extractedBlockHeight = bridgeTest.extractBlockHeightDifferentialFFIHelper(header);
 
         assertEq(extractedBlockHeight, blockHeight);
+    }
+
+    function testExtractValueAndRecipientDifferentialFFI(
+        uint128 value,
+        address recipient
+    ) public {
+        string[] memory cmds = new string[](5);
+
+        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[1] = '--extract-value-and-recipient';
+        cmds[2] = uint256(value).toString();
+        cmds[3] = '--recipient';
+        cmds[4] = abi.encodePacked(recipient).toHexString();
+
+        bytes memory header = vm.ffi(cmds);
+
+        (uint256 extractedValue, address extractedRecipient) =
+            bridgeTest.extractValueAndRecipientDifferentialFFIHelper(header);
+        emit log(uint256(value).toString());
+        emit log_uint(extractedValue);
+        emit log_address(extractedRecipient);
+
+        assertEq(extractedValue, value);
+        assertEq(extractedRecipient, recipient);
     }
 }

@@ -564,17 +564,15 @@ contract ThemelioBridge is ERC20 {
         uint256 inputsLength = _decodeInteger(transaction_, offset);
         offset += _encodedIntegerSize(transaction_, offset);
 
-        for (uint256 i = 0; i < inputsLength; ++i) {
-            // aggregate size of each CoinData which is one _hash (32 bytes)
-            // and one u8 integer (1-3 byte encoding)
-            offset += _encodedIntegerSize(transaction_, offset) + 32;
-        }
+        // aggregate size of each CoinData which is one hash (32 bytes) and one u8 integer (1 byte)
+        offset += 33 * inputsLength;
 
         // get the size of the 'outputs' array's length and add to offset along with
         // 'cov_hash' size (32 bytes)
         offset += _encodedIntegerSize(transaction_, offset) + 32;
 
         // decode 'value', aggregate 'value' and 'denom' (2 bytes) size to 'offset'
+        // todo: actually here we need to check the size of 'denom' because it can be 2 or 64 bytes
         uint256 value = _decodeInteger(transaction_, offset);
         offset += _encodedIntegerSize(transaction_, offset) + 2;
 
