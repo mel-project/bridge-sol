@@ -13,16 +13,35 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
     using ByteStrings for bytes;
     using Strings for uint256;
 
-    function testName() public {}
+    function testName() public {
+        string memory name = name();
 
-    function testBurn() public {}
+        assertEq(name, 'wrapped mel');
+    }
 
-    function testSymbol() public {}
+    function testSymbol() public {
+        string memory symbol = symbol();
+
+        assertEq(symbol, 'wMEL');
+    }
 
     function testDecimals() public {
         uint256 decimals = decimals();
 
         assertEq(decimals, 9);
+    }
+
+    function testBurn() public {
+        address user = address(0xffffffffffffffffffff);
+        uint256 oldBalance = balanceOf(user);
+
+        uint256 value = 123456789;
+
+        _mint(user, value);
+
+        uint256 newBalance = balanceOf(user);
+
+        assertEq(newBalance, oldBalance + value);
     }
 
     function testEd25519() public {
