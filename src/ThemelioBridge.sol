@@ -188,36 +188,15 @@ contract ThemelioBridge is ERC20 {
     /* =========== Themelio Staker Set, Header, and Transaction Verification =========== */
 
     /**
-    * @notice This is a temporary implementation for the purpose to facilitate testing on Ethereum
-    *         testnets.
+    * @notice
     *
     * @dev
     *
-    * @param stakers_ A list of staker public keys.
-    *
-    * @param stakerSyms_ A list of integers which correspond to the amount of syms staked by each
-    *        staker, in the same order as `stakers_`.
+    * @param header A serialized Themelio transaction header.
     *
     * @return 'true' if relay was successful, otherwise reverts.
     */
-    function relayStakers(
-        uint256 epoch_,
-        bytes32[] calldata stakers_,
-        uint256[] calldata stakerSyms_
-    ) external returns (bool) {
-        uint256 totalSyms = 0;
-        uint256 stakersLength = stakers_.length;
-
-        for (uint256 i = 0; i < stakersLength; ++i) {
-            epochs[epoch_].stakers[stakers_[i]] = stakerSyms_[i];
-            totalSyms += stakerSyms_[i];
-        }
-
-        epochs[epoch_].totalStakedSyms = totalSyms;
-        emit StakersRelayed(epoch_, stakers_, stakerSyms_);
-
-        return true;
-    }
+    function relayStakers(bytes calldata header) external returns (bool) {}
 
     /**
     * @notice Accepts incoming Themelio headers, validates them by verifying the signatures of
@@ -232,7 +211,7 @@ contract ThemelioBridge is ERC20 {
     *      then the header is successfully validated and is stored for future transaction
     *      verifications.
     *
-    * @param header_ A serialized transaction header.
+    * @param header_ A serialized Themelio transaction header.
     *
     * @param signers_ An array of Themelio staker public keys.
     *
