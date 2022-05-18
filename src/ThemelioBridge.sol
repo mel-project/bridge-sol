@@ -207,7 +207,7 @@ contract ThemelioBridge is ERC20 {
     *      signed the header. Their signatures are included in another accompanying array
     *      (`signatures_`). Each signature is checked using ed25519 verification and their staked
     *      syms are added together. If at the end of the calculations the amount of staked syms
-    *      from stakers that have signed is more than 2/3 of the total staked syms for that epoch
+    *      from stakers that have signed is at least 2/3 of the total staked syms for that epoch
     *      then the header is successfully validated and is stored for future transaction
     *      verifications.
     *
@@ -250,7 +250,7 @@ contract ThemelioBridge is ERC20 {
             }
         }
 
-        if (totalSignerSyms <= ((epochSyms * 2) / 3)) {
+        if (totalSignerSyms < ((epochSyms * 2) / 3)) {
             revert InsufficientSignatures(totalSignerSyms, epochSyms);
         }
 

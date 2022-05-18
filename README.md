@@ -12,7 +12,7 @@ staker set is an array of `StakeDoc`s seen in the [spec](https://docs.themelio.o
 
 Themelio block headers are validated by verifying that the included staker signatures
 are authentic (using ed25519 signature verification) and that the total syms staked by all
-stakers that signed the header are greater than 2/3 of the total staked syms for that epoch.
+stakers that signed the header are at least 2/3 of the total staked syms for that epoch.
 
 Transactions are verified using the `transactions_root` Merkle root stored in their respective
 block headers, in addition to a Merkle proof containing their siblings which, together, are used to
@@ -40,7 +40,8 @@ assets.
 *This implementation is incomplete and will change in the near future.*
 
 Stores Themelio staker set information for a particular epoch once the information has been
-verified through ed25519 signature verification of >2/3 sym holders from the previous epoch.
+verified through ed25519 signature verification of at least 2/3 sym holders from the previous
+epoch.
 
 * `epoch`: the epoch height in `uint256`
 * `stakers`: list of staker public keys `bytes32[]`
@@ -54,7 +55,7 @@ Returns `true` if the staker set was successfully verified and stored, reverts o
 ### relayHeader(header, signers, signatures) returns (bool)
 
 Stores header information for a particular block height once the header has been verified through
-ed25519 signature verification of >2/3 sym holders from the previous epoch.
+ed25519 signature verification of at least 2/3 sym holders from the previous epoch.
 
 * `header`: the bincode serialized Themelio block header in `bytes`
 * `signers`: list of public keys of stakers that have signed `header`, in `bytes32[]`
