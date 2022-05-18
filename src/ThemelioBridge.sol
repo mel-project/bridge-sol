@@ -24,7 +24,7 @@ import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 *
 *      Themelio block headers are validated by verifying that the included staker signatures
 *      are authentic (using ed25519 signature verification) and that the total syms staked by all
-*      stakers that signed the header are greater than 2/3 of the total staked syms for that epoch.
+*      stakers that signed the header are at least 2/3 of the total staked syms for that epoch.
 *
 *      Transactions are verified using the 'transactions_root' Merkle root of
 *      their respective block headers by including a Merkle proof which is used to verify that the
@@ -83,7 +83,7 @@ contract ThemelioBridge is ERC20 {
 
     /**
     * Insufficient signatures to validate header. The total syms of stakers whose signatures were
-    * able to be validated (`signerSyms`) must be greater than 2/3 of the total staked syms for
+    * able to be validated (`signerSyms`) must be at least 2/3 of the total staked syms for
     * that epoch (`epochSyms`).
     * @param signerSyms Total syms of stakers whose signatures were verified in this transaction.
     * @param epochSyms Total amount of syms for the epoch.
