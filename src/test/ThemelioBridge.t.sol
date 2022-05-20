@@ -6,8 +6,6 @@ import '../ThemelioBridge.sol';
 import './utils/ByteStrings.sol';
 import 'openzeppelin-contracts/contracts/utils/Strings.sol';
 
-uint256 constant EPOCH_LENGTH = 200_000;
-
 contract ThemelioBridgeTest is ThemelioBridge, Test {
     using Blake3Sol for Blake3Sol.Hasher;
     using ByteStrings for bytes;
@@ -198,7 +196,7 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         bytes32[] calldata signers
     ) public {
         uint256 blockHeight = 2106792883676695184;
-        uint256 epoch = blockHeight / EPOCH_LENGTH;
+        uint256 epoch = blockHeight / STAKE_EPOCH;
         uint256 signersLength = signers.length;
         uint256 totalSyms = 0;
 
@@ -342,6 +340,8 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     using Strings for uint;
     using ByteStrings for bytes;
 
+    uint256 constant STAKE_EPOCH = 200_000;
+
     ThemelioBridgeTest bridgeTest;
 
     function setUp() public {
@@ -431,7 +431,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
     function testRelayStakers() public {
         uint256 height = 5496244452461458740;
-        uint256 epoch = height / EPOCH_LENGTH;
+        uint256 epoch = height / STAKE_EPOCH;
 
         bytes32[] memory stakers = new bytes32[](1);
         stakers[0] = 0x7978bba95d52660fcf0e53382459df76a8d291c88f91530de234a479ec76c853;

@@ -45,19 +45,20 @@ contract ThemelioBridge is ERC20 {
 
     /* =========== Themelio Staker Set and Header Storage =========== */
 
-    // EpochInfo contains all relevent epoch information required for Themelio header validation
-    struct EpochInfo {
+    // EpochStakers contains all relevent epoch information required for Themelio header validation
+    struct EpochStakers {
         uint256 totalStakedSyms; // total syms staked by all stakers during this epoch
         mapping(bytes32 => uint256) stakers; // staker pub key => individual staked sym amount
     }
 
-    mapping(uint256 => bytes) public headers; // necessary for validating transactions
-    mapping(uint256 => EpochInfo) public epochs; // necessary for validating headers
+    uint256 public latestEpoch; // tracks the latest verified epoch height stored by the contract
+    mapping(uint256 => bytes) public headers; // maps header hashes to headers for validating tx's
+    mapping(uint256 => EpochStakers) public epochs; // maps epoch heights with staker set info
     mapping(bytes32 => bool) public spends; // keeps track of successful token redemptions
 
     /* =========== Constants =========== */
 
-    uint256 internal constant EPOCH_LENGTH = 200_000;
+    uint256 internal constant STAKE_EPOCH = 200_000;
 
     bytes32 internal constant DATA_BLOCK_HASH_KEY =
         0xc811f2ef6eb6bd09fb973c747cbf349e682393ca4d8df88e5f0bcd564c10a84b;
@@ -111,6 +112,13 @@ contract ThemelioBridge is ERC20 {
     * formatted Merkle proof.
     */
     error TxNotVerified();
+
+    /**
+    * The staker set at epoch height `epoch` has not been relayed yet. Please relay it before
+    * attempting to verify headers at that epoch height.
+    * @param epoch Epoch height of the header being relayed.
+    */
+    error MissingStakers(uint256 epoch);
 
     /**
     * The header at block height `height` has not been relayed yet. Please relay it before
@@ -192,11 +200,34 @@ contract ThemelioBridge is ERC20 {
     *
     * @dev
     *
-    * @param header A serialized Themelio transaction header.
+    * @param header_ A serialized Themelio transaction header.
     *
     * @return 'true' if relay was successful, otherwise reverts.
     */
-    function relayStakers(bytes calldata header) external returns (bool) {}
+    function relayStakers(bytes calldata header_) external returns (bool) {
+        uint256 _latestEpoch = latestEpoch;
+
+        uint256 blockHeight = _extractBlockHeight(header_);
+        uint256 epoch = blockHeight / STAKE_EPOCH;
+
+        if (blockHeight == (_latestEpoch + 1) * STAKE_EPOCH - 1) {
+
+        }
+    }
+
+    function _buildTree(bytes[] calldata stakeDocs) internal returns (bytes32[] memory) {
+        bytes32[] memory tree = new bytes32[]((stakeDocs.length - 1) * 2 + 1);
+
+        for (uint256 i = 0; i < stakeDocs.length; ++i) {
+            tree[i] = _hashDatablock(stakeDocs[i]);
+        }
+
+        for (uint256 i = 0; i + 2 < tree.length; i += 2) {
+            tree[stakeDocs.length + 1] = _hashNodes(abi.encodePacked(tree[i], tree[i + 1]));
+        }
+
+        return tree;
+    }
 
     /**
     * @notice Accepts incoming Themelio headers, validates them by verifying the signatures of
@@ -233,24 +264,28 @@ contract ThemelioBridge is ERC20 {
             revert HeaderAlreadyRelayed(blockHeight);
         }
 
-        uint256 epochSyms = epochs[blockHeight / EPOCH_LENGTH].totalStakedSyms;
+        uint256 epochSyms = epochs[blockHeight / STAKE_EPOCH].totalStakedSyms;
+        if (epochSyms == 0) {
+            revert MissingStakers(blockHeight / STAKE_EPOCH);
+        }
+
         uint256 totalSignerSyms = 0;
         uint256 signerSyms;
 
         for (uint256 i = 0; i < signers_.length; ++i) {
-            signerSyms = epochs[blockHeight / EPOCH_LENGTH].stakers[signers_[i]];
+            signerSyms = epochs[blockHeight / STAKE_EPOCH].stakers[signers_[i]];
 
             if (signerSyms > 0 && Ed25519.verify(
                     signers_[i],
                     signatures_[i * 2],
-                    signatures_[(i * 2) + 1],
+                    signatures_[i * 2 + 1],
                     header_
             )) {
                 totalSignerSyms += signerSyms;
             }
         }
 
-        if (totalSignerSyms < ((epochSyms * 2) / 3)) {
+        if (totalSignerSyms < epochSyms * 2 / 3) {
             revert InsufficientSignatures(totalSignerSyms, epochSyms);
         }
 
@@ -330,7 +365,9 @@ contract ThemelioBridge is ERC20 {
     * @return The blake3 keyed hash of a Merkle tree datablock input argument.
     */
     function _hashDatablock(bytes memory datablock) internal pure returns (bytes32) {
-        Blake3Sol.Hasher memory hasher = Blake3Sol.new_keyed(abi.encodePacked(DATA_BLOCK_HASH_KEY));
+        Blake3Sol.Hasher memory hasher = Blake3Sol.new_keyed(
+            abi.encodePacked(DATA_BLOCK_HASH_KEY)
+        );
         hasher = hasher.update_hasher(datablock);
 
         return bytes32(hasher.finalize());
