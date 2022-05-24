@@ -192,6 +192,12 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         return (totalStakedSyms, stakedSyms);
     }
 
+    function buildTreeHelper(bytes[] calldata stakeDocs) public returns (bytes32[] memory) {
+        bytes32[] memory tree = _buildTree(stakeDocs);
+
+        return tree;
+    }
+
     function relayHeaderTestHelper(
         bytes32[] calldata signers
     ) public {
@@ -429,24 +435,37 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         assertEq(recipient, 0xc505B3263fEc82F8b624f4BA9C01b20E506b5E1e);
     }
 
-    function testRelayStakers() public {
-        uint256 height = 5496244452461458740;
-        uint256 epoch = height / STAKE_EPOCH;
+    // function testRelayStakers() public {
+    //     uint256 height = 5496244452461458740;
+    //     uint256 epoch = height / STAKE_EPOCH;
 
-        bytes32[] memory stakers = new bytes32[](1);
-        stakers[0] = 0x7978bba95d52660fcf0e53382459df76a8d291c88f91530de234a479ec76c853;
+    //     bytes32[] memory stakers = new bytes32[](1);
+    //     stakers[0] = 0x7978bba95d52660fcf0e53382459df76a8d291c88f91530de234a479ec76c853;
 
-        uint256[] memory stakerSyms = new uint256[](1);
-        stakerSyms[0] = 0x316;
+    //     uint256[] memory stakerSyms = new uint256[](1);
+    //     stakerSyms[0] = 0x316;
 
-        bridgeTest.relayStakers(epoch, stakers, stakerSyms);
+    //     bridgeTest.relayStakers(epoch, stakers, stakerSyms);
 
-        (uint256 totalStakedSyms, uint256 stakerSymsResult) =
-            bridgeTest.relayStakersHelper(epoch, stakers[0]);
+    //     (uint256 totalStakedSyms, uint256 stakerSymsResult) =
+    //         bridgeTest.relayStakersHelper(epoch, stakers[0]);
 
-        assertEq(stakerSymsResult, stakerSyms[0]);
-        assertEq(totalStakedSyms, 0x316);
-    }
+    //     assertEq(stakerSymsResult, stakerSyms[0]);
+    //     assertEq(totalStakedSyms, 0x316);
+    // }
+
+    // function testBuildTree() public {
+    //     bytes[] memory stakeDocs = new bytes[](4);
+    //     stakeDocs[0] = abi.encodePacked('hello');
+    //     stakeDocs[1] = abi.encodePacked('darkness');
+    //     stakeDocs[2] = abi.encodePacked('my old friend');
+
+    //     bytes32[] memory tree = bridgeTest.buildTreeHelper(stakeDocs);
+
+    //     for (uint256 i = 0; i < tree.length; ++i) {
+    //         emit log_bytes32(tree[i]);
+    //     }
+    // }
 
     function testRelayHeader() public {
         bytes memory header = abi.encodePacked(

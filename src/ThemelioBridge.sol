@@ -43,17 +43,18 @@ import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 contract ThemelioBridge is ERC20 {
     using Blake3Sol for Blake3Sol.Hasher;
 
-    /* =========== Themelio Staker Set and Header Storage =========== */
-
-    // EpochStakers contains all relevent epoch information required for Themelio header validation
-    struct EpochStakers {
-        uint256 totalStakedSyms; // total syms staked by all stakers during this epoch
-        mapping(bytes32 => uint256) stakers; // staker pub key => individual staked sym amount
+    struct StakeDoc {
+        bytes32 publicKey;
+        uint256 epochStart;
+        uint256 epochPostEnd;
+        uint256 symsStaked;
     }
 
+    /* =========== Themelio Header Validation Storage =========== */
+
     uint256 public latestEpoch; // tracks the latest verified epoch height stored by the contract
+
     mapping(uint256 => bytes) public headers; // maps header hashes to headers for validating tx's
-    mapping(uint256 => EpochStakers) public epochs; // maps epoch heights with staker set info
     mapping(bytes32 => bool) public spends; // keeps track of successful token redemptions
 
     /* =========== Constants =========== */
@@ -195,41 +196,25 @@ contract ThemelioBridge is ERC20 {
 
     /* =========== Themelio Staker Set, Header, and Transaction Verification =========== */
 
-    /**
-    * @notice
-    *
-    * @dev
-    *
-    * @param header_ A serialized Themelio transaction header.
-    *
-    * @return 'true' if relay was successful, otherwise reverts.
-    */
-    function relayStakers(bytes calldata header_) external returns (bool) {
-        uint256 _latestEpoch = latestEpoch;
+    // function _buildTree(bytes[] calldata stakeDocs) internal returns (bytes32[] memory) {
+    //     bytes32[] memory tree = new bytes32[]((stakeDocs.length - 1) * 2 + 1);
 
-        uint256 blockHeight = _extractBlockHeight(header_);
-        uint256 epoch = blockHeight / STAKE_EPOCH;
+    //     for (uint256 i = 0; i < stakeDocs.length; ++i) {
+    //         tree[i] = _hashDatablock(stakeDocs[i]);
+    //     }
 
-        if (blockHeight == (_latestEpoch + 1) * STAKE_EPOCH - 1) {
+    //     for (uint256 i = 0; i + 2 < tree.length; i += 2) {
+    //         if (i + 1 > stakeDocs.length) {
+    //             tree[stakeDocs.length + 1] = _hashNodes(abi.encodePacked(tree[i]));
+    //         } else {
+    //             tree[stakeDocs.length + 1] = _hashNodes(abi.encodePacked(tree[i], tree[i + 1]));
+    //         }
+    //     }
 
-        }
-    }
+    //     return tree;
+    // }
 
-    function _buildTree(bytes[] calldata stakeDocs) internal returns (bytes32[] memory) {
-        bytes32[] memory tree = new bytes32[]((stakeDocs.length - 1) * 2 + 1);
-
-        for (uint256 i = 0; i < stakeDocs.length; ++i) {
-            tree[i] = _hashDatablock(stakeDocs[i]);
-        }
-
-        for (uint256 i = 0; i + 2 < tree.length; i += 2) {
-            tree[stakeDocs.length + 1] = _hashNodes(abi.encodePacked(tree[i], tree[i + 1]));
-        }
-
-        return tree;
-    }
-
-    /**
+    /*
     * @notice Accepts incoming Themelio headers, validates them by verifying the signatures of
     *         stakers in the header's epoch, and stores the header for future transaction
     *         verification, upon successful validation.
@@ -252,11 +237,14 @@ contract ThemelioBridge is ERC20 {
     */
     function relayHeader(
         bytes calldata header_,
-        bytes32[] calldata signers_,
-        bytes32[] calldata signatures_
+        bytes[] calldata stakeDocs_,
+        uint256[] calldata indexes_,
+        bytes32[] calldata signatures_,
+        bytes32[][] calldata proofs_
     ) external returns (bool) {
-        if (signatures_.length != signers_.length * 2) {
-            revert InvalidSignatures(signers_.length, signatures_.length);
+        //check if it's better to store lengths or not since this is calldata
+        if (stakeDocs_.length * 2 != signatures_.length && stakeDocs_.length != proofs_.length) {
+            // revert MalformedData(signers_.length, signatures_.length);
         }
 
         uint256 blockHeight = _extractBlockHeight(header_);
@@ -264,24 +252,28 @@ contract ThemelioBridge is ERC20 {
             revert HeaderAlreadyRelayed(blockHeight);
         }
 
-        uint256 epochSyms = epochs[blockHeight / STAKE_EPOCH].totalStakedSyms;
-        if (epochSyms == 0) {
-            revert MissingStakers(blockHeight / STAKE_EPOCH);
-        }
+        uint256 epochSyms;// Todo: There will be a way to get this in an upcoming TIP proposal
+
+        // probably not necessary now, depending on the TIP implementation
+        // if (epochSyms == 0) {
+        //     revert MissingStakers(blockHeight / STAKE_EPOCH);
+        // }
 
         uint256 totalSignerSyms = 0;
-        uint256 signerSyms;
+        StakeDoc memory stakeDoc;
 
-        for (uint256 i = 0; i < signers_.length; ++i) {
-            signerSyms = epochs[blockHeight / STAKE_EPOCH].stakers[signers_[i]];
+        for (uint256 i = 0; i < stakeDocs_.length; ++i) {
+            if (verifyMerkleRoot(stakeDocs_[i], indexes_[i], blockHeight, proofs_[i])) {
+                stakeDoc = _deserializeStakeDoc(stakeDocs_[i]);
 
-            if (signerSyms > 0 && Ed25519.verify(
-                    signers_[i],
-                    signatures_[i * 2],
-                    signatures_[i * 2 + 1],
-                    header_
-            )) {
-                totalSignerSyms += signerSyms;
+                if (stakeDoc.symsStaked > 0 && Ed25519.verify(
+                        stakeDoc.publicKey,
+                        signatures_[i * 2],
+                        signatures_[i * 2 + 1],
+                        header_
+                )) {
+                    totalSignerSyms += stakeDoc.symsStaked;
+                }
             }
         }
 
@@ -319,12 +311,12 @@ contract ThemelioBridge is ERC20 {
     *
     * @return 'true' if the transaction is successfully validated, otherwise it reverts.
     */
-    function verifyTx(
+    function verifyMerkleRoot(
         bytes calldata transaction_,
         uint256 txIndex_,
         uint256 blockHeight_,
         bytes32[] calldata proof_
-    ) external returns (bool) {
+    ) public returns (bool) {
         bytes memory header = headers[blockHeight_];
         if (header.length == 0) {
             revert MissingHeader(blockHeight_);
@@ -445,6 +437,8 @@ contract ThemelioBridge is ERC20 {
             return dataSlice;
         }
     }
+
+    function _deserializeStakeDoc(bytes calldata stakeDoc) internal returns (StakeDoc memory) {}
 
     /**
     * @notice Decodes and returns integers encoded at a specified offset within a 'bytes' array.
