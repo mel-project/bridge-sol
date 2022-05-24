@@ -43,6 +43,11 @@ import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 contract ThemelioBridge is ERC20 {
     using Blake3Sol for Blake3Sol.Hasher;
 
+    struct Header {
+        bytes32 transactionsHash;
+        bytes32 stakesHash;
+    }
+
     struct StakeDoc {
         bytes32 publicKey;
         uint256 epochStart;
@@ -52,15 +57,16 @@ contract ThemelioBridge is ERC20 {
 
     /* =========== Themelio Header Validation Storage =========== */
 
-    uint256 public latestEpoch; // tracks the latest verified epoch height stored by the contract
+    uint256 public trustedHeight; // tracks the latest verified height stored by the contract
 
-    mapping(uint256 => bytes) public headers; // maps header hashes to headers for validating tx's
-    mapping(bytes32 => bool) public spends; // keeps track of successful token redemptions
+    mapping(uint256 => Header) public headers; // maps header hashes to Headers for validating tx's
+    mapping(bytes32 => bool) public spends; // keeps track of successful token mints
 
     /* =========== Constants =========== */
 
     uint256 internal constant STAKE_EPOCH = 200_000;
 
+    // the hashing keys used when hashing datablocks and nodes, respectively
     bytes32 internal constant DATA_BLOCK_HASH_KEY =
         0xc811f2ef6eb6bd09fb973c747cbf349e682393ca4d8df88e5f0bcd564c10a84b;
     bytes32 internal constant NODE_HASH_KEY =
@@ -93,12 +99,10 @@ contract ThemelioBridge is ERC20 {
     error InsufficientSignatures(uint256 signerSyms, uint256 epochSyms);
 
     /**
-    * The length of the signatures array (`signaturesLength`) must be exactly twice the length of
-    * the signers array (`sigersLength`).
-    * @param signersLength Length of the bytes32 array containing staker public keys.
-    * @param signaturesLength Length of the bytes32 array containing the staker signatures.
+    * The length of the StakeDocs array must coincide with the length of the proofs array and
+    * the signatures array must be exactly twice the length of each of the aforementioned arrays.
     */
-    error InvalidSignatures(uint256 signersLength, uint256 signaturesLength);
+    error MalformedData();
 
     /**
     * Transactions can only be verified once. The transaction with hash `txHash` has previously
@@ -127,6 +131,17 @@ contract ThemelioBridge is ERC20 {
     * @param height Block height of the header in which the transaction was included.
     */
     error MissingHeader(uint256 height);
+
+    /**
+    * The header that was submitted cannot be verified by any currently stored headers, you'll need
+    * to submit headers from previous epochs first. 
+    * A header can only be verified by any other header that shares the same epoch. Headers which
+    * introduce new epochs can also be verified by the previous header (i.e. the last header of the
+    * previous epoch), which is how you can "cross epochs" to newer ones.
+    * It may be helpful to check what the current `trustedHeight` is in the contract's storage.
+    * @param height Block height of the header which was unable to be verified.
+    */
+    error MissingVerifier(uint256 height);
 
     /* =========== Bridge Events =========== */
 
@@ -160,7 +175,16 @@ contract ThemelioBridge is ERC20 {
     * @dev   Constructor is only responsible for submitting the token name and ticker symbol to the
     *        ERC-20 constructor.
     */
-    constructor() ERC20 ('wrapped mel', 'wMEL') {}
+    constructor(
+        uint256 trustedHeight_,
+        bytes32 transactionsHash_,
+        bytes32 stakesHash_
+    ) ERC20 ('wrapped mel', 'wMEL') {
+        trustedHeight = trustedHeight_;
+
+        headers[trustedHeight].transactionsHash = transactionsHash_;
+        headers[trustedHeight].stakesHash = stakesHash_;
+    }
 
     /* =========== ERC-20 Functions =========== */
 
@@ -196,24 +220,6 @@ contract ThemelioBridge is ERC20 {
 
     /* =========== Themelio Staker Set, Header, and Transaction Verification =========== */
 
-    // function _buildTree(bytes[] calldata stakeDocs) internal returns (bytes32[] memory) {
-    //     bytes32[] memory tree = new bytes32[]((stakeDocs.length - 1) * 2 + 1);
-
-    //     for (uint256 i = 0; i < stakeDocs.length; ++i) {
-    //         tree[i] = _hashDatablock(stakeDocs[i]);
-    //     }
-
-    //     for (uint256 i = 0; i + 2 < tree.length; i += 2) {
-    //         if (i + 1 > stakeDocs.length) {
-    //             tree[stakeDocs.length + 1] = _hashNodes(abi.encodePacked(tree[i]));
-    //         } else {
-    //             tree[stakeDocs.length + 1] = _hashNodes(abi.encodePacked(tree[i], tree[i + 1]));
-    //         }
-    //     }
-
-    //     return tree;
-    // }
-
     /*
     * @notice Accepts incoming Themelio headers, validates them by verifying the signatures of
     *         stakers in the header's epoch, and stores the header for future transaction
@@ -248,43 +254,53 @@ contract ThemelioBridge is ERC20 {
         }
 
         uint256 blockHeight = _extractBlockHeight(header_);
-        if (headers[blockHeight].length != 0) {
+        if (headers[blockHeight].transactionsHash != 0) {
             revert HeaderAlreadyRelayed(blockHeight);
         }
 
-        uint256 epochSyms;// Todo: There will be a way to get this in an upcoming TIP proposal
+        // check if the header at `trustedHeight` can verify ours, otherwise, revert
+        uint256 _trustedHeight = trustedHeight;
+        if (
+            blockHeight / STAKE_EPOCH == _trustedHeight / STAKE_EPOCH ||
+            blockHeight / STAKE_EPOCH == (_trustedHeight - 1) / STAKE_EPOCH
+        ) {
+            bytes32 stakesHash = headers[trustedHeight].stakesHash;
 
-        // probably not necessary now, depending on the TIP implementation
-        // if (epochSyms == 0) {
-        //     revert MissingStakers(blockHeight / STAKE_EPOCH);
-        // }
+            uint256 epochSyms;// Todo: There will be a way to get this in an upcoming TIP proposal
 
-        uint256 totalSignerSyms = 0;
-        StakeDoc memory stakeDoc;
+            uint256 totalSignerSyms = 0;
+            StakeDoc memory stakeDoc;
+            bytes32 stakeDocHash;
 
-        for (uint256 i = 0; i < stakeDocs_.length; ++i) {
-            if (verifyMerkleRoot(stakeDocs_[i], indexes_[i], blockHeight, proofs_[i])) {
-                stakeDoc = _deserializeStakeDoc(stakeDocs_[i]);
+            for (uint256 i = 0; i < stakeDocs_.length; ++i) {
+                stakeDocHash = _hashDatablock(stakeDocs_[i]);
 
-                if (stakeDoc.symsStaked > 0 && Ed25519.verify(
-                        stakeDoc.publicKey,
-                        signatures_[i * 2],
-                        signatures_[i * 2 + 1],
-                        header_
-                )) {
-                    totalSignerSyms += stakeDoc.symsStaked;
+                if (_computeMerkleRoot(stakeDocHash, indexes_[i], proofs_[i]) == stakesHash) {
+                    stakeDoc = _deserializeStakeDoc(stakeDocs_[i]);
+
+                    if (stakeDoc.symsStaked > 0 && Ed25519.verify(
+                            stakeDoc.publicKey,
+                            signatures_[i * 2],
+                            signatures_[i * 2 + 1],
+                            header_
+                    )) {
+                        totalSignerSyms += stakeDoc.symsStaked;
+                    }
                 }
             }
+
+            if (totalSignerSyms < epochSyms * 2 / 3) {
+                revert InsufficientSignatures(totalSignerSyms, epochSyms);
+            }
+
+            headers[blockHeight].transactionsHash = _extractTransactionsHash(header_);
+            headers[blockHeight].stakesHash = _extractStakesHash(header_);
+            emit HeaderRelayed(blockHeight);
+
+            return true;
+        } else {
+            revert MissingVerifier(blockHeight);
         }
-
-        if (totalSignerSyms < epochSyms * 2 / 3) {
-            revert InsufficientSignatures(totalSignerSyms, epochSyms);
-        }
-
-        headers[blockHeight] = header_;
-        emit HeaderRelayed(blockHeight);
-
-        return true;
     }
 
     /**
@@ -311,25 +327,25 @@ contract ThemelioBridge is ERC20 {
     *
     * @return 'true' if the transaction is successfully validated, otherwise it reverts.
     */
-    function verifyMerkleRoot(
+    function verifyTx(
         bytes calldata transaction_,
         uint256 txIndex_,
         uint256 blockHeight_,
         bytes32[] calldata proof_
     ) public returns (bool) {
-        bytes memory header = headers[blockHeight_];
-        if (header.length == 0) {
+        bytes32 transactionsHash = headers[blockHeight_].transactionsHash;
+
+        if (transactionsHash == 0) {
             revert MissingHeader(blockHeight_);
         }
 
-        bytes32 merkleRoot = _extractMerkleRoot(header);
         bytes32 txHash = _hashDatablock(transaction_);
 
         if(spends[txHash] == true) {
             revert TxAlreadyVerified(txHash);
         }
 
-        if (_computeMerkleRoot(txHash, txIndex_, proof_) == merkleRoot) {
+        if (_computeMerkleRoot(txHash, txIndex_, proof_) == transactionsHash) {
             spends[txHash] = true;
 
             (uint256 value, address recipient) = _extractValueAndRecipient(transaction_);
@@ -510,32 +526,6 @@ contract ThemelioBridge is ERC20 {
     }
 
     /**
-    * @notice Extracts and returns the 'transactions_root' Merkle root from serialized Themelio
-    *         block headers.
-    *
-    * @dev The block headers are themelio_structs::Header structs serialized using the bincode
-    *      crate with 'with_varint_encoding' and 'reject_trailing_bytes' flags set.
-    *
-    * @param header The serialized Themelio block header.
-    *
-    * @return The 32-byte 'transactions_hash' Merkle root.
-    */
-    function _extractMerkleRoot(bytes memory header) internal pure returns (bytes32) {
-        // get size of 'block_height' using 33 as the offset to skip 'network' (1 byte) and
-        // 'previous' (32 bytes)
-        uint256 offset = 33;
-        uint256 heightSize = _encodedIntegerSize(header, offset);
-
-        // we can get the offset of 'transactions_root' by adding 'heightSize' + 64 to skip
-        // 'history_hash' (32 bytes) and 'coins_hash' (32 bytes) 
-        offset += heightSize + 64;
-
-        bytes32 merkleRoot = bytes32(_slice(header, offset, offset + 32));
-
-        return merkleRoot;
-    }
-
-    /**
     * @notice Extracts and decodes the height of a Themelio header.
     *
     * @dev Extracts and decodes the encoded 'height' field's value from a serialized Themelio
@@ -550,6 +540,49 @@ contract ThemelioBridge is ERC20 {
         uint256 blockHeight = _decodeInteger(header_, 33);
 
         return blockHeight;
+    }
+
+    /**
+    * @notice Extracts and returns the 'transactions_hash' Merkle root from serialized Themelio
+    *         block headers.
+    *
+    * @dev The block headers are themelio_structs::Header structs serialized using the bincode
+    *      crate with 'with_varint_encoding' and 'reject_trailing_bytes' flags set.
+    *
+    * @param header_ The serialized Themelio block header.
+    *
+    * @return The 32-byte 'transactions_hash' Merkle root.
+    */
+    function _extractTransactionsHash(bytes calldata header_) internal pure returns (bytes32) {
+        // get size of 'block_height' using 33 as the offset to skip 'network' (1 byte) and
+        // 'previous' (32 bytes)
+        uint256 offset = 33;
+        uint256 heightSize = _encodedIntegerSize(header_, offset);
+
+        // we can get the offset of 'transactions_hash' by adding `heightSize` + 64 to skip
+        // 'history_hash' (32 bytes) and 'coins_hash' (32 bytes) 
+        offset += heightSize + 64;
+
+        bytes32 transactionsHash = bytes32(_slice(header_, offset, offset + 32));
+
+        return transactionsHash;
+    }
+
+    /**
+    * @notice Extracts and returns the 'stakes_hash' Merkle root from serialized Themelio
+    *         block headers.
+    *
+    * @dev The block headers are themelio_structs::Header structs serialized using the bincode
+    *      crate with 'with_varint_encoding' and 'reject_trailing_bytes' flags set.
+    *
+    * @param header_ The serialized Themelio block header.
+    *
+    * @return The 32-byte 'stakes_hash' Merkle root.
+    */
+    function _extractStakesHash(bytes calldata header_) internal pure returns (bytes32) {
+        bytes32 stakesHash = bytes32(_slice(header_, header_.length - 32, header_.length));
+
+        return stakesHash;
     }
 
     /**
