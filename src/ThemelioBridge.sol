@@ -12,8 +12,8 @@ import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 *
 * @notice This contract is a Themelio SPV client which allows users to relay Themelio staker sets,
 *         block headers, and transactions for the purpose of creating tokenized versions of
-*         Themelio assets, on the Ethereum network, which have already been locked up in a sister
-*         contract previously existing on the Themelio network. Check us out at
+*         Themelio assets, on the Ethereum network, which have previously been locked up in a
+*         sister contract which resides on the Themelio network. Check us out at
 *         https://themelio.org !
 *
 * @dev Themelio staker sets are verified per epoch (each epoch comprising 200,000 blocks), with
@@ -99,8 +99,9 @@ contract ThemelioBridge is ERC20 {
     error InsufficientSignatures(uint256 signerSyms, uint256 epochSyms);
 
     /**
-    * The length of the StakeDocs array must coincide with the length of the proofs array and
-    * the signatures array must be exactly twice the length of each of the aforementioned arrays.
+    * The length of the `stakeDocs_` array must coincide with the length of the `proofs_` array and
+    * the `signatures_` array must be exactly twice the length of each of the aforementioned
+    * arrays.
     */
     error MalformedData();
 
@@ -145,12 +146,6 @@ contract ThemelioBridge is ERC20 {
 
     /* =========== Bridge Events =========== */
 
-    event StakersRelayed(
-        uint256 indexed epoch,
-        bytes32[] stakers,
-        uint256[] symsStaked
-    );
-
     event HeaderRelayed(
         uint256 indexed height
     );
@@ -172,8 +167,9 @@ contract ThemelioBridge is ERC20 {
     );
 
     /**
-    * @dev   Constructor is only responsible for submitting the token name and ticker symbol to the
-    *        ERC-20 constructor.
+    * @dev Constructor is responsible for submitting the token name and ticker symbol to the
+    *      ERC-20 constructor and initializing contract storage with a base header at 
+    *      `trustedHeight` height which will be used to verify subsequent headers.
     */
     constructor(
         uint256 trustedHeight_,
@@ -243,14 +239,13 @@ contract ThemelioBridge is ERC20 {
     */
     function relayHeader(
         bytes calldata header_,
+        bytes32[] calldata signatures_,
         bytes[] calldata stakeDocs_,
         uint256[] calldata indexes_,
-        bytes32[] calldata signatures_,
         bytes32[][] calldata proofs_
     ) external returns (bool) {
-        //check if it's better to store lengths or not since this is calldata
         if (stakeDocs_.length * 2 != signatures_.length && stakeDocs_.length != proofs_.length) {
-            // revert MalformedData(signers_.length, signatures_.length);
+            revert MalformedData();
         }
 
         uint256 blockHeight = _extractBlockHeight(header_);
@@ -261,46 +256,48 @@ contract ThemelioBridge is ERC20 {
         // check if the header at `trustedHeight` can verify ours, otherwise, revert
         uint256 _trustedHeight = trustedHeight;
         if (
-            blockHeight / STAKE_EPOCH == _trustedHeight / STAKE_EPOCH ||
-            blockHeight / STAKE_EPOCH == (_trustedHeight - 1) / STAKE_EPOCH
+            !(blockHeight / STAKE_EPOCH == _trustedHeight / STAKE_EPOCH) &&
+            !((blockHeight - 1) / STAKE_EPOCH == _trustedHeight / STAKE_EPOCH)
         ) {
-            bytes32 stakesHash = headers[trustedHeight].stakesHash;
-
-            uint256 epochSyms;// Todo: There will be a way to get this in an upcoming TIP proposal
-
-            uint256 totalSignerSyms = 0;
-            StakeDoc memory stakeDoc;
-            bytes32 stakeDocHash;
-
-            for (uint256 i = 0; i < stakeDocs_.length; ++i) {
-                stakeDocHash = _hashDatablock(stakeDocs_[i]);
-
-                if (_computeMerkleRoot(stakeDocHash, indexes_[i], proofs_[i]) == stakesHash) {
-                    stakeDoc = _deserializeStakeDoc(stakeDocs_[i]);
-
-                    if (stakeDoc.symsStaked > 0 && Ed25519.verify(
-                            stakeDoc.publicKey,
-                            signatures_[i * 2],
-                            signatures_[i * 2 + 1],
-                            header_
-                    )) {
-                        totalSignerSyms += stakeDoc.symsStaked;
-                    }
-                }
-            }
-
-            if (totalSignerSyms < epochSyms * 2 / 3) {
-                revert InsufficientSignatures(totalSignerSyms, epochSyms);
-            }
-
-            headers[blockHeight].transactionsHash = _extractTransactionsHash(header_);
-            headers[blockHeight].stakesHash = _extractStakesHash(header_);
-            emit HeaderRelayed(blockHeight);
-
-            return true;
-        } else {
             revert MissingVerifier(blockHeight);
         }
+
+        bytes32 stakesHash = headers[trustedHeight].stakesHash;
+
+        uint256 epochSyms;// Todo: There will be a way to get this in an upcoming TIP proposal
+        uint256 totalSignerSyms = 0;
+
+        StakeDoc memory stakeDoc;
+        bytes32 stakeDocHash;
+
+        uint256 stakeDocsLength = stakeDocs_.length;
+
+        for (uint256 i = 0; i < stakeDocsLength; ++i) {
+            stakeDocHash = _hashDatablock(stakeDocs_[i]);
+
+            if (_computeMerkleRoot(stakeDocHash, indexes_[i], proofs_[i]) == stakesHash) {
+                stakeDoc = _decodeStakeDoc(stakeDocs_[i]);
+
+                if (stakeDoc.symsStaked > 0 && Ed25519.verify(
+                        stakeDoc.publicKey,
+                        signatures_[i * 2],
+                        signatures_[i * 2 + 1],
+                        header_
+                )) {
+                    totalSignerSyms += stakeDoc.symsStaked;
+                }
+            }
+        }
+
+        if (totalSignerSyms < epochSyms * 2 / 3) {
+            revert InsufficientSignatures(totalSignerSyms, epochSyms);
+        }
+
+        headers[blockHeight].transactionsHash = _extractTransactionsHash(header_);
+        headers[blockHeight].stakesHash = _extractStakesHash(header_);
+        emit HeaderRelayed(blockHeight);
+
+        return true;
     }
 
     /**
@@ -454,7 +451,19 @@ contract ThemelioBridge is ERC20 {
         }
     }
 
-    function _deserializeStakeDoc(bytes calldata stakeDoc) internal returns (StakeDoc memory) {}
+    /**
+    * @notice Decodes and returns 'StakeDoc' structs.
+    *
+    * @dev Decodes and returns 'StakeDoc' structs encoded using the 'bincode' Rust crate with
+    *      'with_varint_encoding' and 'reject_trailing_bytes' flags set.
+    *
+    * @param stakeDoc The serialized 'StakeDoc' struct in bytes.
+    *
+    * @return The decoded 'StakeDoc'.
+    */
+    function _decodeStakeDoc(bytes calldata stakeDoc) internal returns (StakeDoc memory) {
+        
+    }
 
     /**
     * @notice Decodes and returns integers encoded at a specified offset within a 'bytes' array.
@@ -642,10 +651,10 @@ contract ThemelioBridge is ERC20 {
     * @dev Hashes a transaction's hash together with each hash in a Merkle proof in order to
     *      derive a Merkle root.
     *
-    * @param txHash The hash of a serialized Themelio transaction.
+    * @param leaf_ The leaf for which we are performing the proof of inclusion.
     *
-    * @param txIndex The index of the Themelio transaction. This is used to determine whether the
-    *        'tx_hash' should be concatenated on the left or the right before hashing.
+    * @param index The index of the leaf in the Merkle tree. This is used to determine whether
+    *        the 'tx_hash' should be concatenated on the left or the right before hashing.
     *
     * @param proof_ An array of blake3 hashes which together form the Merkle proof for this
     *        particular Themelio transaction.
@@ -654,21 +663,23 @@ contract ThemelioBridge is ERC20 {
     *         sequence.
     */
     function _computeMerkleRoot(
-        bytes32 txHash,
-        uint256 txIndex,
+        bytes32 leaf_,
+        uint256 index,
         bytes32[] calldata proof_
     ) internal pure returns (bytes32) {
-        bytes32 root = txHash;
+        bytes32 root = leaf_;
         bytes memory nodes;
 
-        for (uint256 i = 0; i < proof_.length; ++i) {
-            if (txIndex % 2 == 0) {
+        uint256 proofLength = proof_.length;
+
+        for (uint256 i = 0; i < proofLength; ++i) {
+            if (index % 2 == 0) {
                 nodes = abi.encodePacked(root, proof_[i]);
             } else {
                 nodes = abi.encodePacked(proof_[i], root);
             }
 
-            txIndex /= 2;
+            index /= 2;
             root = _hashNodes(nodes);
         }
 
