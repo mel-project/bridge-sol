@@ -111,6 +111,18 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         assertEq0(result, abi.encodePacked(bytes7(0xefcdab89674523)));
     }
 
+    function decodeStakeDocHelper(bytes calldata encodedStakeDoc_)
+        public returns (bytes32, uint256, uint256, uint256) {
+        StakeDoc memory decodedStakeDoc = _decodeStakeDoc(encodedStakeDoc_);
+
+        return (
+            decodedStakeDoc.publicKey,
+            decodedStakeDoc.epochStart,
+            decodedStakeDoc.epochPostEnd,
+            decodedStakeDoc.symsStaked
+        );
+    }
+
     function decodeIntegerTestHelper(
         bytes calldata header,
         uint256 offset
@@ -332,6 +344,13 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     using Strings for uint;
     using ByteStrings for bytes;
 
+    struct StakeDoc {
+        bytes32 publicKey;
+        uint256 epochStart;
+        uint256 epochPostEnd;
+        uint256 symsStaked;
+    }
+
     uint256 constant STAKE_EPOCH = 200_000;
 
     ThemelioBridgeTest bridgeTest;
@@ -349,6 +368,36 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         cmds[2] = './src/test/differential/Cargo.toml';
 
         vm.ffi(cmds);
+    }
+
+    // StakeDoc {
+    //      pubkey: #<EdPK:5dc57fc274>,
+    //      e_start: 499329790025850207,
+    //      e_post_end: 10267647615552527176,
+    //      syms_staked: CoinValue(64716893496921337859207055163356700560) 
+    // }
+    // 5dc57fc274b1235e28352d67b8ee4a30b74b5d0b070dc4400f30714cda80b280
+    // fd-5fdd4268ccf9ed06
+    // fd-481be5231b037e8e
+    // fe-905ff5aae270ee660c7240fe3205b030
+    function testDecodeStakeDoc() public {
+        bytes memory encodedStakeDoc = abi.encodePacked(
+            bytes32(0x5dc57fc274b1235e28352d67b8ee4a30b74b5d0b070dc4400f30714cda80b280),
+            bytes32(0xfd5fdd4268ccf9ed06fd481be5231b037e8efe905ff5aae270ee660c7240fe32),
+            bytes3(0x05b030)
+        );
+
+        (
+            bytes32 publicKey,
+            uint256 epochStart,
+            uint256 epochPostEnd,
+            uint256 symsStaked
+        ) = bridgeTest.decodeStakeDocHelper(encodedStakeDoc);
+
+        assertEq(publicKey, 0x5dc57fc274b1235e28352d67b8ee4a30b74b5d0b070dc4400f30714cda80b280);
+        assertEq(epochStart, 499329790025850207);
+        assertEq(epochPostEnd, 10267647615552527176);
+        assertEq(symsStaked, 64716893496921337859207055163356700560);
     }
 
     function testDecodeInteger() public {

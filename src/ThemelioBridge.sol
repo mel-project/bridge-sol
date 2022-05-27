@@ -461,8 +461,24 @@ contract ThemelioBridge is ERC20 {
     *
     * @return The decoded 'StakeDoc'.
     */
-    function _decodeStakeDoc(bytes calldata stakeDoc) internal returns (StakeDoc memory) {
-        
+    function _decodeStakeDoc(bytes calldata stakeDoc) internal pure returns (StakeDoc memory) {
+        bytes32 publicKey = bytes32(_slice(stakeDoc, 0, 32));
+        uint256 epochStart = _decodeInteger(stakeDoc, 32);
+
+        uint256 offset = 32 + _encodedIntegerSize(stakeDoc, 32);
+
+        uint256 epochPostEnd = _decodeInteger(stakeDoc, offset);
+        offset += _encodedIntegerSize(stakeDoc, offset);
+
+        uint256 symsStaked = _decodeInteger(stakeDoc, offset);
+
+        StakeDoc memory decodedStakeDoc;
+        decodedStakeDoc.publicKey = publicKey;
+        decodedStakeDoc.epochStart = epochStart;
+        decodedStakeDoc.epochPostEnd = epochPostEnd;
+        decodedStakeDoc.symsStaked = symsStaked;
+
+        return decodedStakeDoc;
     }
 
     /**
