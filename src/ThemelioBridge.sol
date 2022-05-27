@@ -278,7 +278,7 @@ contract ThemelioBridge is ERC20 {
             if (_computeMerkleRoot(stakeDocHash, indexes_[i], proofs_[i]) == stakesHash) {
                 stakeDoc = _decodeStakeDoc(stakeDocs_[i]);
 
-                if (stakeDoc.symsStaked > 0 && Ed25519.verify(
+                if (stakeDoc.symsStaked != 0 && Ed25519.verify(
                         stakeDoc.publicKey,
                         signatures_[i * 2],
                         signatures_[i * 2 + 1],
