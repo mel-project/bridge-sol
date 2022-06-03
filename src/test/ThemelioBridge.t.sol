@@ -13,6 +13,95 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
 
     constructor() ThemelioBridge(0, 0, 0) {}
 
+        /* =========== Helpers =========== */
+
+    function decodeStakeDocHelper(bytes calldata encodedStakeDoc_)
+        public pure returns (bytes32, uint256, uint256, uint256) {
+        StakeDoc memory decodedStakeDoc = _decodeStakeDoc(encodedStakeDoc_);
+
+        return (
+            decodedStakeDoc.publicKey,
+            decodedStakeDoc.epochStart,
+            decodedStakeDoc.epochPostEnd,
+            decodedStakeDoc.symsStaked
+        );
+    }
+
+    function decodeIntegerHelper(
+        bytes calldata header,
+        uint256 offset
+    ) public pure returns (uint256) {
+        uint256 integer = _decodeInteger(header, offset);
+
+        return integer;
+    }
+
+    function extractTransactionsHashHelper(bytes calldata header) public pure returns (bytes32) {
+        bytes32 transactionsHash = _extractTransactionsHash(header);
+
+        return transactionsHash;
+    }
+
+    function extractValueAndRecipientHelper(
+        bytes calldata transaction
+    ) public pure returns (uint256, address) {
+        (uint256 value, address recipient) = _extractValueAndRecipient(transaction);
+
+        return (value, recipient);
+    }
+
+    // function relayHeaderTestHelper(
+    //     bytes32[] calldata signers
+    // ) public {
+    //     uint256 blockHeight = 2106792883676695184;
+    //     uint256 epoch = blockHeight / STAKE_EPOCH;
+    //     uint256 signersLength = signers.length;
+    //     uint256 totalSyms = 0;
+
+    //     for (uint256 i = 0; i < signersLength; ++i) {
+    //         epochs[epoch].stakers[signers[i]] = i + 30;
+    //         totalSyms += i + 30;
+    //     }
+
+    //     epochs[epoch].totalStakedSyms = totalSyms;
+    // }
+
+    function computeMerkleRootHelper(
+        bytes32 txHash,
+        uint256 index,
+        bytes32[] calldata proof
+    ) public pure returns (bytes32) {
+        bytes32 merkleRoot = _computeMerkleRoot(txHash, index, proof);
+
+        return merkleRoot;
+    }
+
+    function verifyTxHelper(uint256 blockHeight, bytes32 transactionsHash, bytes32 stakesHash) public {
+        headers[blockHeight].transactionsHash = transactionsHash;
+        headers[blockHeight].stakesHash = stakesHash;
+    }
+
+    function decodeIntegerDifferentialHelper(bytes calldata data)
+        public pure returns (uint256) {
+        return _decodeInteger(data, 0);
+    }
+
+    function extractBlockHeightHelper(bytes calldata header)
+        public pure returns (uint256) {
+        uint256 blockHeight = _extractBlockHeight(header);
+
+        return blockHeight;
+    }
+
+    function extractValueAndRecipientDifferentialFFIHelper(bytes calldata header)
+        public pure returns (uint256, address) {
+        (uint256 extractedValue, address extractedRecipient) = _extractValueAndRecipient(header);
+
+        return (extractedValue, extractedRecipient);
+    }
+
+        /* =========== Unit Tests =========== */
+
     function testName() public {
         string memory name = name();
 
@@ -42,21 +131,6 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         uint256 newBalance = balanceOf(user);
 
         assertEq(newBalance, oldBalance + value);
-    }
-
-    function burnHelper() public returns (uint256, uint256) {
-        address user = _msgSender();
-        uint256 startBalance = balanceOf(user);
-
-        uint256 value = 123456789;
-
-        _mint(user, value);
-
-        uint256 newBalance = balanceOf(user);
-
-        assertEq(newBalance, startBalance + value);
-
-        return (startBalance, value);
     }
 
     function testEd25519() public {
@@ -126,27 +200,6 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         assertEq0(result, abi.encodePacked(bytes7(0xefcdab89674523)));
     }
 
-    function decodeStakeDocHelper(bytes calldata encodedStakeDoc_)
-        public pure returns (bytes32, uint256, uint256, uint256) {
-        StakeDoc memory decodedStakeDoc = _decodeStakeDoc(encodedStakeDoc_);
-
-        return (
-            decodedStakeDoc.publicKey,
-            decodedStakeDoc.epochStart,
-            decodedStakeDoc.epochPostEnd,
-            decodedStakeDoc.symsStaked
-        );
-    }
-
-    function decodeIntegerTestHelper(
-        bytes calldata header,
-        uint256 offset
-    ) public pure returns (uint256) {
-        uint256 integer = _decodeInteger(header, offset);
-
-        return integer;
-    }
-
     function testEncodedIntegerSize() public {
         // 250 with no padding
         bytes memory oneByteInteger = abi.encodePacked(bytes1(0xfa));
@@ -176,60 +229,9 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         assertEq(seventeenByteSize, 17);
     }
 
-    function extractBlockHeightTestHelper(bytes calldata header) public pure returns (uint256) {
-        uint256 blockHeight = _extractBlockHeight(header);
+    function testExtractDenom() public {}
 
-        return blockHeight;
-    }
-
-    function extractTransactionsHashHelper(bytes calldata header) public pure returns (bytes32) {
-        bytes32 transactionsHash = _extractTransactionsHash(header);
-
-        return transactionsHash;
-    }
-
-    function extractValueAndRecipientTestHelper(
-        bytes calldata transaction
-    ) public pure returns (uint256, address) {
-        (uint256 value, address recipient) = _extractValueAndRecipient(transaction);
-
-        return (value, recipient);
-    }
-
-    function testExtractTokenType() public {}
-
-    // function relayHeaderTestHelper(
-    //     bytes32[] calldata signers
-    // ) public {
-    //     uint256 blockHeight = 2106792883676695184;
-    //     uint256 epoch = blockHeight / STAKE_EPOCH;
-    //     uint256 signersLength = signers.length;
-    //     uint256 totalSyms = 0;
-
-    //     for (uint256 i = 0; i < signersLength; ++i) {
-    //         epochs[epoch].stakers[signers[i]] = i + 30;
-    //         totalSyms += i + 30;
-    //     }
-
-    //     epochs[epoch].totalStakedSyms = totalSyms;
-    // }
-
-    function computeMerkleRootTestHelper(
-        bytes32 txHash,
-        uint256 index,
-        bytes32[] calldata proof
-    ) public pure returns (bytes32) {
-        bytes32 merkleRoot = _computeMerkleRoot(txHash, index, proof);
-
-        return merkleRoot;
-    }
-
-    function verifyTxTestHelper(uint256 blockHeight, bytes32 transactionsHash, bytes32 stakesHash) public {
-        headers[blockHeight].transactionsHash = transactionsHash;
-        headers[blockHeight].stakesHash = stakesHash;
-    }
-
-        /* =========== Differential Fuzz Tests =========== */
+        /* =========== Differential FFI Fuzz Tests =========== */
     function testBlake3DifferentialFFI(bytes memory data) public {
         string[] memory cmds = new string[](3);
 
@@ -285,11 +287,6 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         assertEq(slice, result);
     }
 
-    function decodeIntegerDifferentialFFIHelper(bytes calldata data)
-        public pure returns (uint256) {
-        return _decodeInteger(data, 0);
-    }
-
     function testEncodedIntegerSizeDifferentialFFI(uint128 integer) public {
         string[] memory cmds = new string[](3);
 
@@ -306,43 +303,15 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         assertEq(encodedIntegerSize, integerSize);
     }
 
-    // function testExtractTransactionsHashDifferentialFFI(uint128 modifierNum) public {
-    //     string[] memory cmds = new string[](3);
-
-    //     cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
-    //     cmds[1] = '--extract-merkle-root';
-    //     cmds[2] = uint256(modifierNum).toString();
-
-    //     bytes memory result = vm.ffi(cmds);
-
-    //     (bytes memory header, bytes32 merkleRoot) = abi.decode(result, (bytes, bytes32));
-
-    //     bytes32 extractedMerkleRoot = _extractTransactionsHash(header);
-
-    //     assertEq(extractedMerkleRoot, merkleRoot);
-    // }
-
-    function extractBlockHeightDifferentialFFIHelper(bytes calldata header)
-        public pure returns (uint256) {
-        uint256 blockHeight = _extractBlockHeight(header);
-
-        return blockHeight;
-    }
-
-    function extractValueAndRecipientDifferentialFFIHelper(bytes calldata header)
-        public pure returns (uint256, address) {
-        (uint256 extractedValue, address extractedRecipient) = _extractValueAndRecipient(header);
-
-        return (extractedValue, extractedRecipient);
-    }
-
-    function testExtractTokenTypeDifferentialFFI() public {}
+    function testExtractDenomTypeDifferentialFFI() public {}
 }
 
+// contract for tests involving internal functions that have calldata params
 contract ThemelioBridgeTestInternalCalldata is Test {
     using Strings for uint;
     using ByteStrings for bytes;
 
+    // a Themelio object representing a single stash of staked syms
     struct StakeDoc {
         bytes32 publicKey;
         uint256 epochStart;
@@ -358,6 +327,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         bridgeTest = new ThemelioBridgeTest();
     }
 
+    // builds the bridge_differential_tests Rust project in case the source has been updated
     function testCargoBuild() public {
         string[] memory cmds = new string[](3);
 
@@ -369,8 +339,11 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         vm.ffi(cmds);
     }
 
+            /* =========== Unit Tests =========== */
+
     function testBurn() public {
-        (uint256 startBalance, uint256 value) = bridgeTest.burnHelper();
+        uint256 startBalance = bridgeTest.balanceOf(msg.sender);
+        uint256 value = 123456789;
 
         bridgeTest.burn(value, 0);
 
@@ -379,16 +352,6 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         assertEq(finalBalance, startBalance);
     }
 
-    // StakeDoc {
-    //      pubkey: #<EdPK:5dc57fc274>,
-    //      e_start: 499329790025850207,
-    //      e_post_end: 10267647615552527176,
-    //      syms_staked: CoinValue(64716893496921337859207055163356700560) 
-    // }
-    // 5dc57fc274b1235e28352d67b8ee4a30b74b5d0b070dc4400f30714cda80b280
-    // fd-5fdd4268ccf9ed06
-    // fd-481be5231b037e8e
-    // fe-905ff5aae270ee660c7240fe3205b030
     function testDecodeStakeDoc() public {
         bytes memory encodedStakeDoc = abi.encodePacked(
             bytes32(0x5dc57fc274b1235e28352d67b8ee4a30b74b5d0b070dc4400f30714cda80b280),
@@ -413,35 +376,35 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         bytes memory header0 = abi.encodePacked(
             bytes1(0xfa)
         );
-        uint256 integer0 = bridgeTest.decodeIntegerTestHelper(header0, 0);
+        uint256 integer0 = bridgeTest.decodeIntegerHelper(header0, 0);
         uint256 int0 = 0xfa;
         assertEq(integer0, int0);
 
         bytes memory header1 = abi.encodePacked(
             bytes4(0x00fb1111)
         );
-        uint256 integer1 = bridgeTest.decodeIntegerTestHelper(header1, 1);
+        uint256 integer1 = bridgeTest.decodeIntegerHelper(header1, 1);
         uint256 int1 = 0x1111;
         assertEq(integer1, int1);
 
         bytes memory header2 = abi.encodePacked(
             bytes7(0x0000fc22222222)
         );
-        uint256 integer2 = bridgeTest.decodeIntegerTestHelper(header2, 2);
+        uint256 integer2 = bridgeTest.decodeIntegerHelper(header2, 2);
         uint256 int2 = 0x22222222;
         assertEq(integer2, int2);
 
         bytes memory header3 = abi.encodePacked(
             bytes12(0x000000fd3333333333333333)
         );
-        uint256 integer3 = bridgeTest.decodeIntegerTestHelper(header3, 3);
+        uint256 integer3 = bridgeTest.decodeIntegerHelper(header3, 3);
         uint256 int3 = 0x3333333333333333;
         assertEq(integer3, int3);
 
         bytes memory header4 = abi.encodePacked(
             bytes21(0x00000000fe44444444444444444444444444444444)
         );
-        uint256 integer4 = bridgeTest.decodeIntegerTestHelper(header4, 4);
+        uint256 integer4 = bridgeTest.decodeIntegerHelper(header4, 4);
         uint256 int4 = 0x44444444444444444444444444444444;
         assertEq(integer4, int4);
     }
@@ -457,7 +420,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
             bytes32(0x6c66cd36ba998c346e481522724ff71b19c04e8841616bf2afe880ca063b232b),
             bytes29(0x90a52d3801d0d9775ac49ee59050d115aeff4796c9e3d11bc010341590)
         );
-        uint256 blockHeight = bridgeTest.extractBlockHeightTestHelper(header);
+        uint256 blockHeight = bridgeTest.extractBlockHeightHelper(header);
 
         assertEq(blockHeight, 14217254977967302745);
     }
@@ -493,7 +456,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         );
 
         (uint256 value, address recipient) =
-            bridgeTest.extractValueAndRecipientTestHelper(transaction);
+            bridgeTest.extractValueAndRecipientHelper(transaction);
 
         assertEq(value, 295482083328956529783620102020496385258);
         assertEq(recipient, 0xc505B3263fEc82F8b624f4BA9C01b20E506b5E1e);
@@ -587,7 +550,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         bytes32 txHash = 0x2e187bec885cacb89e4adc7f4dd4a658d2c924464367ee9bff8c10e0821409c5;
         uint256 txIndex = 3;
 
-        bytes32 merkleRoot = bridgeTest.computeMerkleRootTestHelper(
+        bytes32 merkleRoot = bridgeTest.computeMerkleRootHelper(
             txHash,
             txIndex,
             proof
@@ -620,7 +583,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         uint256 value = 153168801660958298760728062610398288911;
         address recipient = 0x762346cea1cb891dbC4b30d328598F4c9568227d;
 
-        bridgeTest.verifyTxTestHelper(blockHeight, transactionsHash, stakesHash);
+        bridgeTest.verifyTxHelper(blockHeight, transactionsHash, stakesHash);
 
         bool success = bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
         assertTrue(success);
@@ -653,7 +616,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         uint256 value = 153168801660958298760728062610398288911;
         address recipient = 0x762346cea1cb891dbC4b30d328598F4c9568227d;
 
-        bridgeTest.verifyTxTestHelper(blockHeight, transactionsHash, stakesHash);
+        bridgeTest.verifyTxHelper(blockHeight, transactionsHash, stakesHash);
 
         bool success = bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
         assertTrue(success);
@@ -681,7 +644,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         cmds[2] = uint256(integer).toString();
 
         bytes memory result = vm.ffi(cmds);
-        uint256 decodedInteger = bridgeTest.decodeIntegerDifferentialFFIHelper(result);
+        uint256 decodedInteger = bridgeTest.decodeIntegerDifferentialHelper(result);
 
         assertEq(decodedInteger, integer);
     }
@@ -697,9 +660,25 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
         bytes memory header = vm.ffi(cmds);
 
-        uint256 extractedBlockHeight = bridgeTest.extractBlockHeightDifferentialFFIHelper(header);
+        uint256 extractedBlockHeight = bridgeTest.extractBlockHeightHelper(header);
 
         assertEq(extractedBlockHeight, blockHeight);
+    }
+
+    function testExtractTransactionsHashDifferentialFFI(uint128 modifierNum) public {
+        string[] memory cmds = new string[](3);
+
+        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[1] = '--extract-merkle-root';
+        cmds[2] = uint256(modifierNum).toString();
+
+        bytes memory result = vm.ffi(cmds);
+
+        (bytes memory header, bytes32 merkleRoot) = abi.decode(result, (bytes, bytes32));
+
+        bytes32 extractedMerkleRoot = bridgeTest.extractTransactionsHashHelper(header);
+
+        assertEq(extractedMerkleRoot, merkleRoot);
     }
 
     function testExtractValueAndRecipientDifferentialFFI(

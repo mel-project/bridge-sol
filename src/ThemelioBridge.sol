@@ -652,14 +652,14 @@ contract ThemelioBridge is ERC20 {
     }
 
     /**
-    * @notice Extracts and decodes the token type of a Themelio transaction
+    * @notice Extracts and decodes the token denomination of a Themelio transaction
     *
     * @dev TBD
     *
     * @param transaction_ A serialized Themelio transaction.
     * return The token type of the first output of the transaction.
     */
-    function _extractTokenType(bytes calldata transaction_) internal pure {}
+    function _extractDenom(bytes calldata transaction_) internal pure {}
 
     /**
     * @notice Computes the a Merkle root given a hash and a Merkle proof.
