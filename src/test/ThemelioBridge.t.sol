@@ -2,9 +2,9 @@
 pragma solidity 0.8.13;
 
 import 'forge-std/Test.sol';
-import '../ThemelioBridge.sol';
-import './utils/ByteStrings.sol';
 import 'openzeppelin-contracts/contracts/utils/Strings.sol';
+import './utils/ByteStrings.sol';
+import '../ThemelioBridge.sol';
 
 contract ThemelioBridgeTest is ThemelioBridge, Test {
     using Blake3Sol for Blake3Sol.Hasher;
@@ -54,7 +54,7 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         return (value, recipient);
     }
 
-    // function relayHeaderTestHelper(
+    // function relayHeaderHelper(
     //     bytes32[] calldata signers
     // ) public {
     //     uint256 blockHeight = 2106792883676695184;
@@ -80,7 +80,11 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         return merkleRoot;
     }
 
-    function verifyTxHelper(uint256 blockHeight, bytes32 transactionsHash, bytes32 stakesHash) public {
+    function verifyTxHelper(
+        uint256 blockHeight,
+        bytes32 transactionsHash,
+        bytes32 stakesHash
+    ) public {
         headers[blockHeight].transactionsHash = transactionsHash;
         headers[blockHeight].stakesHash = stakesHash;
     }

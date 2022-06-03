@@ -109,7 +109,12 @@ $ forge build
 ## Testing
 
 To run all tests, including tests which use Foreign Function Interfaces to differentially fuzz test
-our Solidity functions against reference implementations in Rust, run:
+our Solidity functions against reference implementations in Rust, you will first have to build the
+Rust project in `src/test/differential` by running:
+```
+$ cd src/test/differential && cargo build && cd ../../..
+```
+Then to run all tests use:
 ```
 $ forge test --vvv --ffi
 ```
