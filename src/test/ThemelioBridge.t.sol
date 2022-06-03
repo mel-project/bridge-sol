@@ -15,6 +15,10 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
 
         /* =========== Helpers =========== */
 
+    function burnHelper(uint256 value) public {
+        _mint(_msgSender(), value);
+    }
+
     function decodeStakeDocHelper(bytes calldata encodedStakeDoc_)
         public pure returns (bytes32, uint256, uint256, uint256) {
         StakeDoc memory decodedStakeDoc = _decodeStakeDoc(encodedStakeDoc_);
@@ -327,23 +331,13 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         bridgeTest = new ThemelioBridgeTest();
     }
 
-    // builds the bridge_differential_tests Rust project in case the source has been updated
-    function testCargoBuild() public {
-        string[] memory cmds = new string[](3);
-
-        cmds[0] = 'cargo';
-        cmds[1] = 'build';
-        cmds[2] = '--manifest-path';
-        cmds[2] = './src/test/differential/Cargo.toml';
-
-        vm.ffi(cmds);
-    }
-
             /* =========== Unit Tests =========== */
 
     function testBurn() public {
         uint256 startBalance = bridgeTest.balanceOf(msg.sender);
         uint256 value = 123456789;
+
+        bridgeTest.burnHelper(value);
 
         bridgeTest.burn(value, 0);
 
@@ -669,16 +663,16 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         string[] memory cmds = new string[](3);
 
         cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
-        cmds[1] = '--extract-merkle-root';
+        cmds[1] = '--extract-transactions-hash';
         cmds[2] = uint256(modifierNum).toString();
 
         bytes memory result = vm.ffi(cmds);
 
         (bytes memory header, bytes32 merkleRoot) = abi.decode(result, (bytes, bytes32));
 
-        bytes32 extractedMerkleRoot = bridgeTest.extractTransactionsHashHelper(header);
+        bytes32 extractedTransactionsHash = bridgeTest.extractTransactionsHashHelper(header);
 
-        assertEq(extractedMerkleRoot, merkleRoot);
+        assertEq(extractedTransactionsHash, merkleRoot);
     }
 
     function testExtractValueAndRecipientDifferentialFFI(
