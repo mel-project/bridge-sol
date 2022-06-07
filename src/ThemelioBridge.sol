@@ -55,6 +55,15 @@ contract ThemelioBridge is ERC20 {
         uint256 symsStaked;
     }
 
+    enum Denom {
+        Mel,
+        Sym,
+        Erg,
+
+        NewCoin
+        //Custom(TxHash)
+    }
+
     /* =========== Themelio Header Validation Storage =========== */
 
     uint256 public trustedHeight; // tracks the latest verified height stored by the contract
@@ -345,7 +354,9 @@ contract ThemelioBridge is ERC20 {
         if (_computeMerkleRoot(txHash, txIndex_, proof_) == transactionsHash) {
             spends[txHash] = true;
 
-            (uint256 value, address recipient) = _extractValueAndRecipient(transaction_);
+            (uint256 value, Denom denom, address recipient) =
+                _extractValueDenomAndRecipient(transaction_);
+
             _mint(recipient, value);
 
             emit TxVerified(txHash, blockHeight_);
@@ -622,9 +633,9 @@ contract ThemelioBridge is ERC20 {
     *
     * @return recipient The 'additional_data' field in the first output of a Themelio transaction.
     */
-    function _extractValueAndRecipient(
+    function _extractValueDenomAndRecipient(
         bytes calldata transaction_
-    ) internal pure returns (uint256, address) {
+    ) internal pure returns (uint256, Denom, address) {
         // skip 'kind' enum (1 byte)
         uint256 offset = 1;
 
@@ -642,24 +653,15 @@ contract ThemelioBridge is ERC20 {
         // decode 'value', aggregate 'value' and 'denom' (2 bytes) size to 'offset'
         // todo: actually here we need to check the size of 'denom' because it can be 2 or 64 bytes
         uint256 value = _decodeInteger(transaction_, offset);
+        Denom denom = Denom(_decodeInteger(transaction_, offset + 2));
         offset += _encodedIntegerSize(transaction_, offset) + 2;
 
         // get size of 'additional_data' array's length, _extract recipient address from first item
         offset += _encodedIntegerSize(transaction_, offset);
         address recipient = address(bytes20(transaction_[offset:offset + 20]));
 
-        return (value, recipient);
+        return (value, denom, recipient);
     }
-
-    /**
-    * @notice Extracts and decodes the token denomination of a Themelio transaction
-    *
-    * @dev TBD
-    *
-    * @param transaction_ A serialized Themelio transaction.
-    * return The token type of the first output of the transaction.
-    */
-    function _extractDenom(bytes calldata transaction_) internal pure {}
 
     /**
     * @notice Computes the a Merkle root given a hash and a Merkle proof.
