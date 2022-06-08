@@ -43,11 +43,13 @@ import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 contract ThemelioBridge is ERC20 {
     using Blake3Sol for Blake3Sol.Hasher;
 
+    // an abbreviated Themelio header with the only two fields we need for header and tx validation
     struct Header {
         bytes32 transactionsHash;
         bytes32 stakesHash;
     }
 
+    // a Themelio object representing a single stash of staked syms
     struct StakeDoc {
         bytes32 publicKey;
         uint256 epochStart;
@@ -55,6 +57,7 @@ contract ThemelioBridge is ERC20 {
         uint256 symsStaked;
     }
 
+    // the denomination of a coin used in a Themelio transaction
     enum Denom {
         Mel,
         Sym,
@@ -76,10 +79,14 @@ contract ThemelioBridge is ERC20 {
     uint256 internal constant STAKE_EPOCH = 200_000;
 
     // the hashing keys used when hashing datablocks and nodes, respectively
-    bytes32 internal constant DATA_BLOCK_HASH_KEY =
-        0xc811f2ef6eb6bd09fb973c747cbf349e682393ca4d8df88e5f0bcd564c10a84b;
-    bytes32 internal constant NODE_HASH_KEY =
-        0xd943cb6e931507cafe2357fbe5cce15af420a84c67251eddb0bf934b7bbbef91;
+    bytes internal constant DATA_BLOCK_HASH_KEY =
+        abi.encodePacked(
+            bytes32(0xc811f2ef6eb6bd09fb973c747cbf349e682393ca4d8df88e5f0bcd564c10a84b)
+        );
+    bytes internal constant NODE_HASH_KEY =
+        abi.encodePacked(
+            bytes32(0xd943cb6e931507cafe2357fbe5cce15af420a84c67251eddb0bf934b7bbbef91)
+        );
 
     /* =========== Errors =========== */
 
@@ -381,9 +388,7 @@ contract ThemelioBridge is ERC20 {
     * @return The blake3 keyed hash of a Merkle tree datablock input argument.
     */
     function _hashDatablock(bytes memory datablock) internal pure returns (bytes32) {
-        Blake3Sol.Hasher memory hasher = Blake3Sol.new_keyed(
-            abi.encodePacked(DATA_BLOCK_HASH_KEY)
-        );
+        Blake3Sol.Hasher memory hasher = Blake3Sol.new_keyed(DATA_BLOCK_HASH_KEY);
         hasher = hasher.update_hasher(datablock);
 
         return bytes32(hasher.finalize());
@@ -401,7 +406,7 @@ contract ThemelioBridge is ERC20 {
     * @return The blake3 keyed hash of two concatenated Merkle tree nodes.
     */
     function _hashNodes(bytes memory nodes) internal pure returns (bytes32) {
-        Blake3Sol.Hasher memory hasher = Blake3Sol.new_keyed(abi.encodePacked(NODE_HASH_KEY));
+        Blake3Sol.Hasher memory hasher = Blake3Sol.new_keyed(NODE_HASH_KEY);
         hasher = hasher.update_hasher(nodes);
         
         return bytes32(hasher.finalize());
