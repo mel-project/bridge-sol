@@ -3,7 +3,7 @@ pragma solidity 0.8.13;
 
 import 'blake3-sol/Blake3Sol.sol';
 import 'ed25519-sol/Ed25519.sol';
-import 'openzeppelin-contracts/contracts/token/ERC1155/presets/ERC1155PresetMinterPauser.sol';
+import 'openzeppelin-contracts/contracts/token/ERC1155/ERC1155.sol';
 
 /**
 * @title ThemelioBridge: A relay bridge for transferring Themelio assets to Ethereum and back
@@ -40,7 +40,7 @@ import 'openzeppelin-contracts/contracts/token/ERC1155/presets/ERC1155PresetMint
 *
 *      Questions or concerns? Come chat with us on Discord! https://discord.com/invite/VedNp7EXFc
 */
-contract ThemelioBridge is ERC1155, ERC1155Burnable, Pausable {
+contract ThemelioBridge is ERC1155 {
     using Blake3Sol for Blake3Sol.Hasher;
 
     // an abbreviated Themelio header with the only two fields we need for header and tx validation
@@ -86,6 +86,12 @@ contract ThemelioBridge is ERC1155, ERC1155Burnable, Pausable {
         );
 
     /* =========== Errors =========== */
+
+    /**
+    * Transaction sender must either be the owner or be approved by the owner of the tokens in
+    * order to transfer them.
+    */
+    error ERC1155NotOwnerOrApproved();
 
     /**
     * Slice is out of bounds. `start` must be greater than -1 and less than `dataLength`. `end`
@@ -169,19 +175,16 @@ contract ThemelioBridge is ERC1155, ERC1155Burnable, Pausable {
     );
 
     event TokensMinted(
-        address indexed recipient,
+        address indexed account,
         uint256 indexed value
     );
 
     event TokensBurned(
-        address indexed sender,
-        uint256 indexed value,
         bytes32 indexed themelioRecipient
     );
 
     /**
-    * @dev Constructor is responsible for submitting the token name and ticker symbol to the
-    *      ERC-20 constructor and initializing contract storage with a base header at 
+    * @dev Constructor is responsible for initializing contract storage with a base header at 
     *      `trustedHeight` height which will be used to verify subsequent headers.
     */
     constructor(
@@ -194,6 +197,78 @@ contract ThemelioBridge is ERC1155, ERC1155Burnable, Pausable {
         headers[trustedHeight].transactionsHash = transactionsHash_;
         headers[trustedHeight].stakesHash = stakesHash_;
     }
+
+    /* =========== ERC-1155 Functions =========== */
+
+    /**
+     * @notice This function is used to release frozen assets on Themelio by burning them first on
+     *         Ethereum. You will use the blockheight and tx hash of your burn transaction as a
+     *         receipt to release the funds on Themelio.
+     *
+     * @dev Destroys `value_` tokens of token type `id_` from `from_`
+     *      Emits a {TransferSingle} event.
+     *
+     *      Requirements:
+     *          - `from_` cannot be the zero address.
+     *          - `from_` must have at least `amount_` tokens of token type `id_`.
+     *
+     * @param account_ The owner of the tokens to be burned.
+     *
+     * @param id_ The token id of the tokens to be burned.
+     *
+     * @param value_ An array of values of tokens to be burned, corresponding to the ids array
+     *
+     * @param themelioRecipient_ The Themelio recipient (technically covenant) to release the
+     *        funds to on the Themelio network.
+     */
+    function burn(
+        address account_,
+        uint256 id_, uint256 value_,
+        bytes32 themelioRecipient_
+    ) external {
+        if (account_ != _msgSender() || !isApprovedForAll(account_, _msgSender())) {
+            revert ERC1155NotOwnerOrApproved();
+        }
+
+        _burn(account_, id_, value_);
+
+        emit TokensBurned(themelioRecipient_);
+    }
+
+    /**
+     * @notice This is the batch version of burn(), it can be used to burn an array of different
+     *         token types using a corresponding array of values.
+     *
+     * @dev xref:ROOT:erc1155.adoc#batch-operations[Batched] version of {_burn}.
+     *      Emits a {TransferBatch} and TokensBurned event.
+     *
+     *      Requirements:
+     *          - `ids` and `amounts` must have the same length.
+     *
+     * @param account_ The owner of the tokens to be burned.
+     *
+     * @param ids_ An array of token ids
+     *
+     * @param values_ An array of values of tokens to be burned, corresponding to the ids array
+     *
+     * @param themelioRecipient_ The Themelio recipient (technically covenant) to release the
+     *        funds to on the Themelio network.
+     */
+    function burnBatch(
+        address account_,
+        uint256[] calldata ids_,
+        uint256[] calldata values_,
+        bytes32 themelioRecipient_
+    ) external {
+        if (account_ != _msgSender() || !isApprovedForAll(account_, _msgSender())) {
+            revert ERC1155NotOwnerOrApproved();
+        }
+
+        _burnBatch(account_, ids_, values_);
+
+        emit TokensBurned(themelioRecipient_);
+    }
+
 
     /* =========== Themelio Staker Set, Header, and Transaction Verification =========== */
 
