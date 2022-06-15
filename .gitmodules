@@ -10,6 +10,6 @@
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "src/test/differentials"]
-	path = src/test/differentials
+[submodule "src/test/differential"]
+	path = src/test/differential
 	url = https://github.com/themeliolabs/bridge-differential-tests
