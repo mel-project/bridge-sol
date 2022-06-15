@@ -223,10 +223,11 @@ contract ThemelioBridge is ERC1155 {
      */
     function burn(
         address account_,
-        uint256 id_, uint256 value_,
+        uint256 id_,
+        uint256 value_,
         bytes32 themelioRecipient_
     ) external {
-        if (account_ != _msgSender() || !isApprovedForAll(account_, _msgSender())) {
+        if (account_ != _msgSender() && !isApprovedForAll(account_, _msgSender())) {
             revert ERC1155NotOwnerOrApproved();
         }
 
@@ -260,7 +261,7 @@ contract ThemelioBridge is ERC1155 {
         uint256[] calldata values_,
         bytes32 themelioRecipient_
     ) external {
-        if (account_ != _msgSender() || !isApprovedForAll(account_, _msgSender())) {
+        if (account_ != _msgSender() && !isApprovedForAll(account_, _msgSender())) {
             revert ERC1155NotOwnerOrApproved();
         }
 

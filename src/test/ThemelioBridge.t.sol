@@ -120,33 +120,11 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         return bigHash;
     }
 
+    function mintHelper(address account, uint256 id, uint256 value) public {
+        _mint(account, id, value, '');
+    }
+
         /* =========== Unit Tests =========== */
-
-    function testBurn() public {
-        address burner = _msgSender();
-        uint256 startBalance = balanceOf(burner, MEL);
-        uint256 value = 666;
-
-        _mint(burner, MEL, value, '');
-
-        burn(burner, MEL, value);
-
-        uint256 finalBalance = balanceOf(burner, SYM);
-
-        assertEq(finalBalance, startBalance);
-    }
-
-    function testMint() public {
-        address minter = address(0xdead);
-        uint256 oldBalance = balanceOf(minter, MEL);
-        uint256 value = 9000;
-
-        _mint(minter, MEL, value, '');
-
-        uint256 newBalance = balanceOf(minter, MEL);
-
-        assertEq(newBalance, oldBalance + value);
-    }
 
     function testEd25519() public {
         bytes memory message = abi.encodePacked('The foundation of a trustless Internet');
@@ -316,6 +294,27 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     }
 
             /* =========== Unit Tests =========== */
+
+    function testBurn() public {
+        address burner = msg.sender;
+        uint256 id = MEL;
+        uint256 startBalance = bridgeTest.balanceOf(burner, id);
+        uint256 value = 666;
+        bytes32 themelioRecipient;
+
+        bridgeTest.mintHelper(burner, id, value);
+
+        assertEq(bridgeTest.balanceOf(burner, id), startBalance + value);
+
+        bridgeTest.burn(burner, id, value, themelioRecipient);
+        // assert log is emitted
+
+        uint256 finalBalance = bridgeTest.balanceOf(burner, id);
+
+        assertEq(finalBalance, startBalance);
+    }
+
+    function testBatchBurn() public {}
 
     function testDecodeStakeDoc() public {
         bytes memory encodedStakeDoc = abi.encodePacked(
