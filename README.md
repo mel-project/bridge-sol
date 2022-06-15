@@ -35,7 +35,7 @@ assets.
 
 ## API
 
-### relayStakers(epoch, stakers, stakerSyms) returns (bool)
+### submitStakers(epoch, stakers, stakerSyms) returns (bool)
 
 *This implementation is incomplete and will change in the near future.*
 
@@ -52,7 +52,7 @@ Returns `true` if the staker set was successfully verified and stored, reverts o
 
 ----
 
-### relayHeader(header, signers, signatures) returns (bool)
+### submitHeader(header, signers, signatures) returns (bool)
 
 Stores header information for a particular block height once the header has been verified through
 ed25519 signature verification of at least 2/3 sym holders from the previous epoch.
