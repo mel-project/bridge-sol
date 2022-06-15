@@ -295,24 +295,26 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
             /* =========== Unit Tests =========== */
 
-    function testBurn() public {
-        address burner = msg.sender;
-        uint256 id = MEL;
-        uint256 startBalance = bridgeTest.balanceOf(burner, id);
-        uint256 value = 666;
-        bytes32 themelioRecipient;
+    // function testApproveAndBurn() public {
+    //     address burner = msg.sender;
+    //     uint256 id = MEL;
+    //     uint256 startBalance = bridgeTest.balanceOf(burner, id);
+    //     uint256 value = 666;
+    //     bytes32 themelioRecipient;
 
-        bridgeTest.mintHelper(burner, id, value);
+    //     bridgeTest.mintHelper(burner, id, value);
 
-        assertEq(bridgeTest.balanceOf(burner, id), startBalance + value);
+    //     assertEq(bridgeTest.balanceOf(burner, id), startBalance + value);
 
-        bridgeTest.burn(burner, id, value, themelioRecipient);
-        // assert log is emitted
+    //     bridgeTest.setApprovalForAll(address(this), true);
 
-        uint256 finalBalance = bridgeTest.balanceOf(burner, id);
+    //     bridgeTest.burn(burner, id, value, themelioRecipient);
+    //     // assert log is emitted
 
-        assertEq(finalBalance, startBalance);
-    }
+    //     uint256 finalBalance = bridgeTest.balanceOf(burner, id);
+
+    //     assertEq(finalBalance, startBalance);
+    // }
 
     function testBatchBurn() public {}
 
