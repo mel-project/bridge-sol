@@ -57,14 +57,19 @@ contract ThemelioBridge is ERC20 {
         uint256 symsStaked;
     }
 
-    // the denomination of a coin used in a Themelio transaction
-    enum Denom {
+    // the coin type used in a Themelio transaction
+    enum CoinType {
         Mel,
         Sym,
         Erg,
+        NewCoin,
+        Custom
+    }
 
-        NewCoin
-        //Custom(TxHash)
+    // the entire denomination of a Themelio coin (because `Custom` wraps a 32-byte `TxHash`)
+    struct Denom {
+        CoinType coinType;
+        bytes32 txHash;
     }
 
     /* =========== Themelio Header Validation Storage =========== */
@@ -361,7 +366,7 @@ contract ThemelioBridge is ERC20 {
         if (_computeMerkleRoot(txHash, txIndex_, proof_) == transactionsHash) {
             spends[txHash] = true;
 
-            (uint256 value, Denom denom, address recipient) =
+            (uint256 value, Denom memory denom, address recipient) =
                 _extractValueDenomAndRecipient(transaction_);
 
             _mint(recipient, value);
@@ -640,7 +645,7 @@ contract ThemelioBridge is ERC20 {
     */
     function _extractValueDenomAndRecipient(
         bytes calldata transaction_
-    ) internal pure returns (uint256, Denom, address) {
+    ) internal pure returns (uint256, Denom memory, address) {
         // skip 'kind' enum (1 byte)
         uint256 offset = 1;
 
@@ -655,11 +660,39 @@ contract ThemelioBridge is ERC20 {
         // 'cov_hash' size (32 bytes)
         offset += _encodedIntegerSize(transaction_, offset) + 32;
 
-        // decode 'value', aggregate 'value' and 'denom' (2 bytes) size to 'offset'
-        // todo: actually here we need to check the size of 'denom' because it can be 2 or 64 bytes
+        // decode 'value' and add its size to 'offset'
         uint256 value = _decodeInteger(transaction_, offset);
-        Denom denom = Denom(_decodeInteger(transaction_, offset + 2));
-        offset += _encodedIntegerSize(transaction_, offset) + 2;
+        offset += _encodedIntegerSize(transaction_, offset);
+
+        // here we need to check the size of 'denom' because it can be 0, 1, or 32 bytes
+        uint256 denomSize = _decodeInteger(transaction_, offset);
+        offset += 1; // the size of `denomSize`; the denom metasize, if you will.
+
+        Denom memory denom;
+
+        if (denomSize == 0) {
+            denom.coinType = CoinType.NewCoin;
+        } else if (denomSize == 1) {
+            uint256 coin = uint8(bytes1(transaction_[offset:offset + 1]));
+
+            if (coin == 0x64) {
+                denom.coinType = CoinType.Erg;
+            } else if (coin == 0x6d) {
+                denom.coinType = CoinType.Mel;
+            } else if (coin == 0x73) {
+                denom.coinType = CoinType.Sym;
+            } else {
+                assert(false);
+            }
+        } else if (denomSize == 32) {
+            denom.coinType = CoinType.Custom;
+            denom.txHash = bytes32(transaction_[offset:offset + 64]);
+        } else {
+            assert(false);
+        }
+
+        // 'denom' size to 'offset'
+        offset += denomSize;
 
         // get size of 'additional_data' array's length, _extract recipient address from first item
         offset += _encodedIntegerSize(transaction_, offset);

@@ -40,6 +40,29 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         return integer;
     }
 
+    function denomToStringHelper(Denom memory denom) public pure returns (string memory) {
+        CoinType coin = denom.coinType;
+
+        if (coin == CoinType.Mel) {
+            return "MEL";
+        } else if (coin == CoinType.Sym) {
+            return "SYM";
+        } else if (coin == CoinType.Erg) {
+            return "ERG";
+        } else if (coin == CoinType.NewCoin) {
+            return "(NEWCOIN)";
+        } else if (coin == CoinType.Custom) {
+            string memory txHash = abi.encodePacked(denom.txHash).toHexString();
+            txHash = string(_slice(abi.encodePacked(txHash), 2, 66));
+
+            return string(abi.encodePacked("CUSTOM-", txHash));
+        } else {
+            assert(false);
+
+            return "Error";
+        }
+    }
+
     function extractTransactionsHashHelper(bytes calldata header) public pure returns (bytes32) {
         bytes32 transactionsHash = _extractTransactionsHash(header);
 
@@ -48,8 +71,8 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
 
     function extractValueDenomAndRecipientHelper(
         bytes calldata transaction
-    ) public pure returns (uint256, Denom, address) {
-        (uint256 value, Denom denom, address recipient) = _extractValueDenomAndRecipient(transaction);
+    ) public pure returns (uint256, Denom memory, address) {
+        (uint256 value, Denom memory denom, address recipient) = _extractValueDenomAndRecipient(transaction);
 
         return (value, denom, recipient);
     }
@@ -412,23 +435,23 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         );
     }
 
-    // function testExtractDenomValueAndRecipient() public {
-    //     bytes memory transaction = abi.encodePacked(
-    //         bytes32(0x51010a1a82a7f70497fbbb549a63b4f11fe2062fc8eb78908138d5ec6c4c37b4),
-    //         bytes32(0xd46d9602918b542ba2682549c3e246dc41ea843d3f7c565a45f4ee4529e314e6),
-    //         bytes32(0xf4ababe4feea64accf835d2e8c75071bb47bc74bde016d14c505b3263fec82f8),
-    //         bytes32(0xb624f4ba9c01b20e506b5e1e868010bfd9908ba0027dbb1f063b9ef1f20cae1f),
-    //         bytes32(0x75e2ccc9596eac88253175b1fedd531bfa008451b726a8125afd34db9e016d00),
-    //         bytes26(0xfe49707269c1dd7303bae99ab55ffd4db401017b02ddce010105)
-    //     );
+    function testExtractDenomValueAndRecipient() public {
+        bytes memory transaction = abi.encodePacked(
+            bytes32(0x51010a1a82a7f70497fbbb549a63b4f11fe2062fc8eb78908138d5ec6c4c37b4),
+            bytes32(0xd46d9602918b542ba2682549c3e246dc41ea843d3f7c565a45f4ee4529e314e6),
+            bytes32(0xf4ababe4feea64accf835d2e8c75071bb47bc74bde016d14c505b3263fec82f8),
+            bytes32(0xb624f4ba9c01b20e506b5e1e868010bfd9908ba0027dbb1f063b9ef1f20cae1f),
+            bytes32(0x75e2ccc9596eac88253175b1fedd531bfa008451b726a8125afd34db9e016d00),
+            bytes26(0xfe49707269c1dd7303bae99ab55ffd4db401017b02ddce010105)
+        );
 
-    //     (uint256 value, ThemelioBridge.Denom denom, address recipient) =
-    //         bridgeTest.extractValueDenomAndRecipientHelper(transaction);
+        (uint256 value, ThemelioBridge.Denom memory denom, address recipient) =
+            bridgeTest.extractValueDenomAndRecipientHelper(transaction);
 
-    //     assertEq(value, 295482083328956529783620102020496385258);
-    //     //assertEq(denom, 1);
-    //     assertEq(recipient, 0xc505B3263fEc82F8b624f4BA9C01b20E506b5E1e);
-    // }
+        assertEq(value, 295482083328956529783620102020496385258);
+        assertTrue(denom.coinType == ThemelioBridge.CoinType.Mel);
+        assertEq(recipient, 0xc505B3263fEc82F8b624f4BA9C01b20E506b5E1e);
+    }
 
     // function testRelayHeader() public {
     //     bytes memory header = abi.encodePacked(
@@ -527,81 +550,81 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         assertEq(merkleRoot, 0xfdb8082e4be32395b895e7e46719f70c9155f426db3d2e31ce7632dced994608);
     }
 
-    // function testVerifyTx() public {
-    //     uint256 blockHeight = 11699990686140247438;
-    //     bytes32 transactionsHash =
-    //         0x580997689374a72c83aaa25fd2517e1e60c17034413d513e090435941fb318ce;
-    //     bytes32 stakesHash =
-    //         0xf7490fc7be550aefa27eb01a33d51138deda54823601f2f87283ce88f04a5831;
+    function testVerifyTx() public {
+        uint256 blockHeight = 11699990686140247438;
+        bytes32 transactionsHash =
+            0x580997689374a72c83aaa25fd2517e1e60c17034413d513e090435941fb318ce;
+        bytes32 stakesHash =
+            0xf7490fc7be550aefa27eb01a33d51138deda54823601f2f87283ce88f04a5831;
 
-    //     bytes memory transaction = abi.encodePacked(
-    //         bytes32(0x5101ac47ce6d06e6b937043484412f7f8ecffc5227284f81e5d5d093d5c4c57d),
-    //         bytes32(0x0ba71202766a5980aa7d6c7c05294d217eb09872ea8579fbb4e7ed129fa2140f),
-    //         bytes32(0xee549cc9fe0f9c28281dfe5cca35b0647af83c3b73016d14762346cea1cb891d),
-    //         bytes32(0xbc4b30d328598f4c9568227de69e61600cd3347a796664f34e4cb1e0b31f453b),
-    //         bytes32(0xb8fa84e20ac43b36074a4394feb61cd4ef5a811fd2f8144b8b3f3a8a10016d00),
-    //         bytes26(0xfe113c98493ad256720c5f8cfb32000af301018c028a8101018f)
-    //     );
-    //     uint256 txIndex = 3;
+        bytes memory transaction = abi.encodePacked(
+            bytes32(0x5101ac47ce6d06e6b937043484412f7f8ecffc5227284f81e5d5d093d5c4c57d),
+            bytes32(0x0ba71202766a5980aa7d6c7c05294d217eb09872ea8579fbb4e7ed129fa2140f),
+            bytes32(0xee549cc9fe0f9c28281dfe5cca35b0647af83c3b73016d14762346cea1cb891d),
+            bytes32(0xbc4b30d328598f4c9568227de69e61600cd3347a796664f34e4cb1e0b31f453b),
+            bytes32(0xb8fa84e20ac43b36074a4394feb61cd4ef5a811fd2f8144b8b3f3a8a10016d00),
+            bytes26(0xfe113c98493ad256720c5f8cfb32000af301018c028a8101018f)
+        );
+        uint256 txIndex = 3;
 
-    //     bytes32[] memory proof = new bytes32[](2);
-    //     proof[0] = 0x1a2582eb25c727ff0d4fe22c9d921e2b6186b6160a2c72f0fb8cb2e5f126bfb1;
-    //     proof[1] = 0xf12599cbd9d49c0aad7aa00257dd4a1dd2b1a41b7b71cebc7a8217a121586339;
+        bytes32[] memory proof = new bytes32[](2);
+        proof[0] = 0x1a2582eb25c727ff0d4fe22c9d921e2b6186b6160a2c72f0fb8cb2e5f126bfb1;
+        proof[1] = 0xf12599cbd9d49c0aad7aa00257dd4a1dd2b1a41b7b71cebc7a8217a121586339;
 
-    //     uint256 value = 153168801660958298760728062610398288911;
-    //     address recipient = 0x762346cea1cb891dbC4b30d328598F4c9568227d;
+        uint256 value = 153168801660958298760728062610398288911;
+        address recipient = 0x762346cea1cb891dbC4b30d328598F4c9568227d;
 
-    //     bridgeTest.verifyTxHelper(blockHeight, transactionsHash, stakesHash);
+        bridgeTest.verifyTxHelper(blockHeight, transactionsHash, stakesHash);
 
-    //     bool success = bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
-    //     assertTrue(success);
+        bool success = bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
+        assertTrue(success);
 
-    //     uint256 recipientBalance = bridgeTest.balanceOf(recipient);
-    //     assertEq(recipientBalance, value);
-    // }
+        uint256 recipientBalance = bridgeTest.balanceOf(recipient);
+        assertEq(recipientBalance, value);
+    }
 
-    // function testCannotVerifyTxTwice() public {
-    //     uint256 blockHeight = 11699990686140247438;
-    //     bytes32 transactionsHash =
-    //         0x580997689374a72c83aaa25fd2517e1e60c17034413d513e090435941fb318ce;
-    //     bytes32 stakesHash =
-    //         0xf7490fc7be550aefa27eb01a33d51138deda54823601f2f87283ce88f04a5831;
+    function testCannotVerifyTxTwice() public {
+        uint256 blockHeight = 11699990686140247438;
+        bytes32 transactionsHash =
+            0x580997689374a72c83aaa25fd2517e1e60c17034413d513e090435941fb318ce;
+        bytes32 stakesHash =
+            0xf7490fc7be550aefa27eb01a33d51138deda54823601f2f87283ce88f04a5831;
 
-    //     bytes memory transaction = abi.encodePacked(
-    //         bytes32(0x5101ac47ce6d06e6b937043484412f7f8ecffc5227284f81e5d5d093d5c4c57d),
-    //         bytes32(0x0ba71202766a5980aa7d6c7c05294d217eb09872ea8579fbb4e7ed129fa2140f),
-    //         bytes32(0xee549cc9fe0f9c28281dfe5cca35b0647af83c3b73016d14762346cea1cb891d),
-    //         bytes32(0xbc4b30d328598f4c9568227de69e61600cd3347a796664f34e4cb1e0b31f453b),
-    //         bytes32(0xb8fa84e20ac43b36074a4394feb61cd4ef5a811fd2f8144b8b3f3a8a10016d00),
-    //         bytes26(0xfe113c98493ad256720c5f8cfb32000af301018c028a8101018f)
-    //     );
-    //     uint256 txIndex = 3;
+        bytes memory transaction = abi.encodePacked(
+            bytes32(0x5101ac47ce6d06e6b937043484412f7f8ecffc5227284f81e5d5d093d5c4c57d),
+            bytes32(0x0ba71202766a5980aa7d6c7c05294d217eb09872ea8579fbb4e7ed129fa2140f),
+            bytes32(0xee549cc9fe0f9c28281dfe5cca35b0647af83c3b73016d14762346cea1cb891d),
+            bytes32(0xbc4b30d328598f4c9568227de69e61600cd3347a796664f34e4cb1e0b31f453b),
+            bytes32(0xb8fa84e20ac43b36074a4394feb61cd4ef5a811fd2f8144b8b3f3a8a10016d00),
+            bytes26(0xfe113c98493ad256720c5f8cfb32000af301018c028a8101018f)
+        );
+        uint256 txIndex = 3;
 
-    //     bytes32[] memory proof = new bytes32[](2);
-    //     proof[0] = 0x1a2582eb25c727ff0d4fe22c9d921e2b6186b6160a2c72f0fb8cb2e5f126bfb1;
-    //     proof[1] = 0xf12599cbd9d49c0aad7aa00257dd4a1dd2b1a41b7b71cebc7a8217a121586339;
+        bytes32[] memory proof = new bytes32[](2);
+        proof[0] = 0x1a2582eb25c727ff0d4fe22c9d921e2b6186b6160a2c72f0fb8cb2e5f126bfb1;
+        proof[1] = 0xf12599cbd9d49c0aad7aa00257dd4a1dd2b1a41b7b71cebc7a8217a121586339;
 
-    //     uint256 value = 153168801660958298760728062610398288911;
-    //     address recipient = 0x762346cea1cb891dbC4b30d328598F4c9568227d;
+        uint256 value = 153168801660958298760728062610398288911;
+        address recipient = 0x762346cea1cb891dbC4b30d328598F4c9568227d;
 
-    //     bridgeTest.verifyTxHelper(blockHeight, transactionsHash, stakesHash);
+        bridgeTest.verifyTxHelper(blockHeight, transactionsHash, stakesHash);
 
-    //     bool success = bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
-    //     assertTrue(success);
+        bool success = bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
+        assertTrue(success);
 
-    //     uint256 recipientBalance = bridgeTest.balanceOf(recipient);
-    //     assertEq(recipientBalance, value);
+        uint256 recipientBalance = bridgeTest.balanceOf(recipient);
+        assertEq(recipientBalance, value);
 
-    //     // expect a revert due to already verified tx
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             ThemelioBridge.TxAlreadyVerified.selector,
-    //             0xd0deea06e5ab0f53bd4e7c64ec733c815ab200a70d11db3dcb55553343157b7f
-    //         )
-    //     );
+        // expect a revert due to already verified tx
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ThemelioBridge.TxAlreadyVerified.selector,
+                0xd0deea06e5ab0f53bd4e7c64ec733c815ab200a70d11db3dcb55553343157b7f
+            )
+        );
 
-    //     bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
-    // }
+        bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
+    }
 
         /* =========== Differential Fuzz Tests =========== */
     function testDecodeIntegerDifferentialFFI(uint128 integer) public {
@@ -649,39 +672,56 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         assertEq(extractedTransactionsHash, merkleRoot);
     }
 
-    // function testExtractValueAndRecipientDifferentialFFI(
-    //     uint128 value,
-    //     address recipient
-    // ) public {
-    //     string[] memory cmds = new string[](5);
+    function testExtractValueDenomAndRecipientDifferentialFFI(
+        uint128 value,
+        // using uint8 instead of ThemelioBridge.Denom or CoinType because forge fuzz tests
+        // currently can't distinguish them from uint8 so even an empty function reverts
+        uint8 coin, 
+        bytes32 txHash,
+        address recipient
+    ) public {
+        coin %= 5;
 
-    //     cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
-    //     cmds[1] = '--extract-value-and-recipient';
-    //     cmds[2] = uint256(value).toString();
-    //     cmds[3] = '--recipient';
-    //     cmds[4] = abi.encodePacked(recipient).toHexString();
+        ThemelioBridge.Denom memory denom = ThemelioBridge.Denom(
+            ThemelioBridge.CoinType(coin),
+            txHash
+        );
 
-    //     bytes memory header = vm.ffi(cmds);
+        string[] memory cmds = new string[](7);
 
-    //     (uint256 extractedValue, ThemelioBridge.Denom denom, address extractedRecipient) =
-    //         bridgeTest.extractValueDenomAndRecipientHelper(header);
-    //     emit log(uint256(value).toString());
-    //     emit log_uint(extractedValue);
-    //     emit log_address(extractedRecipient);
+        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[1] = '--extract-value';
+        cmds[2] = uint256(value).toString();
+        cmds[3] = '--denom';
+        cmds[4] = bridgeTest.denomToStringHelper(denom);
+        cmds[5] = '--recipient';
+        cmds[6] = abi.encodePacked(recipient).toHexString();
 
-    //     assertEq(extractedValue, value);
-    //     assertEq(extractedRecipient, recipient);
-    // }
+        bytes memory header = vm.ffi(cmds);
+
+        (
+            uint256 extractedValue,
+            ThemelioBridge.Denom memory extractedDenom,
+            address extractedRecipient
+        ) = bridgeTest.extractValueDenomAndRecipientHelper(header);
+
+        assertEq(extractedValue, value);
+
+        assertTrue(extractedDenom.coinType == denom.coinType);
+        if (denom.coinType == ThemelioBridge.CoinType.Custom) {
+            assertEq(extractedDenom.txHash, denom.txHash);
+        }
+
+        assertEq(extractedRecipient, recipient);
+    }
 
     function testBigHashFFI() public {
         string[] memory cmds = new string[](2);
-        cmds[0] = '../bridge-differential-tests/target/debug/bridge_differential_tests';
+        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
         cmds[1] = '--big-hash';
 
         bytes memory packedData = vm.ffi(cmds);
         (bytes memory data, bytes32 dataHash) = abi.decode(packedData, (bytes, bytes32));
-        // emit log_bytes(data);
-        // emit log_bytes32(dataHash);
 
         bytes32 bigHash = bridgeTest.bigHashFFIHelper(data);
 
