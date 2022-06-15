@@ -15,10 +15,6 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
 
         /* =========== Helpers =========== */
 
-    function burnHelper(uint256 value) public {
-        _mint(_msgSender(), value);
-    }
-
     function decodeStakeDocHelper(bytes calldata encodedStakeDoc_)
         public pure returns (bytes32, uint256, uint256, uint256) {
         StakeDoc memory decodedStakeDoc = _decodeStakeDoc(encodedStakeDoc_);
@@ -40,26 +36,20 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         return integer;
     }
 
-    function denomToStringHelper(Denom memory denom) public pure returns (string memory) {
-        CoinType coin = denom.coinType;
-
-        if (coin == CoinType.Mel) {
+    function denomToStringHelper(uint256 denom) public pure returns (string memory) {
+        if (denom == MEL) {
             return "MEL";
-        } else if (coin == CoinType.Sym) {
+        } else if (denom == SYM) {
             return "SYM";
-        } else if (coin == CoinType.Erg) {
+        } else if (denom == ERG) {
             return "ERG";
-        } else if (coin == CoinType.NewCoin) {
+        } else if (denom == NEWCOIN) {
             return "(NEWCOIN)";
-        } else if (coin == CoinType.Custom) {
-            string memory txHash = abi.encodePacked(denom.txHash).toHexString();
+        } else {
+            string memory txHash = abi.encodePacked(denom).toHexString();
             txHash = string(_slice(abi.encodePacked(txHash), 2, 66));
 
             return string(abi.encodePacked("CUSTOM-", txHash));
-        } else {
-            assert(false);
-
-            return "Error";
         }
     }
 
@@ -71,8 +61,8 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
 
     function extractValueDenomAndRecipientHelper(
         bytes calldata transaction
-    ) public pure returns (uint256, Denom memory, address) {
-        (uint256 value, Denom memory denom, address recipient) = _extractValueDenomAndRecipient(transaction);
+    ) public pure returns (uint256, uint256, address) {
+        (uint256 value, uint256 denom, address recipient) = _extractValueDenomAndRecipient(transaction);
 
         return (value, denom, recipient);
     }
@@ -132,33 +122,28 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
 
         /* =========== Unit Tests =========== */
 
-    function testName() public {
-        string memory name = name();
+    function testBurn() public {
+        address burner = _msgSender();
+        uint256 startBalance = balanceOf(burner, MEL);
+        uint256 value = 666;
 
-        assertEq(name, 'wrapped mel');
-    }
+        _mint(burner, MEL, value, '');
 
-    function testSymbol() public {
-        string memory symbol = symbol();
+        burn(burner, MEL, value);
 
-        assertEq(symbol, 'wMEL');
-    }
+        uint256 finalBalance = balanceOf(burner, SYM);
 
-    function testDecimals() public {
-        uint256 decimals = decimals();
-
-        assertEq(decimals, 9);
+        assertEq(finalBalance, startBalance);
     }
 
     function testMint() public {
-        address user = address(0xffffffffffffffffffff);
-        uint256 oldBalance = balanceOf(user);
+        address minter = address(0xdead);
+        uint256 oldBalance = balanceOf(minter, MEL);
+        uint256 value = 9000;
 
-        uint256 value = 123456789;
+        _mint(minter, MEL, value, '');
 
-        _mint(user, value);
-
-        uint256 newBalance = balanceOf(user);
+        uint256 newBalance = balanceOf(minter, MEL);
 
         assertEq(newBalance, oldBalance + value);
     }
@@ -321,6 +306,9 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
     uint256 constant STAKE_EPOCH = 200_000;
 
+    uint256 constant MEL = 0;
+    uint256 constant SYM = 1;
+
     ThemelioBridgeTest bridgeTest;
 
     function setUp() public {
@@ -328,19 +316,6 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     }
 
             /* =========== Unit Tests =========== */
-
-    function testBurn() public {
-        uint256 startBalance = bridgeTest.balanceOf(msg.sender);
-        uint256 value = 123456789;
-
-        bridgeTest.burnHelper(value);
-
-        bridgeTest.burn(value, 0);
-
-        uint256 finalBalance = bridgeTest.balanceOf(msg.sender);
-
-        assertEq(finalBalance, startBalance);
-    }
 
     function testDecodeStakeDoc() public {
         bytes memory encodedStakeDoc = abi.encodePacked(
@@ -445,11 +420,11 @@ contract ThemelioBridgeTestInternalCalldata is Test {
             bytes26(0xfe49707269c1dd7303bae99ab55ffd4db401017b02ddce010105)
         );
 
-        (uint256 value, ThemelioBridge.Denom memory denom, address recipient) =
+        (uint256 value, uint256 denom, address recipient) =
             bridgeTest.extractValueDenomAndRecipientHelper(transaction);
 
         assertEq(value, 295482083328956529783620102020496385258);
-        assertTrue(denom.coinType == ThemelioBridge.CoinType.Mel);
+        assertTrue(denom == MEL);
         assertEq(recipient, 0xc505B3263fEc82F8b624f4BA9C01b20E506b5E1e);
     }
 
@@ -579,7 +554,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         bool success = bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
         assertTrue(success);
 
-        uint256 recipientBalance = bridgeTest.balanceOf(recipient);
+        uint256 recipientBalance = bridgeTest.balanceOf(recipient, MEL);
         assertEq(recipientBalance, value);
     }
 
@@ -612,7 +587,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         bool success = bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
         assertTrue(success);
 
-        uint256 recipientBalance = bridgeTest.balanceOf(recipient);
+        uint256 recipientBalance = bridgeTest.balanceOf(recipient, MEL);
         assertEq(recipientBalance, value);
 
         // expect a revert due to already verified tx
@@ -674,19 +649,9 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
     function testExtractValueDenomAndRecipientDifferentialFFI(
         uint128 value,
-        // using uint8 instead of ThemelioBridge.Denom or CoinType because forge fuzz tests
-        // currently can't distinguish them from uint8 so even an empty function reverts
-        uint8 coin, 
-        bytes32 txHash,
+        uint256 denom,
         address recipient
     ) public {
-        coin %= 5;
-
-        ThemelioBridge.Denom memory denom = ThemelioBridge.Denom(
-            ThemelioBridge.CoinType(coin),
-            txHash
-        );
-
         string[] memory cmds = new string[](7);
 
         cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
@@ -701,17 +666,12 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
         (
             uint256 extractedValue,
-            ThemelioBridge.Denom memory extractedDenom,
+            uint256 extractedDenom,
             address extractedRecipient
         ) = bridgeTest.extractValueDenomAndRecipientHelper(header);
 
         assertEq(extractedValue, value);
-
-        assertTrue(extractedDenom.coinType == denom.coinType);
-        if (denom.coinType == ThemelioBridge.CoinType.Custom) {
-            assertEq(extractedDenom.txHash, denom.txHash);
-        }
-
+        assertEq(extractedDenom, denom);
         assertEq(extractedRecipient, recipient);
     }
 

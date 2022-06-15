@@ -3,7 +3,7 @@ pragma solidity 0.8.13;
 
 import 'blake3-sol/Blake3Sol.sol';
 import 'ed25519-sol/Ed25519.sol';
-import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
+import 'openzeppelin-contracts/contracts/token/ERC1155/presets/ERC1155PresetMinterPauser.sol';
 
 /**
 * @title ThemelioBridge: A relay bridge for transferring Themelio assets to Ethereum and back
@@ -40,7 +40,7 @@ import 'openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 *
 *      Questions or concerns? Come chat with us on Discord! https://discord.com/invite/VedNp7EXFc
 */
-contract ThemelioBridge is ERC20 {
+contract ThemelioBridge is ERC1155, ERC1155Burnable, Pausable {
     using Blake3Sol for Blake3Sol.Hasher;
 
     // an abbreviated Themelio header with the only two fields we need for header and tx validation
@@ -57,21 +57,6 @@ contract ThemelioBridge is ERC20 {
         uint256 symsStaked;
     }
 
-    // the coin type used in a Themelio transaction
-    enum CoinType {
-        Mel,
-        Sym,
-        Erg,
-        NewCoin,
-        Custom
-    }
-
-    // the entire denomination of a Themelio coin (because `Custom` wraps a 32-byte `TxHash`)
-    struct Denom {
-        CoinType coinType;
-        bytes32 txHash;
-    }
-
     /* =========== Themelio Header Validation Storage =========== */
 
     uint256 public trustedHeight; // tracks the latest verified height stored by the contract
@@ -81,7 +66,14 @@ contract ThemelioBridge is ERC20 {
 
     /* =========== Constants =========== */
 
+    // the number of blocks in a Themelio staking epoch
     uint256 internal constant STAKE_EPOCH = 200_000;
+
+    // the denoms of coins on Themelio
+    uint256 internal constant MEL = 0;
+    uint256 internal constant SYM = 1;
+    uint256 internal constant ERG = 2;
+    uint256 internal constant NEWCOIN = 3;
 
     // the hashing keys used when hashing datablocks and nodes, respectively
     bytes internal constant DATA_BLOCK_HASH_KEY =
@@ -196,43 +188,11 @@ contract ThemelioBridge is ERC20 {
         uint256 trustedHeight_,
         bytes32 transactionsHash_,
         bytes32 stakesHash_
-    ) ERC20 ('wrapped mel', 'wMEL') {
+    ) ERC1155 ('https://melscan.themelio.org/{id}.json') {
         trustedHeight = trustedHeight_;
 
         headers[trustedHeight].transactionsHash = transactionsHash_;
         headers[trustedHeight].stakesHash = stakesHash_;
-    }
-
-    /* =========== ERC-20 Functions =========== */
-
-    /**
-    * @notice Returns the number of decimals in wrapped mel (wMEL).
-    *
-    * @dev Overrides ERC20.decimals().
-    *
-    * @return The number of decimals in wrapped mel (wMEL).
-    */
-    function decimals() public pure override returns (uint8) {
-        return 9;
-    }
-
-    /**
-    * @notice Burns the specified amount of wrapped mels and emits a 'TokensBurned' event which
-    *         specifies the Themelio address the assets will be released to.
-    *
-    * @dev The process for releasing burned assets will take place in the Themelio network
-    *      after the tokens have been burned in the Ethereum network.
-    *
-    * @param value  The number of tokens to be burned.
-    *
-    * @param themelioRecipient The Themelio address the burned tokens will be transferred to on the
-    *        Themelio network.
-    */
-    function burn(uint256 value, bytes32 themelioRecipient) external {
-        address sender = _msgSender();
-        _burn(sender, value);
-
-        emit TokensBurned(sender, value, themelioRecipient);
     }
 
     /* =========== Themelio Staker Set, Header, and Transaction Verification =========== */
@@ -366,10 +326,10 @@ contract ThemelioBridge is ERC20 {
         if (_computeMerkleRoot(txHash, txIndex_, proof_) == transactionsHash) {
             spends[txHash] = true;
 
-            (uint256 value, Denom memory denom, address recipient) =
+            (uint256 value, uint256 denom, address recipient) =
                 _extractValueDenomAndRecipient(transaction_);
 
-            _mint(recipient, value);
+            _mint(recipient, denom, value, '');
 
             emit TxVerified(txHash, blockHeight_);
 
@@ -645,7 +605,7 @@ contract ThemelioBridge is ERC20 {
     */
     function _extractValueDenomAndRecipient(
         bytes calldata transaction_
-    ) internal pure returns (uint256, Denom memory, address) {
+    ) internal pure returns (uint256, uint256, address) {
         // skip 'kind' enum (1 byte)
         uint256 offset = 1;
 
@@ -668,25 +628,24 @@ contract ThemelioBridge is ERC20 {
         uint256 denomSize = _decodeInteger(transaction_, offset);
         offset += 1; // the size of `denomSize`; the denom metasize, if you will.
 
-        Denom memory denom;
+        uint256 denom;
 
         if (denomSize == 0) {
-            denom.coinType = CoinType.NewCoin;
+            denom = NEWCOIN;
         } else if (denomSize == 1) {
             uint256 coin = uint8(bytes1(transaction_[offset:offset + 1]));
 
             if (coin == 0x64) {
-                denom.coinType = CoinType.Erg;
+                denom = ERG;
             } else if (coin == 0x6d) {
-                denom.coinType = CoinType.Mel;
+                denom = MEL;
             } else if (coin == 0x73) {
-                denom.coinType = CoinType.Sym;
+                denom = SYM;
             } else {
                 assert(false);
             }
         } else if (denomSize == 32) {
-            denom.coinType = CoinType.Custom;
-            denom.txHash = bytes32(transaction_[offset:offset + 64]);
+            denom = uint256(bytes32(transaction_[offset:offset + 64]));
         } else {
             assert(false);
         }
