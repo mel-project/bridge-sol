@@ -1,6 +1,6 @@
 # Themelio Bridge Contract
 
-This contract is a Themelio SPV client which allows users to relay Themelio staker sets,
+This contract is a Themelio SPV client which allows users to submit Themelio staker sets,
 block headers, and transactions for the purpose of creating tokenized versions of Themelio
 assets, on the Ethereum network, which have already been locked up in a sister contract
 previously existing on the Themelio network. Check us out at https://themelio.org !
@@ -35,7 +35,7 @@ assets.
 
 ## API
 
-### relayStakers(epoch, stakers, stakerSyms) returns (bool)
+### submitStakers(epoch, stakers, stakerSyms) returns (bool)
 
 *This implementation is incomplete and will change in the near future.*
 
@@ -52,7 +52,7 @@ Returns `true` if the staker set was successfully verified and stored, reverts o
 
 ----
 
-### relayHeader(header, signers, signatures) returns (bool)
+### submitHeader(header, signers, signatures) returns (bool)
 
 Stores header information for a particular block height once the header has been verified through
 ed25519 signature verification of at least 2/3 sym holders from the previous epoch.
@@ -108,9 +108,9 @@ $ forge build
 
 ## Testing
 
-To run all tests, including tests which use Foreign Function Interfaces to differentially fuzz test
-our Solidity functions against reference implementations in Rust, you will first have to build the
-Rust project in `src/test/differential` by running:
+To run all tests, including tests which use foreign function interfaces to differentially fuzz test
+Solidity functions against reference implementations in Rust, you will first have to build the
+Rust project in `src/test/differentials` by running:
 ```
 $ cd src/test/differential && cargo build && cd ../../..
 ```
