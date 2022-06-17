@@ -206,7 +206,7 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
     function testBlake3DifferentialFFI(bytes memory data) public {
         string[] memory cmds = new string[](3);
 
-        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
         cmds[1] = '--blake3';
         cmds[2] = data.toHexString();
 
@@ -221,7 +221,7 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
     function testEd25519DifferentialFFI(bytes memory message) public {
         string[] memory cmds = new string[](3);
 
-        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
         cmds[1] = '--ed25519';
         cmds[2] = message.toHexString();
 
@@ -243,7 +243,7 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
 
         string[] memory cmds = new string[](7);
 
-        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
         cmds[1] = '--slice';
         cmds[2] = data.toHexString();
         cmds[3] = '--start';
@@ -261,7 +261,7 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
     function testEncodedIntegerSizeDifferentialFFI(uint128 integer) public {
         string[] memory cmds = new string[](3);
 
-        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
         cmds[1] = '--integer-size';
         cmds[2] = uint256(integer).toString();
 
@@ -606,7 +606,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     function testDecodeIntegerDifferentialFFI(uint128 integer) public {
         string[] memory cmds = new string[](3);
 
-        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
         cmds[1] = '--decode-integer';
         cmds[2] = uint256(integer).toString();
 
@@ -619,7 +619,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     function testExtractBlockHeightDifferentialFFI(uint128 modifierNum, uint64 blockHeight) public {
         string[] memory cmds = new string[](5);
 
-        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
         cmds[1] = '--extract-block-height';
         cmds[2] = uint256(blockHeight).toString();
         cmds[3] = '--modifier';
@@ -635,7 +635,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     function testExtractTransactionsHashDifferentialFFI(uint128 modifierNum) public {
         string[] memory cmds = new string[](3);
 
-        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
         cmds[1] = '--extract-transactions-hash';
         cmds[2] = uint256(modifierNum).toString();
 
@@ -655,7 +655,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     ) public {
         string[] memory cmds = new string[](7);
 
-        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
         cmds[1] = '--extract-value';
         cmds[2] = uint256(value).toString();
         cmds[3] = '--denom';
@@ -678,7 +678,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
     function testBigHashFFI() public {
         string[] memory cmds = new string[](2);
-        cmds[0] = './src/test/differential/target/debug/bridge_differential_tests';
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
         cmds[1] = '--big-hash';
 
         bytes memory packedData = vm.ffi(cmds);
