@@ -17,7 +17,7 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
 
     function decodeStakeDocHelper(bytes calldata encodedStakeDoc_)
         public pure returns (bytes32, uint256, uint256, uint256) {
-        StakeDoc memory decodedStakeDoc = _decodeStakeDoc(encodedStakeDoc_);
+        (StakeDoc memory decodedStakeDoc,) = _decodeStakeDoc(encodedStakeDoc_, 0);
 
         return (
             decodedStakeDoc.publicKey,
@@ -120,6 +120,12 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         return bigHash;
     }
 
+    function hashDatablockHelper(bytes calldata data) public pure returns (bytes32) {
+        bytes32 dataHash = _hashDatablock(data);
+
+        return dataHash;
+    }
+
     function mintHelper(address account, uint256 id, uint256 value) public {
         _mint(account, id, value, '');
     }
@@ -134,13 +140,6 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
 
         bool success = Ed25519.verify(signer, r, S, message);
         assertTrue(success);
-    }
-
-    function testHashDatablock() public {
-        assertEq(
-            _hashDatablock(abi.encodePacked('datablock')),
-            0x6ccea12fef78d2af66a4bca268cdbeccc47b3ee3ec9fbf83da1a67b526e9da2e
-        );
     }
 
     function testHashNode() public {
@@ -427,6 +426,15 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         assertEq(value, 295482083328956529783620102020496385258);
         assertTrue(denom == MEL);
         assertEq(recipient, 0xc505B3263fEc82F8b624f4BA9C01b20E506b5E1e);
+    }
+
+    function testHashDatablock() public {
+        bytes32 dataHash = bridgeTest.hashDatablockHelper(abi.encodePacked('datablock'));
+
+        assertEq(
+            dataHash,
+            0x6ccea12fef78d2af66a4bca268cdbeccc47b3ee3ec9fbf83da1a67b526e9da2e
+        );
     }
 
     // function testsubmitHeader() public {
