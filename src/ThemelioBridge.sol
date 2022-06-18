@@ -6,11 +6,11 @@ import 'ed25519-sol/Ed25519.sol';
 import 'openzeppelin-contracts/contracts/token/ERC1155/ERC1155.sol';
 
 /**
-* @title ThemelioBridge: A relay bridge for transferring Themelio assets to Ethereum and back
+* @title ThemelioBridge: A bridge for transferring Themelio assets to Ethereum and back
 *
 * @author Marco Serrano (https://github.com/sadministrator)
 *
-* @notice This contract is a Themelio SPV client which allows users to relay Themelio staker sets,
+* @notice This contract is a Themelio SPV client which allows users to submit Themelio staker sets,
 *         block headers, and transactions for the purpose of creating tokenized versions of
 *         Themelio assets, on the Ethereum network, which have previously been locked up in a
 *         sister contract which resides on the Themelio network. Check us out at
@@ -103,10 +103,10 @@ contract ThemelioBridge is ERC1155 {
     error OutOfBoundsSlice(uint256 start, uint256 end, uint256 dataLength);
 
     /**
-    * Header at height `height` has already been relayed.
-    * @param height Block height of the header being relayed.
+    * Header at height `height` has already been submitted.
+    * @param height Block height of the header being submitted.
     */
-    error HeaderAlreadyRelayed(uint256 height);
+    error HeaderAlreadySubmitted(uint256 height);
 
     /**
     * Insufficient signatures to validate header. The total syms of stakers whose signatures were
@@ -139,14 +139,14 @@ contract ThemelioBridge is ERC1155 {
     error TxNotVerified();
 
     /**
-    * The staker set at epoch height `epoch` has not been relayed yet. Please relay it before
+    * The staker set at epoch height `epoch` has not been submitted yet. Please submit it before
     * attempting to verify headers at that epoch height.
-    * @param epoch Epoch height of the header being relayed.
+    * @param epoch Epoch height of the header being submitted.
     */
     error MissingStakers(uint256 epoch);
 
     /**
-    * The header at block height `height` has not been relayed yet. Please relay it before
+    * The header at block height `height` has not been submitted yet. Please submit it before
     * attempting to verify transactions at that block height.
     * @param height Block height of the header in which the transaction was included.
     */
@@ -165,7 +165,7 @@ contract ThemelioBridge is ERC1155 {
 
     /* =========== Bridge Events =========== */
 
-    event HeaderRelayed(
+    event HeaderSubmitted(
         uint256 indexed height
     );
 
@@ -294,7 +294,7 @@ contract ThemelioBridge is ERC1155 {
     *
     * @return 'true' if header was successfully validated, otherwise reverts.
     */
-    function relayHeader(
+    function submitHeader(
         bytes calldata header_,
         bytes32[] calldata signatures_,
         bytes[] calldata stakeDocs_,
@@ -307,7 +307,7 @@ contract ThemelioBridge is ERC1155 {
 
         uint256 blockHeight = _extractBlockHeight(header_);
         if (headers[blockHeight].transactionsHash != 0) {
-            revert HeaderAlreadyRelayed(blockHeight);
+            revert HeaderAlreadySubmitted(blockHeight);
         }
 
         // check if the header at `trustedHeight` can verify ours, otherwise, revert
@@ -352,7 +352,7 @@ contract ThemelioBridge is ERC1155 {
 
         headers[blockHeight].transactionsHash = _extractTransactionsHash(header_);
         headers[blockHeight].stakesHash = _extractStakesHash(header_);
-        emit HeaderRelayed(blockHeight);
+        emit HeaderSubmitted(blockHeight);
 
         return true;
     }

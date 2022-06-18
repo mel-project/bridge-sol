@@ -67,7 +67,7 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         return (value, denom, recipient);
     }
 
-    // function relayHeaderHelper(
+    // function submitHeaderHelper(
     //     bytes32[] calldata signers
     // ) public {
     //     uint256 blockHeight = 2106792883676695184;
@@ -429,7 +429,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         assertEq(recipient, 0xc505B3263fEc82F8b624f4BA9C01b20E506b5E1e);
     }
 
-    // function testRelayHeader() public {
+    // function testsubmitHeader() public {
     //     bytes memory header = abi.encodePacked(
     //         bytes32(0xffa011c4104d79413ef82b91c5dc1d93991b144d0a5c388f56c49997cb90fe61),
     //         bytes32(0xdcfd90cade26f7d43c1dae753f62c43a2e9e8980092d74b176d44e66934e7d4f),
@@ -454,13 +454,13 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     //     signatures[4] = 0xc2a3f158b19db3c9e6be2e01578af8e49c6ce9bf158177efb2c18b558b853f40;
     //     signatures[5] = 0xd9d2aad475adf60bcf454130a1612f6128364c9d66ad7fe5eea5ca3522e16c01;
 
-    //     bridgeTest.relayHeaderTestHelper(signers);
+    //     bridgeTest.submitHeaderTestHelper(signers);
 
-    //     bool success = bridgeTest.relayHeader(header, signers, signatures);
+    //     bool success = bridgeTest.submitHeader(header, signers, signatures);
     //     assertTrue(success);
     // }
 
-    // function testCannotRelayHeader() public {
+    // function testCannotSubmitHeader() public {
     //     bytes memory header = abi.encodePacked(
     //         bytes32(0xffa011c4104d79413ef82b91c5dc1d93991b144d0a5c388f56c49997cb90fe61),
     //         bytes32(0xdcfd90cade26f7d43c1dae753f62c43a2e9e8980092d74b176d44e66934e7d4f),
@@ -472,13 +472,13 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     //         bytes29(0xcee7078be495c4144b8d486a34ec81fc893d515a79ed2b1b860b381f63)
     //     );
 
-    //     bytes32[] memory signersRelayStakers = new bytes32[](3);
+    //     bytes32[] memory signersSubmitStakers = new bytes32[](3);
     //     // 30 syms staked
-    //     signersRelayStakers[0] = 0x2eb2115fe909017c0dcff17846dba5da36ccc56ddf01506a1ebca94ab0f65bc9;
+    //     signersSubmitStakers[0] = 0x2eb2115fe909017c0dcff17846dba5da36ccc56ddf01506a1ebca94ab0f65bc9;
     //     // 31 syms staked
-    //     signersRelayStakers[1] = 0x419b43ad463c65f7ef872bb2eb3aa6ac5fd094351703dfed73656627b3bcdd7d;
+    //     signersSubmitStakers[1] = 0x419b43ad463c65f7ef872bb2eb3aa6ac5fd094351703dfed73656627b3bcdd7d;
     //     // 32 syms staked
-    //     signersRelayStakers[2] = 0x00083c8fe73cfdb00f1c3f8998aeb87f9d2534d6ee21fc442b4fe40eba03e39e;
+    //     signersSubmitStakers[2] = 0x00083c8fe73cfdb00f1c3f8998aeb87f9d2534d6ee21fc442b4fe40eba03e39e;
 
     //     // we are only including signatures for the first 2 signers so staked syms of signers < 2/3
     //     bytes32[] memory signatures = new bytes32[](4);
@@ -488,14 +488,14 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     //     signatures[3] = 0x0fa9456df1c04d95286cd3b1cf25ba0676670171c22e5085f6346a13f2f3ae0a;
 
     //     // this call saves the staker information in the appropriate epoch for this test
-    //     bridgeTest.relayHeaderTestHelper(signersRelayStakers);
+    //     bridgeTest.submitHeaderTestHelper(signersSubmitStakers);
 
     //     // declaring a new signers array so the size is correct in relation to the signatures array
-    //     bytes32[] memory signersRelayHeader = new bytes32[](2);
+    //     bytes32[] memory signersSubmitHeader = new bytes32[](2);
     //     // 30 syms staked
-    //     signersRelayHeader[0] = 0x2eb2115fe909017c0dcff17846dba5da36ccc56ddf01506a1ebca94ab0f65bc9;
+    //     signersSubmitHeader[0] = 0x2eb2115fe909017c0dcff17846dba5da36ccc56ddf01506a1ebca94ab0f65bc9;
     //     // 31 syms staked
-    //     signersRelayHeader[1] = 0x419b43ad463c65f7ef872bb2eb3aa6ac5fd094351703dfed73656627b3bcdd7d;
+    //     signersSubmitHeader[1] = 0x419b43ad463c65f7ef872bb2eb3aa6ac5fd094351703dfed73656627b3bcdd7d;
 
     //     // expect a revert due to insufficient signatures
     //     vm.expectRevert(
@@ -506,7 +506,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     //         )
     //     );
 
-    //     bridgeTest.relayHeader(header, signersRelayHeader, signatures);
+    //     bridgeTest.submitHeader(header, signersSubmitHeader, signatures);
     // }
 
     function testComputeMerkleRoot() public {
