@@ -35,23 +35,6 @@ assets.
 
 ## API
 
-### submitStakers(epoch, stakers, stakerSyms) returns (bool)
-
-*This implementation is incomplete and will change in the near future.*
-
-Stores Themelio staker set information for a particular epoch once the information has been
-verified through ed25519 signature verification of at least 2/3 sym holders from the previous
-epoch.
-
-* `epoch`: the epoch height in `uint256`
-* `stakers`: list of staker public keys `bytes32[]`
-* `stakerSyms`: list amount of syms staked by each staker, in the same order as `stakers`,
-`uint256[]`
-
-Returns `true` if the staker set was successfully verified and stored, reverts otherwise.
-
-----
-
 ### submitHeader(header, signers, signatures) returns (bool)
 
 Stores header information for a particular block height once the header has been verified through
@@ -112,7 +95,7 @@ To run all tests, including tests which use foreign function interfaces to diffe
 Solidity functions against reference implementations in Rust, you will first have to build the
 Rust project in `src/test/differentials` by running:
 ```
-$ cd src/test/differential && cargo build && cd ../../..
+$ cd src/test/differentials && cargo build && cd ../../..
 ```
 Then to run all tests use:
 ```

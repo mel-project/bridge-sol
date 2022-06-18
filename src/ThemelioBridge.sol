@@ -47,6 +47,8 @@ contract ThemelioBridge is ERC1155 {
     struct Header {
         bytes32 transactionsHash;
         bytes32 stakesHash;
+        uint128 votes;
+        uint128 lastStakeDocIndex;
     }
 
     // a Themelio object representing a single stash of staked syms
@@ -59,9 +61,8 @@ contract ThemelioBridge is ERC1155 {
 
     /* =========== Themelio Header Validation Storage =========== */
 
-    uint256 public trustedHeight; // tracks the latest verified height stored by the contract
-
     mapping(uint256 => Header) public headers; // maps header hashes to Headers for validating tx's
+    mapping(uint256 => uint256) public epochSyms; // total syms staked in a particular epoch
     mapping(bytes32 => bool) public spends; // keeps track of successful token mints
 
     /* =========== Constants =========== */
@@ -103,10 +104,10 @@ contract ThemelioBridge is ERC1155 {
     error OutOfBoundsSlice(uint256 start, uint256 end, uint256 dataLength);
 
     /**
-    * Header at height `height` has already been submitted.
+    * Header at height `height` has already been verified.
     * @param height Block height of the header being submitted.
     */
-    error HeaderAlreadySubmitted(uint256 height);
+    error HeaderAlreadyVerified(uint256 height);
 
     /**
     * Insufficient signatures to validate header. The total syms of stakers whose signatures were
@@ -188,14 +189,15 @@ contract ThemelioBridge is ERC1155 {
     *      `trustedHeight` height which will be used to verify subsequent headers.
     */
     constructor(
-        uint256 trustedHeight_,
+        uint256 blockHeight_,
         bytes32 transactionsHash_,
-        bytes32 stakesHash_
+        bytes32 stakesHash_,
+        uint256 epochSyms_
     ) ERC1155 ('https://melscan.themelio.org/{id}.json') {
-        trustedHeight = trustedHeight_;
+        headers[blockHeight_].transactionsHash = transactionsHash_;
+        headers[blockHeight_].stakesHash = stakesHash_;
 
-        headers[trustedHeight].transactionsHash = transactionsHash_;
-        headers[trustedHeight].stakesHash = stakesHash_;
+        epochSyms[blockHeight_ / STAKE_EPOCH] = epochSyms_;
     }
 
     /* =========== ERC-1155 Functions =========== */
@@ -273,7 +275,7 @@ contract ThemelioBridge is ERC1155 {
 
     /* =========== Themelio Staker Set, Header, and Transaction Verification =========== */
 
-    /*
+    /**
     * @notice Accepts incoming Themelio headers, validates them by verifying the signatures of
     *         stakers in the header's epoch, and stores the header for future transaction
     *         verification, upon successful validation.
@@ -286,68 +288,73 @@ contract ThemelioBridge is ERC1155 {
     *      then the header is successfully validated and is stored for future transaction
     *      verifications.
     *
+    * @param verifierHeight_ The height of the stored Themelio header which will be used to verify
+    *        `header_`.
+    *
     * @param header_ A serialized Themelio transaction header.
     *
-    * @param signers_ An array of Themelio staker public keys.
+    * @param stakeDocs_ An array of serialized Themelio 'StakeDoc's.
     *
     * @param signatures_ An array of signatures of `header_` by each staker in `signers_`.
     *
     * @return 'true' if header was successfully validated, otherwise reverts.
     */
-    function submitHeader(
+    function verifyHeader(
+        uint256 verifierHeight_,
         bytes calldata header_,
-        bytes32[] calldata signatures_,
-        bytes[] calldata stakeDocs_,
-        uint256[] calldata indexes_,
-        bytes32[][] calldata proofs_
+        bytes calldata stakeDocs_,
+        bytes32[] calldata signatures_
     ) external returns (bool) {
-        if (stakeDocs_.length * 2 != signatures_.length && stakeDocs_.length != proofs_.length) {
+        uint256 stakeDocsLength = stakeDocs_.length;
+
+        if (stakeDocsLength * 2 != signatures_.length) {
             revert MalformedData();
         }
 
         uint256 blockHeight = _extractBlockHeight(header_);
-        if (headers[blockHeight].transactionsHash != 0) {
-            revert HeaderAlreadySubmitted(blockHeight);
+        uint256 totalVotes = headers[blockHeight].votes;
+        uint256 epoch = blockHeight / STAKE_EPOCH;
+        uint256 totalEpochSyms = epochSyms[epoch];
+
+        if (totalEpochSyms == 0) {
+            revert MissingVerifier(blockHeight);
         }
 
-        // check if the header at `trustedHeight` can verify ours, otherwise, revert
-        uint256 _trustedHeight = trustedHeight;
+        if (totalVotes != 0 && totalVotes >= totalEpochSyms * 2 / 3) {
+            revert HeaderAlreadyVerified(blockHeight);
+        }
+
         if (
-            !(blockHeight / STAKE_EPOCH == _trustedHeight / STAKE_EPOCH) &&
-            !((blockHeight - 1) / STAKE_EPOCH == _trustedHeight / STAKE_EPOCH)
+            !(blockHeight / STAKE_EPOCH == verifierHeight_ / STAKE_EPOCH) &&
+            !((blockHeight - 1) / STAKE_EPOCH == verifierHeight_ / STAKE_EPOCH)
         ) {
             revert MissingVerifier(blockHeight);
         }
 
-        bytes32 stakesHash = headers[trustedHeight].stakesHash;
+        bytes32 stakesHash = headers[verifierHeight_].stakesHash;
 
-        uint256 epochSyms;// Todo: There will be a way to get this in an upcoming TIP proposal
         uint256 totalSignerSyms = 0;
 
         StakeDoc memory stakeDoc;
         bytes32 stakeDocHash;
 
-        uint256 stakeDocsLength = stakeDocs_.length;
+        stakeDocHash = _hashDatablock(stakeDocs_[i]);
 
-        for (uint256 i = 0; i < stakeDocsLength; ++i) {
-            stakeDocHash = _hashDatablock(stakeDocs_[i]);
+        if (_hashDatablock(stakeDocs_) == stakesHash) {
+            stakeDoc = _decodeStakeDoc(stakeDocs_[i]);
 
-            if (_computeMerkleRoot(stakeDocHash, indexes_[i], proofs_[i]) == stakesHash) {
-                stakeDoc = _decodeStakeDoc(stakeDocs_[i]);
-
-                if (stakeDoc.symsStaked != 0 && Ed25519.verify(
-                        stakeDoc.publicKey,
-                        signatures_[i * 2],
-                        signatures_[i * 2 + 1],
-                        header_
-                )) {
-                    totalSignerSyms += stakeDoc.symsStaked;
-                }
+            if (stakeDoc.symsStaked != 0 && Ed25519.verify(
+                    stakeDoc.publicKey,
+                    signatures_[i * 2],
+                    signatures_[i * 2 + 1],
+                    header_
+            )) {
+                totalSignerSyms += stakeDoc.symsStaked;
             }
         }
 
-        if (totalSignerSyms < epochSyms * 2 / 3) {
-            revert InsufficientSignatures(totalSignerSyms, epochSyms);
+        if (totalSignerSyms < totalEpochSyms * 2 / 3) {
+            revert InsufficientSignatures(totalSignerSyms, totalEpochSyms);
         }
 
         headers[blockHeight].transactionsHash = _extractTransactionsHash(header_);
@@ -428,7 +435,7 @@ contract ThemelioBridge is ERC1155 {
     *
     * @return The blake3 keyed hash of a Merkle tree datablock input argument.
     */
-    function _hashDatablock(bytes memory datablock) internal pure returns (bytes32) {
+    function _hashDatablock(bytes calldata datablock) internal pure returns (bytes32) {
         Blake3Sol.Hasher memory hasher = Blake3Sol.new_keyed(DATA_BLOCK_HASH_KEY);
         hasher = hasher.update_hasher(datablock);
 
