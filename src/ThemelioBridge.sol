@@ -160,6 +160,13 @@ contract ThemelioBridge is ERC1155 {
     error MissingHeader(uint256 height);
 
     /**
+    * The header was unable to be verified. This could be because of incorrect serialization
+    * of the header, incorrect verifier block height, improperly formatted data, or insufficient
+    * signatures.
+    */
+    error HeaderNotVerified();
+
+    /**
     * The header that was submitted cannot be verified by any currently stored headers, you'll need
     * to submit headers from previous epochs first. 
     * A header can only be verified by any other header that shares the same epoch. Headers which
@@ -340,19 +347,20 @@ contract ThemelioBridge is ERC1155 {
         uint256 votes = headerLimbo[headerHash].votes;
         uint256 stakeDocsOffset = headerLimbo[headerHash].bytesVerified;
 
+        uint256 totalEpochSyms = _decodeInteger(stakeDocs_, 0); // in future TIP, maybe it can be the first value in stakes_hash array
+        if (stakeDocsOffset == 0) {
+            stakeDocsOffset += _encodedIntegerSize(stakeDocs_, 0);
+        }
+
         StakeDoc memory stakeDoc;
-        uint256 epochSyms;
         uint256 gasRemaining;
 
         for (uint256 i = 0; stakeDocsOffset < stakeDocsLength; ++i) {
             (stakeDoc, stakeDocsOffset) = _decodeStakeDoc(stakeDocs_, stakeDocsOffset);
-
             if (
                 stakeDoc.epochStart <= epoch &&
                 stakeDoc.epochPostEnd > epoch
             ) {
-                epochSyms += stakeDoc.symsStaked;
-
                 // here we check if the 'R' part of the signature is zero as a way to skip
                 // verification of signatures we do not have
                 if (
@@ -371,9 +379,12 @@ contract ThemelioBridge is ERC1155 {
                 gasRemaining := gas()
             }
 
-            if (votes >= epochSyms * 2 / 3) {
+        
+            if (votes >= totalEpochSyms * 2 / 3) {
                 headers[blockHeight].transactionsHash = _extractTransactionsHash(header_);
                 headers[blockHeight].stakesHash = _extractStakesHash(header_);
+
+                delete headerLimbo[headerHash];
 
                 emit HeaderVerified(blockHeight);
 
@@ -391,7 +402,7 @@ contract ThemelioBridge is ERC1155 {
             }
         }
 
-        revert();
+        revert HeaderNotVerified();
     }
 
     /**
