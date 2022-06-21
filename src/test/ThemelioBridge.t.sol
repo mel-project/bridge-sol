@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.13;
 
-import 'forge-std/Test.sol';
+// import 'forge-std/Test.sol';
 import 'openzeppelin-contracts/contracts/utils/Strings.sol';
 import './utils/ByteStrings.sol';
 import '../ThemelioBridge.sol';
 
-contract ThemelioBridgeTest is ThemelioBridge, Test {
+contract ThemelioBridgeTest is ThemelioBridge{//, Test {
     using Blake3Sol for Blake3Sol.Hasher;
     using ByteStrings for bytes;
     using Strings for uint256;
@@ -67,21 +67,12 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         return (value, denom, recipient);
     }
 
-    // function submitHeaderHelper(
-    //     bytes32[] calldata signers
-    // ) public {
-    //     uint256 blockHeight = 2106792883676695184;
-    //     uint256 epoch = blockHeight / STAKE_EPOCH;
-    //     uint256 signersLength = signers.length;
-    //     uint256 totalSyms = 0;
-
-    //     for (uint256 i = 0; i < signersLength; ++i) {
-    //         epochs[epoch].stakers[signers[i]] = i + 30;
-    //         totalSyms += i + 30;
-    //     }
-
-    //     epochs[epoch].totalStakedSyms = totalSyms;
-    // }
+    function verifyHeaderHelper(
+        bytes32 verifierStakesHash,
+        uint256 verifierHeight
+    ) public {
+        headers[verifierHeight].stakesHash = verifierStakesHash;
+    }
 
     function computeMerkleRootHelper(
         bytes32 txHash,
@@ -437,38 +428,37 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         );
     }
 
-    // function testsubmitHeader() public {
-    //     bytes memory header = abi.encodePacked(
-    //         bytes32(0xffa011c4104d79413ef82b91c5dc1d93991b144d0a5c388f56c49997cb90fe61),
-    //         bytes32(0xdcfd90cade26f7d43c1dae753f62c43a2e9e8980092d74b176d44e66934e7d4f),
-    //         bytes32(0x695dab16ad3709ab4ddd18e38c16fef2b41f08ca978f073fd284dc4afb38847c),
-    //         bytes32(0xb429c88ca67f20e2fceac8fc42d07e3c70edb34d2580a56577e7efba232ec576),
-    //         bytes32(0x53d9589ea14aeaf0a538fee973f4378fbe51d158637bed4a909ee8fe44a095b0),
-    //         bytes32(0x9d5fb644423e6805bded708afe9ecbc17767c13584eb68a2f813ddfd3b099c23),
-    //         bytes32(0x89c2290dd6def728f395ce85c4067636d33c2b4708872728f8308508331b73c0),
-    //         bytes29(0xcee7078be495c4144b8d486a34ec81fc893d515a79ed2b1b860b381f63)
-    //     );
+    function testverifyHeader() public {
+        uint256 verifierHeight = 0x183fbb57d5fe52;
+        bytes32 verifierStakesHash =
+            0x52bf0665451a2df0c62e7b57faf3fa93eeebd00a595ec124fd187790dac4278d;
+        bytes memory header = abi.encodePacked(
+            bytes32(0xff8d5e99a13192a02d28fd80d3bf4e607d9bb232cbe681868d6bcbbd2058b86f),
+            bytes32(0x10fd53fed557bb3f18007200ba6d4739bfd685ce253c94530b3c8aa309a8ed1e),
+            bytes32(0xe12d2326c6acd39f86031580059da0045acf505fec7d15ddf3f3eb30b66cc6f2),
+            bytes32(0x165323d1aa82d35248aa7d6ab6d2d69d0ee38160b317063a231bbc239611a563),
+            bytes32(0x3197f8715d07882b82a3feb60bebef9444aafd4a39b714eeac1f5afe97adc6be),
+            bytes32(0xca073cd05eb3ad48a00663d2fea825ca078019191a436fa10ef129a4502b710c),
+            bytes32(0x3eccc3aeb2b86647da1cf1599cca4fdd9d1deb7e1b5b1da2986fa3cda412ac2d),
+            bytes29(0x7176a115d25f40e9fc66338d970a37ee37c835cfaac452931c7182391f)
+        );
+        bytes memory stakeDocs = abi.encodePacked(
+            bytes32(0xfc75460291714ea3c5dd8ddc0eaccd185fa5939c4607c9ab7f03c05e756e4e91),
+            bytes24(0x9e15793eb2fc5504783dfd39c418915273fa44fc75460291)
+        );
+        bytes32[] memory signatures = new bytes32[](2);
+        signatures[0] = 0xbfab48aab1c659429e15b4be7fe49f4e671b224133be228c1c76ca75a03f2d47;
+        signatures[1] = 0x7cd99162097711e409526ec81dd2ab6ee1b56cf855da7355c365a142cf86b50b;
 
-    //     bytes32[] memory signers = new bytes32[](3);
-    //     signers[0] = 0x2eb2115fe909017c0dcff17846dba5da36ccc56ddf01506a1ebca94ab0f65bc9;
-    //     signers[1] = 0x419b43ad463c65f7ef872bb2eb3aa6ac5fd094351703dfed73656627b3bcdd7d;
-    //     signers[2] = 0x00083c8fe73cfdb00f1c3f8998aeb87f9d2534d6ee21fc442b4fe40eba03e39e;
+        bridgeTest.verifyHeaderHelper(verifierStakesHash, verifierHeight);
 
-    //     bytes32[] memory signatures = new bytes32[](6);
-    //     signatures[0] = 0xab10f3f8e8fd7987b903bee83c4d935db6e41c8cdb0149e81569b50f737fe79f;
-    //     signatures[1] = 0x77f8fb24f0ebdaa0634b79358a5d576c36897eea06985a38af811e930c702702;
-    //     signatures[2] = 0xd5e16061798104ca5fd82587fd499239df5f72d7a76dbabce4b0fcc90b297957;
-    //     signatures[3] = 0x0fa9456df1c04d95286cd3b1cf25ba0676670171c22e5085f6346a13f2f3ae0a;
-    //     signatures[4] = 0xc2a3f158b19db3c9e6be2e01578af8e49c6ce9bf158177efb2c18b558b853f40;
-    //     signatures[5] = 0xd9d2aad475adf60bcf454130a1612f6128364c9d66ad7fe5eea5ca3522e16c01;
+        bool success = bridgeTest.verifyHeader(verifierHeight, header, stakeDocs, signatures);
+        assertTrue(success);
+    }
 
-    //     bridgeTest.submitHeaderTestHelper(signers);
+    function testVerifyHeaders() public {}
 
-    //     bool success = bridgeTest.submitHeader(header, signers, signatures);
-    //     assertTrue(success);
-    // }
-
-    // function testCannotSubmitHeader() public {
+    // function testCannotVerifyHeader() public {
     //     bytes memory header = abi.encodePacked(
     //         bytes32(0xffa011c4104d79413ef82b91c5dc1d93991b144d0a5c388f56c49997cb90fe61),
     //         bytes32(0xdcfd90cade26f7d43c1dae753f62c43a2e9e8980092d74b176d44e66934e7d4f),

@@ -5,6 +5,8 @@ import 'blake3-sol/Blake3Sol.sol';
 import 'ed25519-sol/Ed25519.sol';
 import 'openzeppelin-contracts/contracts/token/ERC1155/ERC1155.sol';
 
+import 'forge-std/Test.sol';
+
 /**
 * @title ThemelioBridge: A bridge for transferring Themelio assets to Ethereum and back
 *
@@ -40,7 +42,7 @@ import 'openzeppelin-contracts/contracts/token/ERC1155/ERC1155.sol';
 *
 *      Questions or concerns? Come chat with us on Discord! https://discord.com/invite/VedNp7EXFc
 */
-contract ThemelioBridge is ERC1155 {
+contract ThemelioBridge is ERC1155, Test {
     using Blake3Sol for Blake3Sol.Hasher;
 
     // an abbreviated Themelio header with the only two fields we need for header and tx validation
@@ -77,7 +79,7 @@ contract ThemelioBridge is ERC1155 {
     // the number of blocks in a Themelio staking epoch
     uint256 internal constant STAKE_EPOCH = 200_000;
 
-    // the denoms of coins on Themelio
+    // the denoms (token IDs) of coins on Themelio
     uint256 internal constant MEL = 0;
     uint256 internal constant SYM = 1;
     uint256 internal constant ERG = 2;
@@ -316,11 +318,6 @@ contract ThemelioBridge is ERC1155 {
         bytes32[] calldata signatures_
     ) external returns (bool) {
         uint256 stakeDocsLength = stakeDocs_.length;
-
-        if (stakeDocsLength * 2 != signatures_.length) {
-            revert MalformedData();
-        }
-
         uint256 blockHeight = _extractBlockHeight(header_);
         uint256 epoch = blockHeight / STAKE_EPOCH;
         uint256 verifierEpoch = verifierHeight_ / STAKE_EPOCH;
@@ -338,7 +335,6 @@ contract ThemelioBridge is ERC1155 {
         }
 
         bytes32 stakeDocsHash = _hashDatablock(stakeDocs_);
-
         if (stakeDocsHash != stakesHash) {
             revert InvalidStakeDocs();
         }
@@ -347,7 +343,8 @@ contract ThemelioBridge is ERC1155 {
         uint256 votes = headerLimbo[headerHash].votes;
         uint256 stakeDocsOffset = headerLimbo[headerHash].bytesVerified;
 
-        uint256 totalEpochSyms = _decodeInteger(stakeDocs_, 0); // in future TIP, maybe it can be the first value in stakes_hash array
+        // assumption here that in future TIP total epoch syms will be first value in 'stakes_hash' preimage
+        uint256 totalEpochSyms = _decodeInteger(stakeDocs_, 0);
         if (stakeDocsOffset == 0) {
             stakeDocsOffset += _encodedIntegerSize(stakeDocs_, 0);
         }
@@ -357,6 +354,7 @@ contract ThemelioBridge is ERC1155 {
 
         for (uint256 i = 0; stakeDocsOffset < stakeDocsLength; ++i) {
             (stakeDoc, stakeDocsOffset) = _decodeStakeDoc(stakeDocs_, stakeDocsOffset);
+
             if (
                 stakeDoc.epochStart <= epoch &&
                 stakeDoc.epochPostEnd > epoch
@@ -375,11 +373,6 @@ contract ThemelioBridge is ERC1155 {
                 }
             }
 
-            assembly ('memory-safe') {
-                gasRemaining := gas()
-            }
-
-        
             if (votes >= totalEpochSyms * 2 / 3) {
                 headers[blockHeight].transactionsHash = _extractTransactionsHash(header_);
                 headers[blockHeight].stakesHash = _extractStakesHash(header_);
@@ -391,8 +384,13 @@ contract ThemelioBridge is ERC1155 {
                 return true;
             }
 
+            assembly ('memory-safe') {
+                gasRemaining := gas()
+            }
+
             if (
                 // not enough gas for another round
+                // todo: more accurate calc of next round gas costs
                 gasRemaining < 2_000_000
             ) {
                 headerLimbo[headerHash].votes = uint128(votes); // let's double check this
@@ -570,10 +568,10 @@ contract ThemelioBridge is ERC1155 {
         bytes calldata stakeDoc,
         uint256 offset
     ) internal pure returns (StakeDoc memory, uint256) {
-        bytes32 publicKey = bytes32(_slice(stakeDoc, offset + 0, offset + 32));
+        bytes32 publicKey = bytes32(_slice(stakeDoc, offset, offset + 32));
         uint256 epochStart = _decodeInteger(stakeDoc, offset + 32);
 
-        offset += 32 + _encodedIntegerSize(stakeDoc, 32);
+        offset += 32 + _encodedIntegerSize(stakeDoc, offset + 32);
 
         uint256 epochPostEnd = _decodeInteger(stakeDoc, offset);
         offset += _encodedIntegerSize(stakeDoc, offset);
