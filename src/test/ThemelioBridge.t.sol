@@ -488,6 +488,13 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         assertTrue(success);
     }
 
+    function testVerifyHeaderMultiTx() public {
+        // cheatcode to reduce tx gas
+        // first tx
+        // second tx
+        // assert header was verified
+    }
+
     // function testCannotVerifyHeader() public {
     //     bytes memory header = abi.encodePacked(
     //         bytes32(0xffa011c4104d79413ef82b91c5dc1d93991b144d0a5c388f56c49997cb90fe61),
@@ -630,7 +637,21 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
     }
 
-        /* =========== Differential Fuzz Tests =========== */
+        /* =========== Differential Fuzz and FFI Tests =========== */
+
+    function testBigHashFFI() public {
+        string[] memory cmds = new string[](2);
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[1] = '--big-hash';
+
+        bytes memory packedData = vm.ffi(cmds);
+        (bytes memory data, bytes32 dataHash) = abi.decode(packedData, (bytes, bytes32));
+
+        bytes32 bigHash = bridgeTest.bigHashFFIHelper(data);
+
+        assertEq(bigHash, dataHash);
+    }
+
     function testDecodeIntegerDifferentialFFI(uint128 integer) public {
         string[] memory cmds = new string[](3);
 
@@ -704,16 +725,32 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         assertEq(extractedRecipient, recipient);
     }
 
-    function testBigHashFFI() public {
-        string[] memory cmds = new string[](2);
+    function testVerifyHeaderDifferentialFFI(uint8 numStakeDocs) public {
+        vm.assume(numStakeDocs != 0);
+
+        string[] memory cmds = new string[](3);
         cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-        cmds[1] = '--big-hash';
+        cmds[1] = '--verify-header';
+        cmds[2] = uint256(numStakeDocs).toString();
 
-        bytes memory packedData = vm.ffi(cmds);
-        (bytes memory data, bytes32 dataHash) = abi.decode(packedData, (bytes, bytes32));
+        bytes memory data = vm.ffi(cmds);
 
-        bytes32 bigHash = bridgeTest.bigHashFFIHelper(data);
+        (
+            uint256 verifierHeight,
+            bytes32 verifierStakesHash,
+            bytes memory header,
+            bytes memory stakeDocs,
+            bytes32[] memory signatures
+        ) = abi.decode(data, (uint256, bytes32, bytes, bytes, bytes32[]));
 
-        assertEq(bigHash, dataHash);
+        bridgeTest.verifyHeaderHelper(verifierStakesHash, verifierHeight);
+
+        bool success;
+
+        do {
+            success = bridgeTest.verifyHeader(verifierHeight, header, stakeDocs, signatures);
+        } while (!success);
+
+        assertTrue(success);
     }
 }
