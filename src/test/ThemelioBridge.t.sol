@@ -452,7 +452,14 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
         bridgeTest.verifyHeaderHelper(verifierStakesHash, verifierHeight);
 
-        bool success = bridgeTest.verifyHeader(verifierHeight, header, stakeDocs, signatures);
+        bool success = bridgeTest.verifyHeader(
+            verifierHeight,
+            header,
+            stakeDocs,
+            signatures,
+            true
+        );
+
         assertTrue(success);
     }
 
@@ -484,7 +491,14 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
         bridgeTest.verifyHeaderHelper(verifierStakesHash, verifierHeight);
 
-        bool success = bridgeTest.verifyHeader(verifierHeight, header, stakeDocs, signatures);
+        bool success = bridgeTest.verifyHeader(
+            verifierHeight,
+            header,
+            stakeDocs,
+            signatures,
+            true
+        );
+
         assertTrue(success);
     }
 
@@ -726,7 +740,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     }
 
     function testVerifyHeaderDifferentialFFI(uint8 numStakeDocs) public {
-        vm.assume(numStakeDocs != 0);
+        vm.assume(numStakeDocs != 0 && numStakeDocs < 90);
 
         string[] memory cmds = new string[](3);
         cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
@@ -747,9 +761,23 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
         bool success;
 
-        do {
-            success = bridgeTest.verifyHeader(verifierHeight, header, stakeDocs, signatures);
-        } while (!success);
+        success = bridgeTest.verifyHeader{gas: 25_000_000}(
+            verifierHeight,
+            header,
+            stakeDocs,
+            signatures,
+            true
+        );
+
+        while (!success) {
+            success = bridgeTest.verifyHeader{gas: 25_000_000}(
+                verifierHeight,
+                header,
+                stakeDocs,
+                signatures,
+                false
+            );
+        }
 
         assertTrue(success);
     }

@@ -54,7 +54,8 @@ contract ThemelioBridge is ERC1155, Test {
     // represents an unverified Themelio header with current votes and verified bytes offset
     struct UnverifiedHeader {
         uint128 votes;
-        uint128 bytesVerified;
+        uint64 bytesVerified;
+        uint64 stakeDocIndex;
     }
 
     // a Themelio object representing a single stash of staked syms
@@ -67,10 +68,12 @@ contract ThemelioBridge is ERC1155, Test {
 
     /* =========== Themelio Header Validation Storage =========== */
 
-    // maps keccak hashes of unverified headers to votes
-    mapping(bytes32 => UnverifiedHeader) public headerLimbo;
     // maps header block heights to Headers for verifying headers and transactions
     mapping(uint256 => Header) public headers;
+    // maps keccak hashes of unverified headers to votes
+    mapping(bytes32 => UnverifiedHeader) public headerLimbo;
+    // maps keccak hashes of serialized StakeDoc arrays to their corresponding blake3 hash
+    mapping(bytes32 => bytes32) internal stakesHashes;
     // keeps track of successful token mints
     mapping(bytes32 => bool) public spends;
 
@@ -315,33 +318,54 @@ contract ThemelioBridge is ERC1155, Test {
         uint256 verifierHeight_,
         bytes calldata header_,
         bytes calldata stakeDocs_,
-        bytes32[] calldata signatures_
+        bytes32[] calldata signatures_,
+        bool firstTime
     ) external returns (bool) {
-        uint256 stakeDocsLength = stakeDocs_.length;
         uint256 blockHeight = _extractBlockHeight(header_);
         uint256 headerEpoch = blockHeight / STAKE_EPOCH;
         uint256 verifierEpoch = verifierHeight_ / STAKE_EPOCH;
 
+        // headers can only verify headers from the same epoch, however
+        // if they are the last header of an epoch they can also verify headers one epoch ahead
         if (
-            !(headerEpoch == verifierEpoch) &&
-            !(headerEpoch * STAKE_EPOCH - 1 == verifierHeight_)
+            verifierEpoch != headerEpoch &&
+            verifierHeight_ != headerEpoch * STAKE_EPOCH - 1
         ) {
             revert InvalidVerifier(verifierHeight_, blockHeight);
         }
 
-        bytes32 stakesHash = headers[verifierHeight_].stakesHash;
-        if (stakesHash == 0) {
+        bytes32 verifierStakesHash = headers[verifierHeight_].stakesHash;
+        if (verifierStakesHash == 0) {
             revert MissingVerifier(blockHeight);
         }
 
-        bytes32 stakeDocsHash = _hashDatablock(stakeDocs_);
-        if (stakeDocsHash != stakesHash) {
+        bytes32 keccakStakeDocsHash = keccak256(stakeDocs_);
+        bytes32 stakeDocsHash;
+        
+        if (!firstTime) {
+            stakeDocsHash = stakesHashes[keccakStakeDocsHash];
+        }
+
+        if (stakeDocsHash == 0) {
+            stakeDocsHash = _hashDatablock(stakeDocs_);
+
+            stakesHashes[keccakStakeDocsHash] = stakeDocsHash;
+        }
+
+        if (stakeDocsHash != verifierStakesHash) {
             revert InvalidStakeDocs();
         }
 
         bytes32 headerHash = keccak256(header_);
-        uint256 votes = headerLimbo[headerHash].votes;
-        uint256 stakeDocsOffset = headerLimbo[headerHash].bytesVerified;
+        uint256 votes;
+        uint256 stakeDocsOffset;
+        uint256 stakeDocIndex;
+
+        if (!firstTime) {
+            votes = headerLimbo[headerHash].votes;
+            stakeDocsOffset = headerLimbo[headerHash].bytesVerified;
+            stakeDocIndex = headerLimbo[headerHash].stakeDocIndex;
+        }
 
         // assumption here that in future TIP total epoch syms will be first value in 'stakes_hash' preimage
         uint256 totalEpochSyms = _decodeInteger(stakeDocs_, 0);
@@ -351,8 +375,9 @@ contract ThemelioBridge is ERC1155, Test {
 
         StakeDoc memory stakeDoc;
         uint256 gasRemaining;
+        uint256 stakeDocsLength = stakeDocs_.length;
 
-        for (uint256 i = 0; stakeDocsOffset < stakeDocsLength; ++i) {
+        for (; stakeDocsOffset < stakeDocsLength; ++stakeDocIndex) {
             (stakeDoc, stakeDocsOffset) = _decodeStakeDoc(stakeDocs_, stakeDocsOffset);
 
             if (
@@ -362,10 +387,10 @@ contract ThemelioBridge is ERC1155, Test {
                 // here we check if the 'R' part of the signature is zero as a way to skip
                 // verification of signatures we do not have
                 if (
-                    signatures_[i * 2] != 0 && Ed25519.verify(
+                    signatures_[stakeDocIndex * 2] != 0 && Ed25519.verify(
                         stakeDoc.publicKey,
-                        signatures_[i * 2],
-                        signatures_[i * 2 + 1],
+                        signatures_[stakeDocIndex * 2],
+                        signatures_[stakeDocIndex * 2 + 1],
                         header_
                     )
                 ) {
@@ -377,7 +402,7 @@ contract ThemelioBridge is ERC1155, Test {
                 headers[blockHeight].transactionsHash = _extractTransactionsHash(header_);
                 headers[blockHeight].stakesHash = _extractStakesHash(header_);
 
-                delete headerLimbo[headerHash];
+                if (!firstTime) delete headerLimbo[headerHash];
 
                 emit HeaderVerified(blockHeight);
 
@@ -387,14 +412,15 @@ contract ThemelioBridge is ERC1155, Test {
             assembly ('memory-safe') {
                 gasRemaining := gas()
             }
-
+            
             if (
                 // not enough gas for another round
                 // todo: more accurate calc of next round gas costs
-                gasRemaining < 2_000_000
+                gasRemaining < 6_000_000
             ) {
                 headerLimbo[headerHash].votes = uint128(votes); // let's double check this
-                headerLimbo[headerHash].bytesVerified = uint128(stakeDocsOffset); // and this
+                headerLimbo[headerHash].bytesVerified = uint64(stakeDocsOffset); // and this
+                headerLimbo[headerHash].stakeDocIndex = uint64(stakeDocIndex + 1);
 
                 return false;
             }
