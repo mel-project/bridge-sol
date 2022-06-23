@@ -319,12 +319,12 @@ contract ThemelioBridge is ERC1155, Test {
     ) external returns (bool) {
         uint256 stakeDocsLength = stakeDocs_.length;
         uint256 blockHeight = _extractBlockHeight(header_);
-        uint256 epoch = blockHeight / STAKE_EPOCH;
+        uint256 headerEpoch = blockHeight / STAKE_EPOCH;
         uint256 verifierEpoch = verifierHeight_ / STAKE_EPOCH;
 
         if (
-            !(epoch == verifierEpoch) &&
-            !((blockHeight - 1) / STAKE_EPOCH == verifierEpoch)
+            !(headerEpoch == verifierEpoch) &&
+            !(headerEpoch * STAKE_EPOCH - 1 == verifierHeight_)
         ) {
             revert InvalidVerifier(verifierHeight_, blockHeight);
         }
@@ -356,8 +356,8 @@ contract ThemelioBridge is ERC1155, Test {
             (stakeDoc, stakeDocsOffset) = _decodeStakeDoc(stakeDocs_, stakeDocsOffset);
 
             if (
-                stakeDoc.epochStart <= epoch &&
-                stakeDoc.epochPostEnd > epoch
+                stakeDoc.epochStart <= headerEpoch &&
+                stakeDoc.epochPostEnd > headerEpoch
             ) {
                 // here we check if the 'R' part of the signature is zero as a way to skip
                 // verification of signatures we do not have
