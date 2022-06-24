@@ -190,9 +190,19 @@ contract ThemelioBridgeTest is ThemelioBridge{//, Test {
         assertEq(seventeenByteSize, 17);
     }
 
-    function testExtractDenom() public {}
-
         /* =========== Differential FFI Fuzz Tests =========== */
+
+    function testKeccakBigHashFFI() public {
+        string[] memory cmds = new string[](2);
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[1] = '--big-hash';
+
+        bytes memory packedData = vm.ffi(cmds);
+        (bytes memory data,) = abi.decode(packedData, (bytes, bytes32));
+
+        keccak256(data);
+    }
+
     function testBlake3DifferentialFFI(bytes memory data) public {
         string[] memory cmds = new string[](3);
 
@@ -557,6 +567,8 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
     //     bridgeTest.submitHeader(header, signersSubmitHeader, signatures);
     // }
+
+    function testVerifyStakes() public {}
 
     function testComputeMerkleRoot() public {
         bytes32[] memory proof = new bytes32[](2);

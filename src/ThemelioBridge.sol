@@ -155,7 +155,7 @@ contract ThemelioBridge is ERC1155, Test {
     /**
     * The serialized Themelio 'StakeDoc' array submitted is invalid.
     */
-    error InvalidStakeDocs();
+    error InvalidStakes();
 
     /**
     * The header at block height `height` has not been submitted yet. Please submit it before
@@ -183,6 +183,11 @@ contract ThemelioBridge is ERC1155, Test {
     error MissingVerifier(uint256 height);
 
     /* =========== Bridge Events =========== */
+
+    event StakesVerified(
+        bytes32 keccakStakesHash,
+        bytes32 blake3StakesHash
+    );
 
     event HeaderVerified(
         uint256 indexed height
@@ -291,6 +296,31 @@ contract ThemelioBridge is ERC1155, Test {
     /* =========== Themelio Staker Set, Header, and Transaction Verification =========== */
 
     /**
+    * @notice Accepts incoming Themelio staker sets and verifies them via blake3 hashing. The
+    *         staker set hash is then saved to a storage mapping with a keccak256 hash of the
+    *         staker set being the key.
+    *
+    * @dev The `stakeDocs_` array is an array of serialized Themelio 'StakeDocs' which represent
+    *      which are hashed to derive the 'stakes_hash' member present in every Themelio Header.
+    *
+    * @param stakeDocs_ An array of serialized Themelio 'StakeDoc's.
+    *
+    * @return 'true' if header was successfully validated and stored, otherwise reverts.
+    */
+    function verifyStakes(
+        bytes calldata stakeDocs_
+    ) external returns (bool) {
+        bytes32 keccakStakesHash = keccak256(stakeDocs_);
+        bytes32 blake3StakesHash = _hashDatablock(stakeDocs_);
+
+        stakesHashes[keccakStakesHash] = blake3StakesHash;
+
+        emit StakesVerified(keccakStakesHash, blake3StakesHash);
+
+        return true;
+    }
+
+    /**
     * @notice Accepts incoming Themelio headers, validates them by verifying the signatures of
     *         stakers in the header's epoch, and stores the header for future transaction
     *         verification, upon successful validation.
@@ -311,6 +341,9 @@ contract ThemelioBridge is ERC1155, Test {
     * @param stakeDocs_ An array of serialized Themelio 'StakeDoc's.
     *
     * @param signatures_ An array of signatures of `header_` by each staker in `signers_`.
+
+    * @param firstTime_ A boolean flag that allows the function to make gas optimizations
+    *        depending on whether this is the first time this header is being verified.
     *
     * @return 'true' if header was successfully validated, otherwise reverts.
     */
@@ -319,7 +352,7 @@ contract ThemelioBridge is ERC1155, Test {
         bytes calldata header_,
         bytes calldata stakeDocs_,
         bytes32[] calldata signatures_,
-        bool firstTime
+        bool firstTime_
     ) external returns (bool) {
         uint256 blockHeight = _extractBlockHeight(header_);
         uint256 headerEpoch = blockHeight / STAKE_EPOCH;
@@ -339,21 +372,21 @@ contract ThemelioBridge is ERC1155, Test {
             revert MissingVerifier(blockHeight);
         }
 
-        bytes32 keccakStakeDocsHash = keccak256(stakeDocs_);
-        bytes32 stakeDocsHash;
-        
-        if (!firstTime) {
-            stakeDocsHash = stakesHashes[keccakStakeDocsHash];
+        bytes32 keccakStakesHash = keccak256(stakeDocs_);
+        bytes32 blake3StakesHash;
+
+        if (!firstTime_) {
+            blake3StakesHash = stakesHashes[keccakStakesHash];
         }
 
-        if (stakeDocsHash == 0) {
-            stakeDocsHash = _hashDatablock(stakeDocs_);
+        if (blake3StakesHash == 0) {
+            blake3StakesHash = _hashDatablock(stakeDocs_);
 
-            stakesHashes[keccakStakeDocsHash] = stakeDocsHash;
+            stakesHashes[keccakStakesHash] = blake3StakesHash;
         }
 
-        if (stakeDocsHash != verifierStakesHash) {
-            revert InvalidStakeDocs();
+        if (blake3StakesHash != verifierStakesHash) {
+            revert InvalidStakes();
         }
 
         bytes32 headerHash = keccak256(header_);
@@ -361,7 +394,7 @@ contract ThemelioBridge is ERC1155, Test {
         uint256 stakeDocsOffset;
         uint256 stakeDocIndex;
 
-        if (!firstTime) {
+        if (!firstTime_) {
             votes = headerLimbo[headerHash].votes;
             stakeDocsOffset = headerLimbo[headerHash].bytesVerified;
             stakeDocIndex = headerLimbo[headerHash].stakeDocIndex;
@@ -402,7 +435,7 @@ contract ThemelioBridge is ERC1155, Test {
                 headers[blockHeight].transactionsHash = _extractTransactionsHash(header_);
                 headers[blockHeight].stakesHash = _extractStakesHash(header_);
 
-                if (!firstTime) delete headerLimbo[headerHash];
+                if (!firstTime_) delete headerLimbo[headerHash];
 
                 emit HeaderVerified(blockHeight);
 
