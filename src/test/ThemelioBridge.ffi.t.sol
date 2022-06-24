@@ -6,7 +6,7 @@ import 'openzeppelin-contracts/contracts/utils/Strings.sol';
 import './utils/ByteStrings.sol';
 import '../ThemelioBridge.sol';
 
-contract ThemelioBridgeTest is ThemelioBridge{//, Test {
+contract ThemelioBridgeTestFFI is ThemelioBridge{//, Test {
     using Blake3Sol for Blake3Sol.Hasher;
     using ByteStrings for bytes;
     using Strings for uint256;
@@ -196,7 +196,7 @@ contract ThemelioBridgeTest is ThemelioBridge{//, Test {
 }
 
 // contract for tests involving internal functions that have calldata params
-contract ThemelioBridgeTestInternalCalldata is Test {
+contract ThemelioBridgeTestInternalCalldataFFI is Test {
     using Strings for uint;
     using ByteStrings for bytes;
 
@@ -205,10 +205,10 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     uint256 constant MEL = 0;
     uint256 constant SYM = 1;
 
-    ThemelioBridgeTest bridgeTest;
+    ThemelioBridgeTestFFI bridgeTest;
 
     function setUp() public {
-        bridgeTest = new ThemelioBridgeTest();
+        bridgeTest = new ThemelioBridgeTestFFI();
     }
 
         /* =========== Differential Fuzz and FFI Tests =========== */
