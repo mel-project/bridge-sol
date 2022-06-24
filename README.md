@@ -35,6 +35,20 @@ assets.
 
 ## API
 
+### verifyStakes(bytes stakes) returns (bool)
+
+This function can be used to verify a stakes byte array using blake3 and store it in contract
+storage for later verification of Themelio headers. It is recommended that this function be used
+when the stakes array is very large (>4kb) due gas constraints.
+
+* `stakes`: a `bytes` array consisting of serialized and concatenated Themelio `StakeDocs`, which
+each represent a certain amount of `sym` coins staked on the the themelio network for a specified
+amount of time by a specific public key.
+
+Returns `true` if `stakes` was successfully hashed and stored, reverts otherwise.
+
+----
+
 ### submitHeader(header, signers, signatures) returns (bool)
 
 Stores header information for a particular block height once the header has been verified through
