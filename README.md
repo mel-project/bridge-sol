@@ -7,8 +7,8 @@ previously existing on the Themelio network. Check us out at https://themelio.or
 
 Themelio staker sets are verified per epoch, with each epoch's staker set being verified by
 the previous epoch's staker set using ed25519 signature verification (the base epoch being
-introduced manually in the constructor, which can very easily be verified manually). The
-staker set is an array of `StakeDoc`s seen in the [spec](https://docs.themelio.org/specifications/consensus-spec/#stakes).
+introduced in the constructor, which can very easily be verified manually). The staker set is an
+array of `StakeDoc`s seen in the [spec](https://docs.themelio.org/specifications/consensus-spec/#stakes).
 
 Themelio block headers are validated by verifying that the included staker signatures
 are authentic (using ed25519 signature verification) and that the total syms staked by all
@@ -49,7 +49,7 @@ Returns `true` if `stakes` was successfully hashed and stored, reverts otherwise
 
 ----
 
-### submitHeader(header, signers, signatures) returns (bool)
+### verifyHeader(header, signers, signatures) returns (bool)
 
 Stores header information for a particular block height once the header has been verified through
 ed25519 signature verification of at least 2/3 sym holders from the previous epoch.

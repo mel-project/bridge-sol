@@ -409,10 +409,11 @@ contract ThemelioBridge is ERC1155, Test {
             stakeDocIndex = headerLimbo[headerHash].stakeDocIndex;
         }
 
-        // assumption here that in future TIP total epoch syms will be first value in 'stakes_hash' preimage
-        uint256 totalEpochSyms = _decodeInteger(stakes_, 0);
+        // todo: assumption here that in future TIP total epoch syms will be first value in
+        // 'stakes_hash' preimage (note: subsequent epoch's total is needed to cross epochs)
+        (uint256 totalEpochSyms, uint256 totalEpochSymsOffset) = _decodeInteger(stakes_, 0);
         if (stakesOffset == 0) {
-            stakesOffset += _encodedIntegerSize(stakes_, 0);
+            stakesOffset += totalEpochSymsOffset;
         }
 
         StakeDoc memory stakeDoc;
@@ -456,7 +457,7 @@ contract ThemelioBridge is ERC1155, Test {
             }
             
             if (
-                // not enough gas for another round
+                // if not enough gas for another round, save current progress to storage
                 // todo: more accurate calc of next round gas costs
                 gasRemaining < 6_000_000
             ) {
@@ -637,15 +638,15 @@ contract ThemelioBridge is ERC1155, Test {
         uint256 offset
     ) internal pure returns (StakeDoc memory, uint256) {
         bytes32 publicKey = bytes32(_slice(stakeDoc, offset, offset + 32));
-        uint256 epochStart = _decodeInteger(stakeDoc, offset + 32);
 
-        offset += 32 + _encodedIntegerSize(stakeDoc, offset + 32);
+        (uint256 epochStart, uint256 epochStartSize) = _decodeInteger(stakeDoc, offset + 32);
+        offset += 32 + epochStartSize;
 
-        uint256 epochPostEnd = _decodeInteger(stakeDoc, offset);
-        offset += _encodedIntegerSize(stakeDoc, offset);
+        (uint256 epochPostEnd,  uint256 epochPostEndSize) = _decodeInteger(stakeDoc, offset);
+        offset += epochPostEndSize;
 
-        uint256 symsStaked = _decodeInteger(stakeDoc, offset);
-        offset += _encodedIntegerSize(stakeDoc, offset);
+        (uint256 symsStaked, uint256 symsStakedSize) = _decodeInteger(stakeDoc, offset);
+        offset += symsStakedSize;
 
         StakeDoc memory decodedStakeDoc;
         decodedStakeDoc.publicKey = publicKey;
@@ -657,72 +658,51 @@ contract ThemelioBridge is ERC1155, Test {
     }
 
     /**
-    * @notice Decodes and returns integers encoded at a specified offset within a 'bytes' array.
+    * @notice Decodes and returns integers encoded at a specified offset within a 'bytes' array as
+    *         well as returning the encoded integer size.
     *
-    * @dev Decodes and returns integers encoded using the 'bincode' Rust crate with
-    *      'with_varint_encoding' and 'reject_trailing_bytes' flags set.
-    *
-    * @param data_ The data, in bytes, which contains an encoded integer.
-    *
-    * @param offset The offset, in bytes, where our encoded integer is located at, within `data`.
-    *
-    * @return The decoded integer.
-    */
-    function _decodeInteger(bytes calldata data_, uint256 offset) internal pure returns (uint256) {
-        bytes1 lengthByte = bytes1(data_[offset:offset + 1]);
-        uint256 integer;
-
-        if (lengthByte < 0xfb) {
-            integer = uint8(lengthByte);
-        } else if (lengthByte == 0xfb) {
-            integer = uint16(bytes2(_slice(data_, offset + 2, offset)));
-        } else if (lengthByte == 0xfc) {
-            integer = uint32(bytes4(_slice(data_, offset + 4, offset)));
-        } else if (lengthByte == 0xfd) {
-            integer = uint64(bytes8(_slice(data_, offset + 8, offset)));
-        } else if (lengthByte == 0xfe) {
-            integer = uint128(bytes16(_slice(data_, offset + 16, offset)));
-        } else {
-            assert(false);
-        }
-
-        return integer;
-    }
-
-    /**
-    * @notice Decodes and returns an encoded integer's size, in bytes.
-    *
-    * @dev Decodes and returns the size of integers encoded using the bincode Rust crate with
-    *      'with_varint_encoding' and 'reject_trailing_bytes' flags set.
+    * @dev Decodes and returns integers (and their sizes) encoded using the 'bincode' Rust crate
+    *      with 'with_varint_encoding' and 'reject_trailing_bytes' flags set.
     *
     * @param data The data, in bytes, which contains an encoded integer.
     *
     * @param offset The offset, in bytes, where our encoded integer is located at, within `data`.
     *
-    * @return The encoded integer's size, in bytes.
+    * @return The decoded integer and its size in bytes.
     */
-    function _encodedIntegerSize(
+    function _decodeInteger(
         bytes memory data,
         uint256 offset
-    ) internal pure returns (uint256) {
+    ) internal pure returns (uint256, uint256) {
         bytes1 lengthByte = bytes1(_slice(data, offset, offset + 1));
+        uint256 integer;
         uint256 size;
 
         if (lengthByte < 0xfb) {
+            integer = uint8(lengthByte);
+
             size = 1;
         } else if (lengthByte == 0xfb) {
+            integer = uint16(bytes2(_slice(data, offset + 2, offset)));
+
             size = 3;
         } else if (lengthByte == 0xfc) {
+            integer = uint32(bytes4(_slice(data, offset + 4, offset)));
+
             size = 5;
         } else if (lengthByte == 0xfd) {
+            integer = uint64(bytes8(_slice(data, offset + 8, offset)));
+
             size = 9;
         } else if (lengthByte == 0xfe) {
+            integer = uint128(bytes16(_slice(data, offset + 16, offset)));
+
             size = 17;
         } else {
             assert(false);
         }
 
-        return size;
+        return (integer, size);
     }
 
     /**
@@ -737,7 +717,7 @@ contract ThemelioBridge is ERC1155, Test {
     */
     function _extractBlockHeight(bytes calldata header_) internal pure returns (uint256) {
         // using an offset of 33 to skip 'network' (1 byte) and 'previous' (32 bytes)
-        uint256 blockHeight = _decodeInteger(header_, 33);
+        (uint256 blockHeight,) = _decodeInteger(header_, 33);
 
         return blockHeight;
     }
@@ -757,7 +737,8 @@ contract ThemelioBridge is ERC1155, Test {
         // get size of 'block_height' using 33 as the offset to skip 'network' (1 byte) and
         // 'previous' (32 bytes)
         uint256 offset = 33;
-        uint256 heightSize = _encodedIntegerSize(header_, offset);
+
+        (,uint256 heightSize) = _decodeInteger(header_, offset);
 
         // we can get the offset of 'transactions_hash' by adding `heightSize` + 64 to skip
         // 'history_hash' (32 bytes) and 'coins_hash' (32 bytes) 
@@ -804,23 +785,24 @@ contract ThemelioBridge is ERC1155, Test {
         uint256 offset = 1;
 
         // get 'inputs' array length and add its size to 'offset'
-        uint256 inputsLength = _decodeInteger(transaction_, offset);
-        offset += _encodedIntegerSize(transaction_, offset);
+        (uint256 inputsLength, uint256 inputsLengthSize) = _decodeInteger(transaction_, offset);
+        offset += inputsLengthSize;
 
         // aggregate size of each CoinData which is one hash (32 bytes) and one u8 integer (1 byte)
         offset += 33 * inputsLength;
 
         // get the size of the 'outputs' array's length and add to offset along with
-        // 'cov_hash' size (32 bytes)
-        offset += _encodedIntegerSize(transaction_, offset) + 32;
+        // 'covhash' size (32 bytes)
+        (,uint256 outputsLengthSize) = _decodeInteger(transaction_, offset);
+        offset += outputsLengthSize + 32;
 
         // decode 'value' and add its size to 'offset'
-        uint256 value = _decodeInteger(transaction_, offset);
-        offset += _encodedIntegerSize(transaction_, offset);
+        (uint256 value, uint256 valueSize) = _decodeInteger(transaction_, offset);
+        offset += valueSize;
 
         // here we need to check the size of 'denom' because it can be 0, 1, or 32 bytes
-        uint256 denomSize = _decodeInteger(transaction_, offset);
-        offset += 1; // the size of `denomSize`; the denom metasize, if you will.
+        (uint256 denomSize, uint256 denomSizeLength) = _decodeInteger(transaction_, offset);
+        offset += denomSizeLength; // the size of `denomSize`; the denom metasize, if you will.
 
         uint256 denom;
 
@@ -848,7 +830,9 @@ contract ThemelioBridge is ERC1155, Test {
         offset += denomSize;
 
         // get size of 'additional_data' array's length, _extract recipient address from first item
-        offset += _encodedIntegerSize(transaction_, offset);
+        (,uint256 additionalDataLength) = _decodeInteger(transaction_, offset);
+        offset += additionalDataLength;
+
         address recipient = address(bytes20(transaction_[offset:offset + 20]));
 
         return (value, denom, recipient);
