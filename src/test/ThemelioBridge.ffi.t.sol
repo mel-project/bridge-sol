@@ -29,7 +29,7 @@ contract ThemelioBridgeTestFFI is ThemelioBridge{//, Test {
         bytes calldata header,
         uint256 offset
     ) public pure returns (uint256) {
-        uint256 integer = _decodeInteger(header, offset);
+        (uint256 integer,) = _decodeInteger(header, offset);
 
         return integer;
     }
@@ -152,7 +152,7 @@ contract ThemelioBridgeTestFFI is ThemelioBridge{//, Test {
 
         (bytes memory encodedInteger, uint256 integerSize) = abi.decode(result, (bytes, uint256));
 
-        uint256 encodedIntegerSize = _encodedIntegerSize(encodedInteger, 0);
+        (,uint256 encodedIntegerSize) = _decodeInteger(encodedInteger, 0);
 
         assertEq(encodedIntegerSize, integerSize);
     }

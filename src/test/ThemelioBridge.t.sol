@@ -29,7 +29,7 @@ contract ThemelioBridgeTest is ThemelioBridge{//, Test {
         bytes calldata header,
         uint256 offset
     ) public pure returns (uint256) {
-        uint256 integer = _decodeInteger(header, offset);
+        (uint256 integer,) = _decodeInteger(header, offset);
 
         return integer;
     }
@@ -95,34 +95,34 @@ contract ThemelioBridgeTest is ThemelioBridge{//, Test {
 
         /* =========== Unit Tests =========== */
 
-    function testEncodedIntegerSize() public {
-        // 250 with no padding
-        bytes memory oneByteInteger = abi.encodePacked(bytes1(0xfa));
-        uint256 oneByteSize = _encodedIntegerSize(oneByteInteger, 0);
-        assertEq(oneByteSize, 1);
+    // function testEncodedIntegerSize() public {
+    //     // 250 with no padding
+    //     bytes memory oneByteInteger = abi.encodePacked(bytes1(0xfa));
+    //     uint256 oneByteSize = _encodedIntegerSize(oneByteInteger, 0);
+    //     assertEq(oneByteSize, 1);
 
-        // 251 with 1 byte of padding on both sides
-        bytes memory threeByteInteger = abi.encodePacked(bytes5(0xfffbfb00ff));
-        uint256 threeByteSize = _encodedIntegerSize(threeByteInteger, 1);
-        assertEq(threeByteSize, 3);
+    //     // 251 with 1 byte of padding on both sides
+    //     bytes memory threeByteInteger = abi.encodePacked(bytes5(0xfffbfb00ff));
+    //     uint256 threeByteSize = _encodedIntegerSize(threeByteInteger, 1);
+    //     assertEq(threeByteSize, 3);
 
-        // 2**16 with 2 bytes of padding on both sides
-        bytes memory fiveByteInteger = abi.encodePacked(bytes9(0xfffffc00000100ffff));
-                uint256 fiveByteSize = _encodedIntegerSize(fiveByteInteger, 2);
-        assertEq(fiveByteSize, 5);
+    //     // 2**16 with 2 bytes of padding on both sides
+    //     bytes memory fiveByteInteger = abi.encodePacked(bytes9(0xfffffc00000100ffff));
+    //             uint256 fiveByteSize = _encodedIntegerSize(fiveByteInteger, 2);
+    //     assertEq(fiveByteSize, 5);
 
-        // 2**32 with 3 bytes of padding on both sides
-        bytes memory nineByteInteger = abi.encodePacked(bytes15(0xfffffffd0000000001000000ffffff));
-        uint256 nineByteSize = _encodedIntegerSize(nineByteInteger, 3);
-        assertEq(nineByteSize, 9);
+    //     // 2**32 with 3 bytes of padding on both sides
+    //     bytes memory nineByteInteger = abi.encodePacked(bytes15(0xfffffffd0000000001000000ffffff));
+    //     uint256 nineByteSize = _encodedIntegerSize(nineByteInteger, 3);
+    //     assertEq(nineByteSize, 9);
 
-        // 2**64 with 4 bytes of padding on both sides
-        bytes memory seventeenByteInteger = abi.encodePacked(
-            bytes25(0xfffffffffe00000000000000000100000000000000ffffffff)
-        );
-        uint256 seventeenByteSize = _encodedIntegerSize(seventeenByteInteger, 4);
-        assertEq(seventeenByteSize, 17);
-    }
+    //     // 2**64 with 4 bytes of padding on both sides
+    //     bytes memory seventeenByteInteger = abi.encodePacked(
+    //         bytes25(0xfffffffffe00000000000000000100000000000000ffffffff)
+    //     );
+    //     uint256 seventeenByteSize = _encodedIntegerSize(seventeenByteInteger, 4);
+    //     assertEq(seventeenByteSize, 17);
+    // }
 
     function testEd25519() public {
         bytes memory message = abi.encodePacked('The foundation of a trustless Internet');
