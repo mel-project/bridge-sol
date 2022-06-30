@@ -25,15 +25,6 @@ contract ThemelioBridgeTestFFI is ThemelioBridge{//, Test {
         return merkleRoot;
     }
 
-    function decodeIntegerHelper(
-        bytes calldata header,
-        uint256 offset
-    ) public pure returns (uint256) {
-        (uint256 integer,) = _decodeInteger(header, offset);
-
-        return integer;
-    }
-
     function decodeStakeDocHelper(bytes calldata encodedStakeDoc_)
         public pure returns (bytes32, uint256, uint256, uint256) {
         (StakeDoc memory decodedStakeDoc,) = _decodeStakeDoc(encodedStakeDoc_, 0);
@@ -141,20 +132,21 @@ contract ThemelioBridgeTestFFI is ThemelioBridge{//, Test {
         assertTrue(Ed25519.verify(signer, r, S, message));
     }
 
-    function testEncodedIntegerSizeDifferentialFFI(uint128 integer) public {
+    function testDecodeIntegerDifferentialFFI(uint128 integer) public {
         string[] memory cmds = new string[](3);
 
         cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-        cmds[1] = '--integer-size';
+        cmds[1] = '--decode-integer';
         cmds[2] = uint256(integer).toString();
 
         bytes memory result = vm.ffi(cmds);
 
-        (bytes memory encodedInteger, uint256 integerSize) = abi.decode(result, (bytes, uint256));
+        (bytes memory resultsInteger, uint256 resultsIntegerSize) = abi.decode(result, (bytes, uint256));
 
-        (,uint256 encodedIntegerSize) = _decodeInteger(encodedInteger, 0);
+        (uint256 decodedInteger, uint256 decodedIntegerSize) = _decodeInteger(resultsInteger, 0);
 
-        assertEq(encodedIntegerSize, integerSize);
+        assertEq(decodedInteger, integer);
+        assertEq(decodedIntegerSize, resultsIntegerSize);
     }
 
     function testKeccakBigHashFFI() public {
@@ -224,19 +216,6 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         bytes32 bigHash = bridgeTest.hashDatablockHelper(data);
 
         assertEq(bigHash, dataHash);
-    }
-
-    function testDecodeIntegerDifferentialFFI(uint128 integer) public {
-        string[] memory cmds = new string[](3);
-
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-        cmds[1] = '--decode-integer';
-        cmds[2] = uint256(integer).toString();
-
-        bytes memory result = vm.ffi(cmds);
-        uint256 decodedInteger = bridgeTest.decodeIntegerHelper(result, 0);
-
-        assertEq(decodedInteger, integer);
     }
 
     function testExtractBlockHeightDifferentialFFI(uint128 modifierNum, uint64 blockHeight) public {
