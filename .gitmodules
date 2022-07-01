@@ -14,6 +14,3 @@
 [submodule "src/test/differentials"]
 	path = src/test/differentials
 	url = https://github.com/themeliolabs/bridge-differential-tests
-[submodule "lib/diamond-3"]
-	path = lib/diamond-3
-	url = https://github.com/mudgen/diamond-3
