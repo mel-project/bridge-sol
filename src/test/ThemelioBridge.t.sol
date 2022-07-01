@@ -37,25 +37,38 @@ contract ThemelioBridgeTest is ThemelioBridge{//, Test {
         );
     }
 
-    function extractBlockHeightHelper(bytes calldata header)
-        public pure returns (uint256) {
-        uint256 blockHeight = _extractBlockHeight(header);
+    function decodeHeaderHelper(
+        bytes calldata header_
+    ) public returns (uint256, bytes32, bytes32) {
+        (
+            uint256 blockHeight,
+            bytes32 transactionsHash,
+            bytes32 stakesHash
+        ) = _decodeHeader(header_);
 
-        return blockHeight;
+        return (
+            blockHeight,
+            transactionsHash,
+            stakesHash
+        );
     }
 
-    function extractTransactionsHashHelper(bytes calldata header) public pure returns (bytes32) {
-        bytes32 transactionsHash = _extractTransactionsHash(header);
+    function decodeTransactionHelper(
+        bytes calldata transactions_
+    ) public returns (bytes32, uint256, uint256, address) {
+        (
+            bytes32 covhash,
+            uint256 value,
+            uint256 denom,
+            address recipient
+        ) = _decodeTransaction(transactions_);
 
-        return transactionsHash;
-    }
-
-    function extractValueDenomAndRecipientHelper(
-        bytes calldata transaction
-    ) public pure returns (uint256, uint256, address) {
-        (uint256 value, uint256 denom, address recipient) = _extractValueDenomAndRecipient(transaction);
-
-        return (value, denom, recipient);
+        return (
+            covhash,
+            value,
+            denom,
+            recipient
+        );
     }
 
     function hashDatablockHelper(bytes calldata data) public pure returns (bytes32) {
@@ -272,58 +285,27 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         assertEq(symsStaked, 64716893496921337859207055163356700560);
     }
 
-    function testExtractBlockHeight() public {
-        bytes memory header = abi.encodePacked(
-            bytes32(0xff2886e61b7756ec3fd75b0f89f3dc8d8dd2f7b44401c4e2fb55cc037980e44b),
-            bytes32(0xbafd5928e58213d64dc5f1d25074f72f9e1457562e45913d8eb2ed461e1396be),
-            bytes32(0x39ca087bb7de7c178811418f7da89b5e89e56ade852bc77909f5043339c1b8cc),
-            bytes32(0x4b0d2060e16b824a8f44e53545413058167cef39efc8a9da6d3a620d1719fd91),
-            bytes32(0x0c081d64a0f698d153cefefbffffca93a032754fe28625fc5239e5fe94c2ae0a),
-            bytes32(0xef2efde355dc11aff5446783feb859bcadd36dbe0ed6e6d9d0f13d41f68fd2d0),
-            bytes32(0x6c66cd36ba998c346e481522724ff71b19c04e8841616bf2afe880ca063b232b),
-            bytes29(0x90a52d3801d0d9775ac49ee59050d115aeff4796c9e3d11bc010341590)
-        );
-        uint256 blockHeight = bridgeTest.extractBlockHeightHelper(header);
-
-        assertEq(blockHeight, 14217254977967302745);
-    }
-
-    function testExtractDenomValueAndRecipient() public {
+    function testDecodeTransaction() public {
         bytes memory transaction = abi.encodePacked(
             bytes32(0x51010a1a82a7f70497fbbb549a63b4f11fe2062fc8eb78908138d5ec6c4c37b4),
-            bytes32(0xd46d9602918b542ba2682549c3e246dc41ea843d3f7c565a45f4ee4529e314e6),
-            bytes32(0xf4ababe4feea64accf835d2e8c75071bb47bc74bde016d14c505b3263fec82f8),
+            bytes32(0xd46d960200000000000000000000000000000000000000000000000000000000),
+            bytes32(0x00000000feea64accf835d2e8c75071bb47bc74bde016d14c505b3263fec82f8),
             bytes32(0xb624f4ba9c01b20e506b5e1e868010bfd9908ba0027dbb1f063b9ef1f20cae1f),
             bytes32(0x75e2ccc9596eac88253175b1fedd531bfa008451b726a8125afd34db9e016d00),
             bytes26(0xfe49707269c1dd7303bae99ab55ffd4db401017b02ddce010105)
         );
 
-        (uint256 value, uint256 denom, address recipient) =
-            bridgeTest.extractValueDenomAndRecipientHelper(transaction);
+        (
+            bytes32 covhash,
+            uint256 value,
+            uint256 denom,
+            address recipient
+        ) = bridgeTest.decodeTransactionHelper(transaction);
 
+        assertEq(covhash, 0);
         assertEq(value, 295482083328956529783620102020496385258);
         assertTrue(denom == MEL);
         assertEq(recipient, 0xc505B3263fEc82F8b624f4BA9C01b20E506b5E1e);
-    }
-
-    function testExtractTransactionsHash() public {
-        bytes memory header = abi.encodePacked(
-            bytes32(0xff6b91090007737cd4cc72ac2067ab3441218f0977d00039c2363867bafd2e44),
-            bytes32(0xf4fda84c8c112efd7da407a7bbab3660ca201e02b3ac54ea0775839e2fb4b4f6),
-            bytes32(0xf458ebef7d1bb11fff52cd0b0d522541a034493c8bce35d5c78616da0644b758),
-            bytes32(0x8980bc3fd95e678b2155cc31bac5a1ce87db5f32c719f5209984d6aea2582981),
-            bytes32(0x0b153d97ddb22b004f9efec8ffe0630521d94ec973dea0a1369884fec037ff47),
-            bytes32(0xba4c2d0ba0167d711026711ffe026c833667f9a7602473a7b5053d4d3798d768),
-            bytes32(0x161cc8276a1dcfcf68a4b63b85f9960ef20792d8260e16eb93620066c905bba0),
-            bytes29(0x71d65be9bc30b11a68a0819886d2ce85b9414e00719a706a77d8bc0772)
-        );
-
-        bytes32 transactionsHash = bridgeTest.extractTransactionsHashHelper(header);
-
-        assertEq(
-            transactionsHash,
-            bytes32(0xcc31bac5a1ce87db5f32c719f5209984d6aea25829810b153d97ddb22b004f9e)
-        );
     }
 
     function testHashDatablock() public {
@@ -467,79 +449,72 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
     function testVerifyStakes() public {}
 
-    function testVerifyTx() public {
-        uint256 blockHeight = 11699990686140247438;
-        bytes32 transactionsHash =
-            0x580997689374a72c83aaa25fd2517e1e60c17034413d513e090435941fb318ce;
-        bytes32 stakesHash =
-            0xf7490fc7be550aefa27eb01a33d51138deda54823601f2f87283ce88f04a5831;
+    // function testVerifyTx() public {
+    //     uint256 blockHeight = 11699990686140247438;
+    //     bytes32 transactionsHash =
+    //         0x580997689374a72c83aaa25fd2517e1e60c17034413d513e090435941fb318ce;
+    //     bytes32 stakesHash =
+    //         0xf7490fc7be550aefa27eb01a33d51138deda54823601f2f87283ce88f04a5831;
 
-        bytes memory transaction = abi.encodePacked(
-            bytes32(0x5101ac47ce6d06e6b937043484412f7f8ecffc5227284f81e5d5d093d5c4c57d),
-            bytes32(0x0ba71202766a5980aa7d6c7c05294d217eb09872ea8579fbb4e7ed129fa2140f),
-            bytes32(0xee549cc9fe0f9c28281dfe5cca35b0647af83c3b73016d14762346cea1cb891d),
-            bytes32(0xbc4b30d328598f4c9568227de69e61600cd3347a796664f34e4cb1e0b31f453b),
-            bytes32(0xb8fa84e20ac43b36074a4394feb61cd4ef5a811fd2f8144b8b3f3a8a10016d00),
-            bytes26(0xfe113c98493ad256720c5f8cfb32000af301018c028a8101018f)
-        );
-        uint256 txIndex = 3;
+    //     bytes memory transaction = // needs to be recreated and signed; make sure covhash = 0;
+    //     uint256 txIndex = 3;
 
-        bytes32[] memory proof = new bytes32[](2);
-        proof[0] = 0x1a2582eb25c727ff0d4fe22c9d921e2b6186b6160a2c72f0fb8cb2e5f126bfb1;
-        proof[1] = 0xf12599cbd9d49c0aad7aa00257dd4a1dd2b1a41b7b71cebc7a8217a121586339;
+    //     bytes32[] memory proof = new bytes32[](2);
+    //     proof[0] = 0x1a2582eb25c727ff0d4fe22c9d921e2b6186b6160a2c72f0fb8cb2e5f126bfb1;
+    //     proof[1] = 0xf12599cbd9d49c0aad7aa00257dd4a1dd2b1a41b7b71cebc7a8217a121586339;
 
-        uint256 value = 153168801660958298760728062610398288911;
-        address recipient = 0x762346cea1cb891dbC4b30d328598F4c9568227d;
+    //     uint256 value = 153168801660958298760728062610398288911;
+    //     address recipient = 0x762346cea1cb891dbC4b30d328598F4c9568227d;
 
-        bridgeTest.verifyTxHelper(blockHeight, transactionsHash, stakesHash);
+    //     bridgeTest.verifyTxHelper(blockHeight, transactionsHash, stakesHash);
 
-        bool success = bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
-        assertTrue(success);
+    //     bool success = bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
+    //     assertTrue(success);
 
-        uint256 recipientBalance = bridgeTest.balanceOf(recipient, MEL);
-        assertEq(recipientBalance, value);
-    }
+    //     uint256 recipientBalance = bridgeTest.balanceOf(recipient, MEL);
+    //     assertEq(recipientBalance, value);
+    // }
 
-    function testCannotVerifyTxTwice() public {
-        uint256 blockHeight = 11699990686140247438;
-        bytes32 transactionsHash =
-            0x580997689374a72c83aaa25fd2517e1e60c17034413d513e090435941fb318ce;
-        bytes32 stakesHash =
-            0xf7490fc7be550aefa27eb01a33d51138deda54823601f2f87283ce88f04a5831;
+    // function testCannotVerifyTxTwice() public {
+    //     uint256 blockHeight = 11699990686140247438;
+    //     bytes32 transactionsHash =
+    //         0x580997689374a72c83aaa25fd2517e1e60c17034413d513e090435941fb318ce;
+    //     bytes32 stakesHash =
+    //         0xf7490fc7be550aefa27eb01a33d51138deda54823601f2f87283ce88f04a5831;
 
-        bytes memory transaction = abi.encodePacked(
-            bytes32(0x5101ac47ce6d06e6b937043484412f7f8ecffc5227284f81e5d5d093d5c4c57d),
-            bytes32(0x0ba71202766a5980aa7d6c7c05294d217eb09872ea8579fbb4e7ed129fa2140f),
-            bytes32(0xee549cc9fe0f9c28281dfe5cca35b0647af83c3b73016d14762346cea1cb891d),
-            bytes32(0xbc4b30d328598f4c9568227de69e61600cd3347a796664f34e4cb1e0b31f453b),
-            bytes32(0xb8fa84e20ac43b36074a4394feb61cd4ef5a811fd2f8144b8b3f3a8a10016d00),
-            bytes26(0xfe113c98493ad256720c5f8cfb32000af301018c028a8101018f)
-        );
-        uint256 txIndex = 3;
+    //     bytes memory transaction = abi.encodePacked(
+    //         bytes32(0x5101ac47ce6d06e6b937043484412f7f8ecffc5227284f81e5d5d093d5c4c57d),
+    //         bytes32(0x0ba7120200000000000000000000000000000000000000000000000000000000),
+    //         bytes32(0x00000000fe0f9c28281dfe5cca35b0647af83c3b73016d14762346cea1cb891d),
+    //         bytes32(0xbc4b30d328598f4c9568227de69e61600cd3347a796664f34e4cb1e0b31f453b),
+    //         bytes32(0xb8fa84e20ac43b36074a4394feb61cd4ef5a811fd2f8144b8b3f3a8a10016d00),
+    //         bytes26(0xfe113c98493ad256720c5f8cfb32000af301018c028a8101018f)
+    //     );
+    //     uint256 txIndex = 3;
 
-        bytes32[] memory proof = new bytes32[](2);
-        proof[0] = 0x1a2582eb25c727ff0d4fe22c9d921e2b6186b6160a2c72f0fb8cb2e5f126bfb1;
-        proof[1] = 0xf12599cbd9d49c0aad7aa00257dd4a1dd2b1a41b7b71cebc7a8217a121586339;
+    //     bytes32[] memory proof = new bytes32[](2);
+    //     proof[0] = 0x1a2582eb25c727ff0d4fe22c9d921e2b6186b6160a2c72f0fb8cb2e5f126bfb1;
+    //     proof[1] = 0xf12599cbd9d49c0aad7aa00257dd4a1dd2b1a41b7b71cebc7a8217a121586339;
 
-        uint256 value = 153168801660958298760728062610398288911;
-        address recipient = 0x762346cea1cb891dbC4b30d328598F4c9568227d;
+    //     uint256 value = 153168801660958298760728062610398288911;
+    //     address recipient = 0x762346cea1cb891dbC4b30d328598F4c9568227d;
 
-        bridgeTest.verifyTxHelper(blockHeight, transactionsHash, stakesHash);
+    //     bridgeTest.verifyTxHelper(blockHeight, transactionsHash, stakesHash);
 
-        bool success = bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
-        assertTrue(success);
+    //     bool success = bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
+    //     assertTrue(success);
 
-        uint256 recipientBalance = bridgeTest.balanceOf(recipient, MEL);
-        assertEq(recipientBalance, value);
+    //     uint256 recipientBalance = bridgeTest.balanceOf(recipient, MEL);
+    //     assertEq(recipientBalance, value);
 
-        // expect a revert due to already verified tx
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ThemelioBridge.TxAlreadyVerified.selector,
-                0xd0deea06e5ab0f53bd4e7c64ec733c815ab200a70d11db3dcb55553343157b7f
-            )
-        );
+    //     // expect a revert due to already verified tx
+    //     vm.expectRevert(
+    //         abi.encodeWithSelector(
+    //             ThemelioBridge.TxAlreadyVerified.selector,
+    //             0xd0deea06e5ab0f53bd4e7c64ec733c815ab200a70d11db3dcb55553343157b7f
+    //         )
+    //     );
 
-        bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
-    }
+    //     bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
+    // }
 }

@@ -79,6 +79,9 @@ contract ThemelioBridge is ERC1155, Test {
 
     /* =========== Constants =========== */
 
+    // the address of the Themelio counterpart covenant
+    bytes32 internal constant THEMELIO_COVHASH = 0;
+
     // the number of blocks in a Themelio staking epoch
     uint256 internal constant STAKE_EPOCH = 200_000;
 
@@ -106,7 +109,15 @@ contract ThemelioBridge is ERC1155, Test {
     */
     error ERC1155NotOwnerOrApproved();
 
-/**
+    /**
+    * The 'covhash' (Themelio address) attribute of the first output of the submitted transaction
+    * must be equal to the `THEMELIO_COVHASH` constant.
+    *
+    * @param covhash The covenant hash of the first output of the submitted transaction.
+    */
+    error InvalidCovhash(bytes32 covhash);
+
+    /**
     * Header at height `verifierHeight` cannot be used to verify header at `headerHeight`.
     * Make sure that the verifying header is in the same epoch or is the last header in the epoch
     * just before the header to be verified.
@@ -363,7 +374,11 @@ contract ThemelioBridge is ERC1155, Test {
         bytes32[] calldata signatures_,
         bool firstTime_
     ) external returns (bool) {
-        uint256 blockHeight = _extractBlockHeight(header_);
+        (
+            uint256 blockHeight,
+            bytes32 transactionsHash,
+            bytes32 stakesHash
+        ) = _decodeHeader(header_);
         uint256 headerEpoch = blockHeight / STAKE_EPOCH;
         uint256 verifierEpoch = verifierHeight_ / STAKE_EPOCH;
 
@@ -442,8 +457,8 @@ contract ThemelioBridge is ERC1155, Test {
             }
 
             if (votes >= totalEpochSyms * 2 / 3) {
-                headers[blockHeight].transactionsHash = _extractTransactionsHash(header_);
-                headers[blockHeight].stakesHash = _extractStakesHash(header_);
+                headers[blockHeight].transactionsHash = transactionsHash;
+                headers[blockHeight].stakesHash = stakesHash;
 
                 if (!firstTime_) delete headerLimbo[headerHash];
 
@@ -517,8 +532,16 @@ contract ThemelioBridge is ERC1155, Test {
         if (_computeMerkleRoot(txHash, txIndex_, proof_) == transactionsHash) {
             spends[txHash] = true;
 
-            (uint256 value, uint256 denom, address recipient) =
-                _extractValueDenomAndRecipient(transaction_);
+            (
+                bytes32 covhash,
+                uint256 value,
+                uint256 denom,
+                address recipient
+            ) = _decodeTransaction(transaction_);
+
+            if (covhash != THEMELIO_COVHASH) {
+                revert InvalidCovhash(covhash);
+            }
 
             _mint(recipient, denom, value, '');
 
@@ -623,7 +646,7 @@ contract ThemelioBridge is ERC1155, Test {
         }
     }
 
-       /**
+    /**
     * @notice Decodes and returns integers encoded at a specified offset within a 'bytes' array as
     *         well as returning the encoded integer size.
     *
@@ -707,34 +730,19 @@ contract ThemelioBridge is ERC1155, Test {
     }
 
     /**
-    * @notice Extracts and decodes the height of a Themelio header.
+    * @notice Decodes a Themelio header.
     *
-    * @dev Extracts and decodes the encoded 'height' field's value from a serialized Themelio
-    *      header.
+    * @dev Decodes the relevant attributes of a serialized Themelio header.
     *
     * @param header_ A serialized Themelio block header.
     *
-    * @return The decoded block height of a Themelio block header.
+    * @return The block height, transactions hash, and stakes hash of the header.
     */
-    function _extractBlockHeight(bytes calldata header_) internal pure returns (uint256) {
+    function _decodeHeader(bytes calldata header_)
+        internal pure returns(uint256, bytes32, bytes32) {
         // using an offset of 33 to skip 'network' (1 byte) and 'previous' (32 bytes)
         (uint256 blockHeight,) = _decodeInteger(header_, 33);
 
-        return blockHeight;
-    }
-
-    /**
-    * @notice Extracts and returns the 'transactions_hash' Merkle root from serialized Themelio
-    *         block headers.
-    *
-    * @dev The block headers are themelio_structs::Header structs serialized using the bincode
-    *      crate with 'with_varint_encoding' and 'reject_trailing_bytes' flags set.
-    *
-    * @param header_ The serialized Themelio block header.
-    *
-    * @return The 32-byte 'transactions_hash' Merkle root.
-    */
-    function _extractTransactionsHash(bytes calldata header_) internal pure returns (bytes32) {
         // get size of 'block_height' using 33 as the offset to skip 'network' (1 byte) and
         // 'previous' (32 bytes)
         uint256 offset = 33;
@@ -747,24 +755,9 @@ contract ThemelioBridge is ERC1155, Test {
 
         bytes32 transactionsHash = bytes32(_slice(header_, offset, offset + 32));
 
-        return transactionsHash;
-    }
-
-    /**
-    * @notice Extracts and returns the 'stakes_hash' Merkle root from serialized Themelio
-    *         block headers.
-    *
-    * @dev The block headers are themelio_structs::Header structs serialized using the bincode
-    *      crate with 'with_varint_encoding' and 'reject_trailing_bytes' flags set.
-    *
-    * @param header_ The serialized Themelio block header.
-    *
-    * @return The 32-byte 'stakes_hash' Merkle root.
-    */
-    function _extractStakesHash(bytes calldata header_) internal pure returns (bytes32) {
         bytes32 stakesHash = bytes32(_slice(header_, header_.length - 32, header_.length));
 
-        return stakesHash;
+        return (blockHeight, transactionsHash, stakesHash);
     }
 
     /**
@@ -779,9 +772,9 @@ contract ThemelioBridge is ERC1155, Test {
     *
     * @return recipient The 'additional_data' field in the first output of a Themelio transaction.
     */
-    function _extractValueDenomAndRecipient(
+    function _decodeTransaction(
         bytes calldata transaction_
-    ) internal pure returns (uint256, uint256, address) {
+    ) internal pure returns (bytes32, uint256, uint256, address) {
         // skip 'kind' enum (1 byte)
         uint256 offset = 1;
 
@@ -795,7 +788,10 @@ contract ThemelioBridge is ERC1155, Test {
         // get the size of the 'outputs' array's length and add to offset along with
         // 'covhash' size (32 bytes)
         (,uint256 outputsLengthSize) = _decodeInteger(transaction_, offset);
-        offset += outputsLengthSize + 32;
+        offset += outputsLengthSize;
+
+        bytes32 covhash = bytes32(_slice(transaction_, offset, offset + 32));
+        offset += 32;
 
         // decode 'value' and add its size to 'offset'
         (uint256 value, uint256 valueSize) = _decodeInteger(transaction_, offset);
@@ -836,7 +832,7 @@ contract ThemelioBridge is ERC1155, Test {
 
         address recipient = address(bytes20(transaction_[offset:offset + 20]));
 
-        return (value, denom, recipient);
+        return (covhash, value, denom, recipient);
     }
 
     /**
