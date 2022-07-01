@@ -741,17 +741,13 @@ contract ThemelioBridge is ERC1155, Test {
     function _decodeHeader(bytes calldata header_)
         internal pure returns(uint256, bytes32, bytes32) {
         // using an offset of 33 to skip 'network' (1 byte) and 'previous' (32 bytes)
-        (uint256 blockHeight,) = _decodeInteger(header_, 33);
-
-        // get size of 'block_height' using 33 as the offset to skip 'network' (1 byte) and
-        // 'previous' (32 bytes)
         uint256 offset = 33;
 
-        (,uint256 heightSize) = _decodeInteger(header_, offset);
+        (uint256 blockHeight, uint256 blockHeightSize) = _decodeInteger(header_, offset);
 
-        // we can get the offset of 'transactions_hash' by adding `heightSize` + 64 to skip
+        // we can get the offset of 'transactions_hash' by adding `blockHeightSize` + 64 to skip
         // 'history_hash' (32 bytes) and 'coins_hash' (32 bytes) 
-        offset += heightSize + 64;
+        offset += blockHeightSize + 64;
 
         bytes32 transactionsHash = bytes32(_slice(header_, offset, offset + 32));
 

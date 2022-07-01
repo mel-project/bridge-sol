@@ -39,7 +39,7 @@ contract ThemelioBridgeTest is ThemelioBridge{//, Test {
 
     function decodeHeaderHelper(
         bytes calldata header_
-    ) public returns (uint256, bytes32, bytes32) {
+    ) public pure returns (uint256, bytes32, bytes32) {
         (
             uint256 blockHeight,
             bytes32 transactionsHash,
@@ -55,7 +55,7 @@ contract ThemelioBridgeTest is ThemelioBridge{//, Test {
 
     function decodeTransactionHelper(
         bytes calldata transactions_
-    ) public returns (bytes32, uint256, uint256, address) {
+    ) public pure returns (bytes32, uint256, uint256, address) {
         (
             bytes32 covhash,
             uint256 value,
@@ -447,7 +447,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     //     bridgeTest.submitHeader(header, signersSubmitHeader, signatures);
     // }
 
-    function testVerifyStakes() public {}
+    function testVerifyStakes() public pure {}
 
     // function testVerifyTx() public {
     //     uint256 blockHeight = 11699990686140247438;

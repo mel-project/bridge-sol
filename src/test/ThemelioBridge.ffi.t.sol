@@ -27,7 +27,7 @@ contract ThemelioBridgeTestFFI is ThemelioBridge{//, Test {
 
     function decodeHeaderHelper(
         bytes calldata header_
-    ) public returns (uint256, bytes32, bytes32) {
+    ) public pure returns (uint256, bytes32, bytes32) {
         (
             uint256 blockHeight,
             bytes32 transactionsHash,
