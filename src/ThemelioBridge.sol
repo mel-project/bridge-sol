@@ -623,41 +623,7 @@ contract ThemelioBridge is ERC1155, Test {
         }
     }
 
-    /**
-    * @notice Decodes and returns 'StakeDoc' structs.
-    *
-    * @dev Decodes and returns 'StakeDoc' structs encoded using the 'bincode' Rust crate with
-    *      'with_varint_encoding' and 'reject_trailing_bytes' flags set.
-    *
-    * @param stakeDoc The serialized 'StakeDoc' struct in bytes.
-    *
-    * @return The decoded 'StakeDoc'.
-    */
-    function _decodeStakeDoc(
-        bytes calldata stakeDoc,
-        uint256 offset
-    ) internal pure returns (StakeDoc memory, uint256) {
-        bytes32 publicKey = bytes32(_slice(stakeDoc, offset, offset + 32));
-
-        (uint256 epochStart, uint256 epochStartSize) = _decodeInteger(stakeDoc, offset + 32);
-        offset += 32 + epochStartSize;
-
-        (uint256 epochPostEnd,  uint256 epochPostEndSize) = _decodeInteger(stakeDoc, offset);
-        offset += epochPostEndSize;
-
-        (uint256 symsStaked, uint256 symsStakedSize) = _decodeInteger(stakeDoc, offset);
-        offset += symsStakedSize;
-
-        StakeDoc memory decodedStakeDoc;
-        decodedStakeDoc.publicKey = publicKey;
-        decodedStakeDoc.epochStart = epochStart;
-        decodedStakeDoc.epochPostEnd = epochPostEnd;
-        decodedStakeDoc.symsStaked = symsStaked;
-
-        return (decodedStakeDoc, offset);
-    }
-
-    /**
+       /**
     * @notice Decodes and returns integers encoded at a specified offset within a 'bytes' array as
     *         well as returning the encoded integer size.
     *
@@ -670,6 +636,7 @@ contract ThemelioBridge is ERC1155, Test {
     *
     * @return The decoded integer and its size in bytes.
     */
+
     function _decodeInteger(
         bytes memory data,
         uint256 offset
@@ -703,6 +670,40 @@ contract ThemelioBridge is ERC1155, Test {
         }
 
         return (integer, size);
+    }
+
+    /**
+    * @notice Decodes and returns 'StakeDoc' structs.
+    *
+    * @dev Decodes and returns 'StakeDoc' structs encoded using the 'bincode' Rust crate with
+    *      'with_varint_encoding' and 'reject_trailing_bytes' flags set.
+    *
+    * @param stakeDoc The serialized 'StakeDoc' struct in bytes.
+    *
+    * @return The decoded 'StakeDoc'.
+    */
+    function _decodeStakeDoc(
+        bytes calldata stakeDoc,
+        uint256 offset
+    ) internal pure returns (StakeDoc memory, uint256) {
+        bytes32 publicKey = bytes32(_slice(stakeDoc, offset, offset + 32));
+
+        (uint256 epochStart, uint256 epochStartSize) = _decodeInteger(stakeDoc, offset + 32);
+        offset += 32 + epochStartSize;
+
+        (uint256 epochPostEnd,  uint256 epochPostEndSize) = _decodeInteger(stakeDoc, offset);
+        offset += epochPostEndSize;
+
+        (uint256 symsStaked, uint256 symsStakedSize) = _decodeInteger(stakeDoc, offset);
+        offset += symsStakedSize;
+
+        StakeDoc memory decodedStakeDoc;
+        decodedStakeDoc.publicKey = publicKey;
+        decodedStakeDoc.epochStart = epochStart;
+        decodedStakeDoc.epochPostEnd = epochPostEnd;
+        decodedStakeDoc.symsStaked = symsStaked;
+
+        return (decodedStakeDoc, offset);
     }
 
     /**
