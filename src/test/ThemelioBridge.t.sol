@@ -11,7 +11,9 @@ contract ThemelioBridgeTest is ThemelioBridge{//, Test {
     using ByteStrings for bytes;
     using Strings for uint256;
 
-    constructor() ThemelioBridge(0, 0, 0) {}
+    constructor() {
+        initialize(0, 0, 0);
+    }
 
         /* =========== Helpers =========== */
 

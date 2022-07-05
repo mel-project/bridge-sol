@@ -3,7 +3,9 @@ pragma solidity 0.8.13;
 
 import 'blake3-sol/Blake3Sol.sol';
 import 'ed25519-sol/Ed25519.sol';
-import 'openzeppelin-contracts/contracts/token/ERC1155/ERC1155.sol';
+import 'openzeppelin-contracts-upgradeable/contracts/token/ERC1155/ERC1155Upgradeable.sol';
+import 'openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol';
+import 'openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol';
 
 import 'forge-std/Test.sol';
 
@@ -22,7 +24,7 @@ import 'forge-std/Test.sol';
 *      each epoch's staker set being verified by the previous epoch's staker set using ed25519
 *      signature verification (the base epoch staker set being introduced manually in the
 *      constructor, the authenticity of which can be verified very easily by manually checking that
-*      that it coincides with the epoch's staker set on-chain).
+*      it coincides with the epoch's staker set on-chain).
 *
 *      Themelio block headers are validated by verifying that the included staker signatures
 *      are authentic (using ed25519 signature verification) and that the total syms staked by all
@@ -42,7 +44,7 @@ import 'forge-std/Test.sol';
 *
 *      Questions or concerns? Come chat with us on Discord! https://discord.com/invite/VedNp7EXFc
 */
-contract ThemelioBridge is ERC1155, Test {
+contract ThemelioBridge is OwnableUpgradeable, UUPSUpgradeable, ERC1155Upgradeable, Test {
     using Blake3Sol for Blake3Sol.Hasher;
 
     // an abbreviated Themelio header with the only two fields we need for header and tx validation
@@ -225,17 +227,36 @@ contract ThemelioBridge is ERC1155, Test {
     );
 
     /**
-    * @dev Constructor is responsible for initializing contract storage with a base header at 
+    * @dev Initializer is responsible for initializing contract storage with a base header at 
     *      `blockHeight_` height, with `transactionsHash_` transactions hash and `stakesHash_`
     *      stakes hash, which will be used to verify subsequent headers.
     */
-    constructor(
+    function __ThemelioBridge_init(
         uint256 blockHeight_,
         bytes32 transactionsHash_,
         bytes32 stakesHash_
-    ) ERC1155 ('https://melscan.themelio.org/{id}.json') {
+    ) internal onlyInitializing {
+        __Ownable_init();
+        __UUPSUpgradeable_init();
+        __ERC1155_init('https://melscan.themelio.org/{id}.json');
+        __ThemelioBridge_init_unchained(blockHeight_, transactionsHash_, stakesHash_);
+    }
+
+    function __ThemelioBridge_init_unchained(
+        uint256 blockHeight_,
+        bytes32 transactionsHash_,
+        bytes32 stakesHash_
+    ) internal onlyInitializing {
         headers[blockHeight_].transactionsHash = transactionsHash_;
         headers[blockHeight_].stakesHash = stakesHash_;
+    }
+
+    function initialize(
+        uint256 blockHeight_,
+        bytes32 transactionsHash_,
+        bytes32 stakesHash_
+    ) public initializer {
+        __ThemelioBridge_init(blockHeight_, transactionsHash_, stakesHash_);
     }
 
     /* =========== ERC-1155 Functions =========== */
@@ -746,7 +767,7 @@ contract ThemelioBridge is ERC1155, Test {
         (uint256 blockHeight, uint256 blockHeightSize) = _decodeInteger(header_, offset);
 
         // we can get the offset of 'transactions_hash' by adding `blockHeightSize` + 64 to skip
-        // 'history_hash' (32 bytes) and 'coins_hash' (32 bytes) 
+        // 'history_hash' (32 bytes) and 'coins_hash' (32 bytes)
         offset += blockHeightSize + 64;
 
         bytes32 transactionsHash = bytes32(_slice(header_, offset, offset + 32));
@@ -871,4 +892,12 @@ contract ThemelioBridge is ERC1155, Test {
 
         return root;
     }
+
+    /**
+    * @notice This function reverts if msg.sender is not authorized to upgrade the contract.
+    *
+    * @dev This function is called by `upgradeTo()` and `upgradeToAndCall()` to authorize an
+    *      upgrade.
+    */
+    function _authorizeUpgrade(address) internal override view onlyOwner {}
 }
