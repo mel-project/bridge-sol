@@ -1,19 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.13;
 
-// import 'forge-std/Test.sol';
+import 'forge-std/Test.sol';
 import 'openzeppelin-contracts/contracts/utils/Strings.sol';
 import './utils/ByteStrings.sol';
 import '../ThemelioBridge.sol';
 
-contract ThemelioBridgeTestFFI is ThemelioBridge{//, Test {
+contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
     using Blake3Sol for Blake3Sol.Hasher;
     using ByteStrings for bytes;
     using Strings for uint256;
-
-    constructor() {
-        initialize(0, 0, 0);
-    }
 
         /* =========== Helpers =========== */
 

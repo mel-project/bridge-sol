@@ -7,8 +7,6 @@ import 'openzeppelin-contracts-upgradeable/contracts/token/ERC1155/ERC1155Upgrad
 import 'openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol';
 import 'openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol';
 
-import 'forge-std/Test.sol';
-
 /**
 * @title ThemelioBridge: A bridge for transferring Themelio assets to Ethereum and back
 *
@@ -44,7 +42,7 @@ import 'forge-std/Test.sol';
 *
 *      Questions or concerns? Come chat with us on Discord! https://discord.com/invite/VedNp7EXFc
 */
-contract ThemelioBridge is OwnableUpgradeable, UUPSUpgradeable, ERC1155Upgradeable, Test {
+contract ThemelioBridge is OwnableUpgradeable, UUPSUpgradeable, ERC1155Upgradeable {
     using Blake3Sol for Blake3Sol.Hasher;
 
     // an abbreviated Themelio header with the only two fields we need for header and tx validation
@@ -231,6 +229,14 @@ contract ThemelioBridge is OwnableUpgradeable, UUPSUpgradeable, ERC1155Upgradeab
     *      `blockHeight_` height, with `transactionsHash_` transactions hash and `stakesHash_`
     *      stakes hash, which will be used to verify subsequent headers.
     */
+    function initialize(
+        uint256 blockHeight_,
+        bytes32 transactionsHash_,
+        bytes32 stakesHash_
+    ) external initializer {
+        __ThemelioBridge_init(blockHeight_, transactionsHash_, stakesHash_);
+    }
+
     function __ThemelioBridge_init(
         uint256 blockHeight_,
         bytes32 transactionsHash_,
@@ -249,14 +255,6 @@ contract ThemelioBridge is OwnableUpgradeable, UUPSUpgradeable, ERC1155Upgradeab
     ) internal onlyInitializing {
         headers[blockHeight_].transactionsHash = transactionsHash_;
         headers[blockHeight_].stakesHash = stakesHash_;
-    }
-
-    function initialize(
-        uint256 blockHeight_,
-        bytes32 transactionsHash_,
-        bytes32 stakesHash_
-    ) public initializer {
-        __ThemelioBridge_init(blockHeight_, transactionsHash_, stakesHash_);
     }
 
     /* =========== ERC-1155 Functions =========== */
@@ -537,7 +535,7 @@ contract ThemelioBridge is OwnableUpgradeable, UUPSUpgradeable, ERC1155Upgradeab
         uint256 txIndex_,
         uint256 blockHeight_,
         bytes32[] calldata proof_
-    ) public returns (bool) {
+    ) external returns (bool) {
         bytes32 transactionsHash = headers[blockHeight_].transactionsHash;
 
         if (transactionsHash == 0) {

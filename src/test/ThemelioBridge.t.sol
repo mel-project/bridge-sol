@@ -1,19 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.13;
 
-// import 'forge-std/Test.sol';
+import 'forge-std/Test.sol';
 import 'openzeppelin-contracts/contracts/utils/Strings.sol';
 import './utils/ByteStrings.sol';
 import '../ThemelioBridge.sol';
+import '../BridgeProxy.sol';
+import '../IThemelioBridge.sol';
 
-contract ThemelioBridgeTest is ThemelioBridge{//, Test {
+contract ThemelioBridgeTest is ThemelioBridge, Test {
     using Blake3Sol for Blake3Sol.Hasher;
     using ByteStrings for bytes;
     using Strings for uint256;
-
-    constructor() {
-        initialize(0, 0, 0);
-    }
 
         /* =========== Helpers =========== */
 
@@ -519,4 +517,22 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
     //     bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
     // }
+
+    function testDeploy() public {
+        ThemelioBridge tbt = new ThemelioBridge();
+
+        address _logic = address(tbt);
+        bytes memory _data = abi.encode(
+            bytes4(keccak256('initialize(uint256,bytes32,bytes32)')),
+            0,
+            0,
+            0
+        );
+
+        BridgeProxy proxy = new BridgeProxy(_logic, _data);
+
+        string memory uri = IThemelioBridge(address(proxy)).uri(0);
+
+        assertEq(uri, 'https://melscan.themelio.org/{id}.json');
+    }
 }
