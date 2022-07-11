@@ -5,7 +5,6 @@ import 'blake3-sol/Blake3Sol.sol';
 import 'ed25519-sol/Ed25519.sol';
 import 'openzeppelin-contracts-upgradeable/contracts/token/ERC1155/ERC1155Upgradeable.sol';
 import 'openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol';
-import 'openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol';
 
 /**
 * @title ThemelioBridge: A bridge for transferring Themelio assets to Ethereum and back
@@ -42,7 +41,7 @@ import 'openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.s
 *
 *      Questions or concerns? Come chat with us on Discord! https://discord.com/invite/VedNp7EXFc
 */
-contract ThemelioBridge is OwnableUpgradeable, UUPSUpgradeable, ERC1155Upgradeable {
+contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     using Blake3Sol for Blake3Sol.Hasher;
 
     // an abbreviated Themelio header with the only two fields we need for header and tx validation
@@ -101,6 +100,16 @@ contract ThemelioBridge is OwnableUpgradeable, UUPSUpgradeable, ERC1155Upgradeab
             bytes32(0xd943cb6e931507cafe2357fbe5cce15af420a84c67251eddb0bf934b7bbbef91)
         );
 
+    /* =========== Modifiers =========== */
+
+    modifier onlyOwner() {
+        if (_msgSender() != _getAdmin()) {
+            revert NotOwner();
+        }
+
+        _;
+    }
+
     /* =========== Errors =========== */
 
     /**
@@ -110,12 +119,32 @@ contract ThemelioBridge is OwnableUpgradeable, UUPSUpgradeable, ERC1155Upgradeab
     error ERC1155NotOwnerOrApproved();
 
     /**
+    * Header at height `height` has already been verified.
+    *
+    * @param height Block height of the header being submitted.
+    */
+    error HeaderAlreadyVerified(uint256 height);
+
+    /**
+    * The header was unable to be verified. This could be because of incorrect serialization
+    * of the header, incorrect verifier block height, improperly formatted data, or insufficient
+    * signatures.
+    */
+    error HeaderNotVerified();
+
+    /**
     * The 'covhash' (Themelio address) attribute of the first output of the submitted transaction
     * must be equal to the `THEMELIO_COVHASH` constant.
     *
     * @param covhash The covenant hash of the first output of the submitted transaction.
     */
     error InvalidCovhash(bytes32 covhash);
+
+    /**
+    * The stakes array submitted does not hash to the same value as the stakes hash of the verifier
+    * at the provided height.
+    */
+    error InvalidStakes();
 
     /**
     * Header at height `verifierHeight` cannot be used to verify header at `headerHeight`.
@@ -130,6 +159,34 @@ contract ThemelioBridge is OwnableUpgradeable, UUPSUpgradeable, ERC1155Upgradeab
     error InvalidVerifier(uint256 verifierHeight, uint256 headerHeight);
 
     /**
+    * The length of the `stakes_` array must coincide with the length of the `proofs_` array and
+    * the `signatures_` array must be exactly twice the length of each of the aforementioned
+    * arrays.
+    */
+    error MalformedData();
+
+    /**
+    * The header at block height `height` has not been submitted yet. Please submit it before
+    * attempting to verify transactions at that block height.
+    *
+    * @param height Block height of the header in which the transaction was included.
+    */
+    error MissingHeader(uint256 height);
+
+    /**
+    * A header can only be verified by another header that shares the same epoch. Headers which
+    * end epochs can also verify headers in the next epoch, which is how you can "cross epochs".
+    *
+    * @param height Block height of the header which was unable to be verified.
+    */
+    error MissingVerifier(uint256 height);
+
+    /**
+    * Only the contract owner can call this function.
+    */
+    error NotOwner();
+
+    /**
     * Slice is out of bounds. `start` must be greater than -1 and less than `dataLength`. `end`
     * must be greater than -2 and less than `dataLength` + 1.
     *
@@ -140,20 +197,6 @@ contract ThemelioBridge is OwnableUpgradeable, UUPSUpgradeable, ERC1155Upgradeab
     * @param dataLength Length of data to be sliced.
     */
     error OutOfBoundsSlice(uint256 start, uint256 end, uint256 dataLength);
-
-    /**
-    * Header at height `height` has already been verified.
-    *
-    * @param height Block height of the header being submitted.
-    */
-    error HeaderAlreadyVerified(uint256 height);
-
-    /**
-    * The length of the `stakes_` array must coincide with the length of the `proofs_` array and
-    * the `signatures_` array must be exactly twice the length of each of the aforementioned
-    * arrays.
-    */
-    error MalformedData();
 
     /**
     * Transactions can only be verified once. The transaction with hash `txHash` has previously
@@ -169,35 +212,6 @@ contract ThemelioBridge is OwnableUpgradeable, UUPSUpgradeable, ERC1155Upgradeab
     * formatted Merkle proof.
     */
     error TxNotVerified();
-
-    /**
-    * The stakes array submitted does not hash to the same value as the stakes hash of the verifier
-    * at the provided height.
-    */
-    error InvalidStakes();
-
-    /**
-    * The header at block height `height` has not been submitted yet. Please submit it before
-    * attempting to verify transactions at that block height.
-    *
-    * @param height Block height of the header in which the transaction was included.
-    */
-    error MissingHeader(uint256 height);
-
-    /**
-    * The header was unable to be verified. This could be because of incorrect serialization
-    * of the header, incorrect verifier block height, improperly formatted data, or insufficient
-    * signatures.
-    */
-    error HeaderNotVerified();
-
-    /**
-    * A header can only be verified by another header that shares the same epoch. Headers which
-    * end epochs can also verify headers in the next epoch, which is how you can "cross epochs".
-    *
-    * @param height Block height of the header which was unable to be verified.
-    */
-    error MissingVerifier(uint256 height);
 
     /* =========== Bridge Events =========== */
 
@@ -242,9 +256,8 @@ contract ThemelioBridge is OwnableUpgradeable, UUPSUpgradeable, ERC1155Upgradeab
         bytes32 transactionsHash_,
         bytes32 stakesHash_
     ) internal onlyInitializing {
-        __Ownable_init();
-        __UUPSUpgradeable_init();
-        __ERC1155_init('https://melscan.themelio.org/{id}.json');
+        __UUPSUpgradeable_init_unchained();
+        __ERC1155_init_unchained('https://melscan.themelio.org/{id}.json');
         __ThemelioBridge_init_unchained(blockHeight_, transactionsHash_, stakesHash_);
     }
 
@@ -253,6 +266,8 @@ contract ThemelioBridge is OwnableUpgradeable, UUPSUpgradeable, ERC1155Upgradeab
         bytes32 transactionsHash_,
         bytes32 stakesHash_
     ) internal onlyInitializing {
+        _changeAdmin(_msgSender());
+
         headers[blockHeight_].transactionsHash = transactionsHash_;
         headers[blockHeight_].stakesHash = stakesHash_;
     }

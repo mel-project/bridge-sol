@@ -519,9 +519,9 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     // }
 
     function testDeploy() public {
-        ThemelioBridge tbt = new ThemelioBridge();
+        ThemelioBridge implementation = new ThemelioBridge();
 
-        address _logic = address(tbt);
+        address _logic = address(implementation);
         bytes memory _data = abi.encode(
             bytes4(keccak256('initialize(uint256,bytes32,bytes32)')),
             0,
