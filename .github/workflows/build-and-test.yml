@@ -38,7 +38,7 @@ jobs:
         run: chmod +x forge
 
       - name: Move Forge To A PATH Directory
-        run: sudo mv forge /usr/local/bin/forge
+        run: mv forge /usr/local/bin/forge
 
       - name: Update Submodules
         run: git submodule update --init --recursive
