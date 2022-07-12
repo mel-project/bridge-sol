@@ -50,33 +50,41 @@ jobs:
           name: differentials-dev
           path: /tmp/differentials.tar.gz
 
-#  run-forge-tests:
-#    runs-on: self-hosted
-#
-#    container:
-#      image: rust:latest
-#      volumes:
-#        - /var/lib/docker:/var/lib/docker
-#        - /usr/local/cargo/git:/usr/local/cargo/git
-#        - /usr/local/cargo/registry:/usr/local/cargo/registry
-#        - /usr/local/sccache:/usr/local/sccache
-#        - /usr/local/rustup:/usr/local/rustup
-#        - /usr/local/forge-cache:/usr/local/forge-cache
-#
-#    steps:
-#      - uses: actions/checkout@v3
-#
-#      - name: Update Apt
-#        run: apt update
-#
-#      - name: Create Ginkou-Loader Archive
-#        run: tar -czvf /tmp/ginkou-loader.tar.gz ginkou-loader-archive
-#
-#      - uses: actions/upload-artifact@v3
-#        with:
-#          name: ginkou-loader-linux-release
-#          path: /tmp/ginkou-loader.tar.gz
-#
+  run-forge-tests:
+    runs-on: self-hosted
+
+    container:
+      image: rust:latest
+      volumes:
+        - /var/lib/docker:/var/lib/docker
+        - /usr/local/cargo/git:/usr/local/cargo/git
+        - /usr/local/cargo/registry:/usr/local/cargo/registry
+        - /usr/local/sccache:/usr/local/sccache
+        - /usr/local/rustup:/usr/local/rustup
+        - /usr/local/forge-cache:/usr/local/forge-cache
+
+    needs:
+      - build-differentials
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Update Apt
+        run: apt update
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: differentials-dev
+
+      - name: Extract Ginkou-Loader
+        run: tar -xf differentials.tar.gz
+
+      - name: Create Differentials Directory
+        run: mkdir -p src/test/differentials/target/debug
+
+      - name: Move Differentials Binary
+        run: mv bridge_differential_tests src/test/differentials/target/debug/
+
 #      - name: Install Wget
 #        run: apt install -y wget
 #
