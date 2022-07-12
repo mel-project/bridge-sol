@@ -44,7 +44,8 @@ jobs:
         run: git submodule update --init --recursive
 
       - name: Build Differentials
-        run: pushd src/test/differentials;  cargo build --release; popd
+        working-directory: src/test/differentials
+        run: cargo build --release
 
       - name: Run Forge Tests
         env:
