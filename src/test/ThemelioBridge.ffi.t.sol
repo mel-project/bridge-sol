@@ -161,9 +161,9 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
         uint256 dataLength = data.length;
 
         if (start <= end) {
-            vm.assume(start >= 0 && end <= dataLength);
+            vm.assume(end <= dataLength);
         } else {
-            vm.assume(start < dataLength && end >= 0);
+            vm.assume(start < dataLength);
         }
 
         string[] memory cmds = new string[](7);

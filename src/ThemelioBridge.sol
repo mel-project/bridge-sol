@@ -648,7 +648,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         uint256 dataLength = data.length;
 
         if (start <= end) {
-            if (!(start >= 0 && end <= dataLength)) {
+            if (!(end <= dataLength)) {
                 revert OutOfBoundsSlice(start, end, dataLength);
             }
 
@@ -661,12 +661,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
             return dataSlice;
         } else {
-            if (!(start < dataLength && end >= 0)) {
-                revert OutOfBoundsSlice({
-                    start: start,
-                    end: end,
-                    dataLength: dataLength
-                });
+            if (!(start < dataLength)) {
+                revert OutOfBoundsSlice(start, end, dataLength);
             }
 
             uint256 sliceLength = start - end;
