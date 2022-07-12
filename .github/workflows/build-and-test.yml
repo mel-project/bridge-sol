@@ -8,6 +8,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_LOG: forge=trace
+  FORGE_OUTPUT_DIRECTORY: "/usr/local/forge-cache"
 
 jobs:
   build:
@@ -21,6 +23,7 @@ jobs:
         - /usr/local/cargo/registry:/usr/local/cargo/registry
         - /usr/local/sccache:/usr/local/sccache
         - /usr/local/rustup:/usr/local/rustup
+        - /usr/local/forge-cache:/usr/local/forge-cache
 
     steps:
       - uses: actions/checkout@v3
@@ -54,6 +57,4 @@ jobs:
         run: cargo build
 
       - name: Run Forge Tests
-        env:
-          RUST_LOG: forge=trace
-        run: forge test -vvv --ffi
+        run: forge test --out ${{ env.FORGE_OUTPUT_DIRECTORY}} -vvv --ffi
