@@ -35,6 +35,9 @@ jobs:
 
       - uses: themeliolabs/actions-mold@v1
 
+      - name: Update Submodules
+        run: git submodule update --init --recursive
+
       - name: Build Differentials
         working-directory: src/test/differentials
         run: mold --run cargo build
