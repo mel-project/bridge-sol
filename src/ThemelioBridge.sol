@@ -416,8 +416,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         uint256 headerEpoch = blockHeight / STAKE_EPOCH;
         uint256 verifierEpoch = verifierHeight_ / STAKE_EPOCH;
 
-        // headers can only verify headers from the same epoch, however
-        // if they are the last header of an epoch they can also verify headers one epoch ahead
+        // headers can only be used to verify headers from the same epoch, however, if they
+        // are the last header of an epoch they can also verify headers one epoch ahead
         if (
             verifierEpoch != headerEpoch &&
             verifierHeight_ != headerEpoch * STAKE_EPOCH - 1
@@ -494,7 +494,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
                 headers[blockHeight].transactionsHash = transactionsHash;
                 headers[blockHeight].stakesHash = stakesHash;
 
-                if (!firstTime_) delete headerLimbo[headerHash];
+                delete headerLimbo[headerHash];
 
                 emit HeaderVerified(blockHeight);
 

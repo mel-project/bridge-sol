@@ -212,8 +212,6 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     using Strings for uint;
     using ByteStrings for bytes;
 
-    uint256 constant STAKE_EPOCH = 200_000;
-
     uint256 constant MEL = 0;
     uint256 constant SYM = 1;
 
