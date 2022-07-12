@@ -10,6 +10,9 @@ env:
   CARGO_TERM_COLOR: always
   RUST_LOG: forge=trace
   FORGE_OUTPUT_DIRECTORY: "/usr/local/forge-cache"
+  RUSTUP_HOME: "/usr/local/rustup"
+  SCCACHE_DIR: "/usr/local/sccache"
+  RUSTC_WRAPPER: "/usr/local/bin/sccache"
 
 jobs:
   build:
@@ -49,12 +52,16 @@ jobs:
       - name: Move Forge To A PATH Directory
         run: mv forge /usr/local/bin/forge
 
+      - uses: themeliolabs/actions-sccache@v1
+
+      - uses: themeliolabs/actions-mold@v1
+
       - name: Update Submodules
         run: git submodule update --init --recursive
 
       - name: Build Differentials
         working-directory: src/test/differentials
-        run: cargo build
+        run: mold --run cargo build
 
       - name: Run Forge Tests
         run: forge test --out ${{ env.FORGE_OUTPUT_DIRECTORY}} -vvv --ffi
