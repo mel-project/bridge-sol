@@ -15,7 +15,7 @@ env:
   RUSTC_WRAPPER: "/usr/local/bin/sccache"
 
 jobs:
-  build:
+  build-differentials:
     runs-on: self-hosted
 
     container:
@@ -31,37 +31,77 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Update Apt
-        run: apt update
-
-      - name: Install Wget
-        run: apt install -y wget
-
-      - name: Download Forge
-        run: wget -q https://github.com/themeliolabs/artifacts/raw/master/forge.tar.gz
-
-      - name: Extract Forge
-        run: tar -xf forge.tar.gz
-
-      - name: Remove Forge Archive
-        run: rm forge.tar.gz
-
-      - name: Make Forge Executable
-        run: chmod +x forge
-
-      - name: Move Forge To A PATH Directory
-        run: mv forge /usr/local/bin/forge
-
       - uses: themeliolabs/actions-sccache@v1
 
       - uses: themeliolabs/actions-mold@v1
-
-      - name: Update Submodules
-        run: git submodule update --init --recursive
 
       - name: Build Differentials
         working-directory: src/test/differentials
         run: mold --run cargo build
 
-      - name: Run Forge Tests
-        run: forge test --out ${{ env.FORGE_OUTPUT_DIRECTORY}} -vvv --ffi
+      - name: Create Differentials Archive
+        run: tar -czvf /tmp/differentials.tar.gz -C src/test/differentials/target/debug bridge_differential_tests
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: differentials-dev
+          path: /tmp/differentials.tar.gz
+
+#  run-forge-tests:
+#    runs-on: self-hosted
+#
+#    container:
+#      image: rust:latest
+#      volumes:
+#        - /var/lib/docker:/var/lib/docker
+#        - /usr/local/cargo/git:/usr/local/cargo/git
+#        - /usr/local/cargo/registry:/usr/local/cargo/registry
+#        - /usr/local/sccache:/usr/local/sccache
+#        - /usr/local/rustup:/usr/local/rustup
+#        - /usr/local/forge-cache:/usr/local/forge-cache
+#
+#    steps:
+#      - uses: actions/checkout@v3
+#
+#      - name: Update Apt
+#        run: apt update
+#
+#      - name: Create Ginkou-Loader Archive
+#        run: tar -czvf /tmp/ginkou-loader.tar.gz ginkou-loader-archive
+#
+#      - uses: actions/upload-artifact@v3
+#        with:
+#          name: ginkou-loader-linux-release
+#          path: /tmp/ginkou-loader.tar.gz
+#
+#      - name: Install Wget
+#        run: apt install -y wget
+#
+#      - name: Download Forge
+#        run: wget -q https://github.com/themeliolabs/artifacts/raw/master/forge.tar.gz
+#
+#      - name: Extract Forge
+#        run: tar -xf forge.tar.gz
+#
+#      - name: Remove Forge Archive
+#        run: rm forge.tar.gz
+#
+#      - name: Make Forge Executable
+#        run: chmod +x forge
+#
+#      - name: Move Forge To A PATH Directory
+#        run: mv forge /usr/local/bin/forge
+#
+#      - uses: themeliolabs/actions-sccache@v1
+#
+#      - uses: themeliolabs/actions-mold@v1
+#
+#      - name: Update Submodules
+#        run: git submodule update --init --recursive
+#
+#      - name: Build Differentials
+#        working-directory: src/test/differentials
+#        run: mold --run cargo build
+#
+#      - name: Run Forge Tests
+#        run: forge test --out ${{ env.FORGE_OUTPUT_DIRECTORY}} -vvv --ffi
