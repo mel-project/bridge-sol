@@ -559,7 +559,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
         bytes32 txHash = _hashDatablock(transaction_);
 
-        if(spends[txHash] == true) {
+        if(spends[txHash]) {
             revert TxAlreadyVerified(txHash);
         }
 
