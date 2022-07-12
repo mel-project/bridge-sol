@@ -40,7 +40,13 @@ jobs:
       - name: Update Submodules
         run: git submodule update --init --recursive
 
+      - name: Thingy
+        run: pushd src/test/differentials;  cargo build --release; popd
+
+      - name: Build Differentials
+        run: pushd src/test/differentials;  cargo build --release; popd
+
       - name: Run Forge Tests
         env:
           RUST_LOG: forge=trace
-        run: forge test -vvv --no-match-test FFI
+        run: forge test -vvv --ffi
