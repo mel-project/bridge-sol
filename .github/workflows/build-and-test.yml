@@ -23,7 +23,7 @@ jobs:
         run: sudo apt update
 
       - name: Install Wget
-        run: sudo apt install -y wget
+        run: apt install -y wget
 
       - name: Download Forge
         run: wget -q https://github.com/themeliolabs/artifacts/raw/master/forge.tar.gz
