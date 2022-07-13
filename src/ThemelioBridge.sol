@@ -544,47 +544,47 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     *
     * @return 'true' if the transaction is successfully validated, otherwise it reverts.
     */
-    function verifyTx(
-        bytes calldata transaction_,
-        uint256 txIndex_,
-        uint256 blockHeight_,
-        bytes32[] calldata proof_
-    ) external returns (bool) {
-        bytes32 transactionsHash = headers[blockHeight_].transactionsHash;
-
-        if (transactionsHash == 0) {
-            revert MissingHeader(blockHeight_);
-        }
-
-        bytes32 txHash = _hashDatablock(transaction_);
-
-        if(spends[txHash]) {
-            revert TxAlreadyVerified(txHash);
-        }
-
-        if (_computeMerkleRoot(txHash, txIndex_, proof_) == transactionsHash) {
-            spends[txHash] = true;
-
-            (
-                bytes32 covhash,
-                uint256 value,
-                uint256 denom,
-                address recipient
-            ) = _decodeTransaction(transaction_);
-
-            if (covhash != THEMELIO_COVHASH) {
-                revert InvalidCovhash(covhash);
-            }
-
-            _mint(recipient, denom, value, '');
-
-            emit TxVerified(txHash, blockHeight_);
-
-            return true;
-        } else {
-            revert TxNotVerified();
-        }
-    }
+//    function verifyTx(
+//        bytes calldata transaction_,
+//        uint256 txIndex_,
+//        uint256 blockHeight_,
+//        bytes32[] calldata proof_
+//    ) external returns (bool) {
+//        bytes32 transactionsHash = headers[blockHeight_].transactionsHash;
+//
+//        if (transactionsHash == 0) {
+//            revert MissingHeader(blockHeight_);
+//        }
+//
+//        bytes32 txHash = _hashDatablock(transaction_);
+//
+//        if(spends[txHash]) {
+//            revert TxAlreadyVerified(txHash);
+//        }
+//
+//        if (_computeMerkleRoot(txHash, txIndex_, proof_) == transactionsHash) {
+//            spends[txHash] = true;
+//
+//            (
+//                bytes32 covhash,
+//                uint256 value,
+//                uint256 denom,
+//                address recipient
+//            ) = _decodeTransaction(transaction_);
+//
+//            if (covhash != THEMELIO_COVHASH) {
+//                revert InvalidCovhash(covhash);
+//            }
+//
+//            _mint(recipient, denom, value, '');
+//
+//            emit TxVerified(txHash, blockHeight_);
+//
+//            return true;
+//        } else {
+//            revert TxNotVerified();
+//        }
+//    }
 
     /* =========== Utility Functions =========== */
 
