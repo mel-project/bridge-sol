@@ -15,43 +15,43 @@ env:
   RUSTC_WRAPPER: "/usr/local/bin/sccache"
 
 jobs:
-#  build-differentials:
-#    runs-on: self-hosted
-#
-#    container:
-#      image: rust:latest
-#      volumes:
-#        - /var/lib/docker:/var/lib/docker
-#        - /usr/local/cargo/git:/usr/local/cargo/git
-#        - /usr/local/cargo/registry:/usr/local/cargo/registry
-#        - /usr/local/sccache:/usr/local/sccache
-#        - /usr/local/rustup:/usr/local/rustup
-#        - /usr/local/forge-cache:/usr/local/forge-cache
-#
-#    steps:
-#      - uses: actions/checkout@v3
-#
-#      - uses: themeliolabs/actions-sccache@v1
-#
-#      - uses: themeliolabs/actions-mold@v1
-#
-#      - name: Update Submodules
-#        run: git submodule update --init --recursive
-#
-#      - name: Add Default Toolchain
-#        run: rustup default stable
-#
-#      - name: Build Differentials
-#        working-directory: src/test/differentials
-#        run: mold --run cargo build
-#
-#      - name: Create Differentials Archive
-#        run: tar -czvf /tmp/differentials.tar.gz -C src/test/differentials/target/debug bridge_differential_tests
-#
-#      - uses: actions/upload-artifact@v3
-#        with:
-#          name: differentials-dev
-#          path: /tmp/differentials.tar.gz
+  build-differentials:
+    runs-on: self-hosted
+
+    container:
+      image: rust:latest
+      volumes:
+        - /var/lib/docker:/var/lib/docker
+        - /usr/local/cargo/git:/usr/local/cargo/git
+        - /usr/local/cargo/registry:/usr/local/cargo/registry
+        - /usr/local/sccache:/usr/local/sccache
+        - /usr/local/rustup:/usr/local/rustup
+        - /usr/local/forge-cache:/usr/local/forge-cache
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: themeliolabs/actions-sccache@v1
+
+      - uses: themeliolabs/actions-mold@v1
+
+      - name: Update Submodules
+        run: git submodule update --init --recursive
+
+      - name: Add Default Toolchain
+        run: rustup default stable
+
+      - name: Build Differentials
+        working-directory: src/test/differentials
+        run: mold --run cargo build
+
+      - name: Create Differentials Archive
+        run: tar -czvf /tmp/differentials.tar.gz -C src/test/differentials/target/debug bridge_differential_tests
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: differentials-dev
+          path: /tmp/differentials.tar.gz
 
   run-forge-tests:
     runs-on: self-hosted
@@ -62,14 +62,11 @@ jobs:
         - /var/lib/docker:/var/lib/docker
         - /usr/local/forge-cache:/usr/local/forge-cache
 
-#    needs:
-#      - build-differentials
+    needs:
+      - build-differentials
 
     steps:
-
-      - name: Add Git Repository
-        run: sudo add-apt-repository -y ppa:git-core/ppa
-
+#     Git needs to be updated due to an actions bug: https://github.com/actions/checkout/issues/335
       - name: Add Git Repository
         run: sudo add-apt-repository -y ppa:git-core/ppa
 
@@ -77,43 +74,40 @@ jobs:
         run: sudo apt update
 
       - name: Update Git
-        run: sudo apt install -y git
+        run: sudo apt install -y git wget
 
       - uses: actions/checkout@v3
 
       - name: Update Submodules
         run: git submodule update --init --recursive
 
-#      - uses: actions/download-artifact@v3
-#        with:
-#          name: differentials-dev
-#
-#      - name: Extract Differentials
-#        run: tar -xf differentials.tar.gz
-#
-#      - name: Create Differentials Directory
-#        run: mkdir -p src/test/differentials/target/debug
-#
-#      - name: Move Differentials Binary
-#        run: mv bridge_differential_tests src/test/differentials/target/debug/
+      - uses: actions/download-artifact@v3
+        with:
+          name: differentials-dev
 
-#      - name: Install Wget
-#        run: apt install -y wget
-#
-#      - name: Download Forge
-#        run: wget -q https://github.com/themeliolabs/artifacts/raw/master/forge.tar.gz
-#
-#      - name: Extract Forge
-#        run: tar -xf forge.tar.gz
-#
-#      - name: Remove Forge Archive
-#        run: rm forge.tar.gz
-#
-#      - name: Make Forge Executable
-#        run: chmod +x forge
-#
-#      - name: Move Forge To A PATH Directory
-#        run: mv forge /usr/local/bin/forge
-#
-#      - name: Run Forge Tests
-#        run: forge test --out ${{ env.FORGE_OUTPUT_DIRECTORY}} -vvv --ffi
+      - name: Extract Differentials
+        run: tar -xf differentials.tar.gz
+
+      - name: Create Differentials Directory
+        run: mkdir -p src/test/differentials/target/debug
+
+      - name: Move Differentials Binary
+        run: mv bridge_differential_tests src/test/differentials/target/debug/
+
+      - name: Download Forge
+        run: wget -q https://github.com/themeliolabs/artifacts/raw/master/forge.tar.gz
+
+      - name: Extract Forge
+        run: tar -xf forge.tar.gz
+
+      - name: Remove Forge Archive
+        run: rm forge.tar.gz
+
+      - name: Make Forge Executable
+        run: chmod +x forge
+
+      - name: Move Forge To A PATH Directory
+        run: mv forge /usr/local/bin/forge
+
+      - name: Run Forge Tests
+        run: forge test --out ${{ env.FORGE_OUTPUT_DIRECTORY}} -vvv --ffi
