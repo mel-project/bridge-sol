@@ -64,11 +64,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+#      - name: Add Ethereum Repository
+#        run: sudo add-apt-repository -y ppa:ethereum/ethereum
+
       - name: Update Apt
         run: sudo apt update
 
-      - name: Install Python Dependencies
+      - name: Install Dependencies
         run: sudo apt install -y libssl-dev python3-dev
+
+#      - name: Install Dependencies
+#        run: sudo apt install -y solc libssl-dev python3-dev
 
       - name: Install Mythril
         run: sudo pip3 install mythril
@@ -76,20 +82,11 @@ jobs:
       - name: Update Submodules
         run: git submodule update --init --recursive
 
-      - name: Show Mythril Version
-        run: myth --version
+      - name: Run Mythril Analysis On BridgeProxy
+        run: myth analyze src/BridgeProxy.sol --solc-json mythril.config.json
 
-      - name: Show Solc Version
-        run: solc --version
-
-      - name: Show Python Version
-        run: python -V
-
-#      - name: Run Mythril Analysis On BridgeProxy
-#        run: myth analyze src/BridgeProxy.sol --solc-json mythril.config.json
-#
-#      - name: Run Mythril Analysis On ThemelioBridge
-#        run: myth analyze src/ThemelioBridge.sol --solc-json mythril.config.json
+      - name: Run Mythril Analysis On ThemelioBridge
+        run: myth analyze src/ThemelioBridge.sol --solc-json mythril.config.json
 
   run-forge-tests:
     runs-on: self-hosted
