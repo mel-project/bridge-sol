@@ -424,30 +424,29 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
             revert InvalidVerifier(verifierHeight_, blockHeight);
         }
 
-        {
-            bytes32 verifierStakesHash = headers[verifierHeight_].stakesHash;
-            if (verifierStakesHash == 0) {
-                revert MissingVerifier(blockHeight);
-            }
 
-            bytes32 keccakStakesHash = keccak256(stakes_);
-            bytes32 blake3StakesHash;
-
-            if (!firstTime_) {
-                blake3StakesHash = stakesHashes[keccakStakesHash];
-            }
-
-            if (blake3StakesHash == 0) {
-                blake3StakesHash = _hashDatablock(stakes_);
-
-                stakesHashes[keccakStakesHash] = blake3StakesHash;
-            }
-
-            if (blake3StakesHash != verifierStakesHash) {
-                revert InvalidStakes();
-            }
+        bytes32 verifierStakesHash = headers[verifierHeight_].stakesHash;
+        if (verifierStakesHash == 0) {
+            revert MissingVerifier(blockHeight);
         }
-        
+
+        bytes32 keccakStakesHash = keccak256(stakes_);
+        bytes32 blake3StakesHash;
+
+        if (!firstTime_) {
+            blake3StakesHash = stakesHashes[keccakStakesHash];
+        }
+
+        if (blake3StakesHash == 0) {
+            blake3StakesHash = _hashDatablock(stakes_);
+
+            stakesHashes[keccakStakesHash] = blake3StakesHash;
+        }
+
+        if (blake3StakesHash != verifierStakesHash) {
+            revert InvalidStakes();
+        }
+
         bytes32 headerHash = keccak256(header_);
         uint256 votes;
         uint256 stakesOffset;

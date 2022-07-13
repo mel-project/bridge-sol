@@ -83,10 +83,10 @@ jobs:
         run: git submodule update --init --recursive
 
       - name: Run Mythril Analysis On BridgeProxy
-        run: myth analyze src/BridgeProxy.sol --solc-json mythril.config.json
+        run: myth analyze src/BridgeProxy.sol --solc-json mythril.config.json --parallel-solving
 
       - name: Run Mythril Analysis On ThemelioBridge
-        run: myth analyze src/ThemelioBridge.sol --solc-json mythril.config.json
+        run: myth analyze src/ThemelioBridge.sol --solc-json mythril.config.json --execution-timeout 2 --parallel-solving
 
   run-forge-tests:
     runs-on: self-hosted
