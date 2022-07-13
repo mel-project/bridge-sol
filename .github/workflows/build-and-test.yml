@@ -110,8 +110,11 @@ jobs:
       #      - name: Move Forge To A PATH Directory
       #        run: sudo mv forge /usr/local/bin/forge
 
-      - name: Run Mythril Analysis
-        run: myth --solc-json remappings.json analyze src/*.sol
+      - name: Run Mythril Analysis On BridgeProxy
+        run: myth analyze src/BridgeProxy.sol
+
+      - name: Run Mythril Analysis On ThemelioBridge
+        run: myth analyze src/ThemelioBridge.sol
 
   run-forge-tests:
     runs-on: self-hosted
