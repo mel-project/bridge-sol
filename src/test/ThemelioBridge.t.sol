@@ -5,7 +5,7 @@ import 'forge-std/Test.sol';
 import 'openzeppelin-contracts/contracts/utils/Strings.sol';
 import './utils/ByteStrings.sol';
 import '../ThemelioBridge.sol';
-import '../BridgeProxy.sol';
+import '../ThemelioBridgeProxy.sol';
 import '../IThemelioBridge.sol';
 
 contract ThemelioBridgeTest is ThemelioBridge, Test {
@@ -527,7 +527,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
             0
         );
 
-        BridgeProxy proxy = new BridgeProxy(_logic, _data);
+        ThemelioBridgeProxy proxy = new ThemelioBridgeProxy(_logic, _data);
 
         string memory uri = IThemelioBridge(address(proxy)).uri(0);
 
