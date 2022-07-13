@@ -424,28 +424,30 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
             revert InvalidVerifier(verifierHeight_, blockHeight);
         }
 
-        bytes32 verifierStakesHash = headers[verifierHeight_].stakesHash;
-        if (verifierStakesHash == 0) {
-            revert MissingVerifier(blockHeight);
+        {
+            bytes32 verifierStakesHash = headers[verifierHeight_].stakesHash;
+            if (verifierStakesHash == 0) {
+                revert MissingVerifier(blockHeight);
+            }
+
+            bytes32 keccakStakesHash = keccak256(stakes_);
+            bytes32 blake3StakesHash;
+
+            if (!firstTime_) {
+                blake3StakesHash = stakesHashes[keccakStakesHash];
+            }
+
+            if (blake3StakesHash == 0) {
+                blake3StakesHash = _hashDatablock(stakes_);
+
+                stakesHashes[keccakStakesHash] = blake3StakesHash;
+            }
+
+            if (blake3StakesHash != verifierStakesHash) {
+                revert InvalidStakes();
+            }
         }
-
-        bytes32 keccakStakesHash = keccak256(stakes_);
-        bytes32 blake3StakesHash;
-
-        if (!firstTime_) {
-            blake3StakesHash = stakesHashes[keccakStakesHash];
-        }
-
-        if (blake3StakesHash == 0) {
-            blake3StakesHash = _hashDatablock(stakes_);
-
-            stakesHashes[keccakStakesHash] = blake3StakesHash;
-        }
-
-        if (blake3StakesHash != verifierStakesHash) {
-            revert InvalidStakes();
-        }
-
+        
         bytes32 headerHash = keccak256(header_);
         uint256 votes;
         uint256 stakesOffset;
@@ -544,47 +546,47 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     *
     * @return 'true' if the transaction is successfully validated, otherwise it reverts.
     */
-//    function verifyTx(
-//        bytes calldata transaction_,
-//        uint256 txIndex_,
-//        uint256 blockHeight_,
-//        bytes32[] calldata proof_
-//    ) external returns (bool) {
-//        bytes32 transactionsHash = headers[blockHeight_].transactionsHash;
-//
-//        if (transactionsHash == 0) {
-//            revert MissingHeader(blockHeight_);
-//        }
-//
-//        bytes32 txHash = _hashDatablock(transaction_);
-//
-//        if(spends[txHash]) {
-//            revert TxAlreadyVerified(txHash);
-//        }
-//
-//        if (_computeMerkleRoot(txHash, txIndex_, proof_) == transactionsHash) {
-//            spends[txHash] = true;
-//
-//            (
-//                bytes32 covhash,
-//                uint256 value,
-//                uint256 denom,
-//                address recipient
-//            ) = _decodeTransaction(transaction_);
-//
-//            if (covhash != THEMELIO_COVHASH) {
-//                revert InvalidCovhash(covhash);
-//            }
-//
-//            _mint(recipient, denom, value, '');
-//
-//            emit TxVerified(txHash, blockHeight_);
-//
-//            return true;
-//        } else {
-//            revert TxNotVerified();
-//        }
-//    }
+    function verifyTx(
+        bytes calldata transaction_,
+        uint256 txIndex_,
+        uint256 blockHeight_,
+        bytes32[] calldata proof_
+    ) external returns (bool) {
+        bytes32 transactionsHash = headers[blockHeight_].transactionsHash;
+
+        if (transactionsHash == 0) {
+            revert MissingHeader(blockHeight_);
+        }
+
+        bytes32 txHash = _hashDatablock(transaction_);
+
+        if(spends[txHash]) {
+            revert TxAlreadyVerified(txHash);
+        }
+
+        if (_computeMerkleRoot(txHash, txIndex_, proof_) == transactionsHash) {
+            spends[txHash] = true;
+
+            (
+                bytes32 covhash,
+                uint256 value,
+                uint256 denom,
+                address recipient
+            ) = _decodeTransaction(transaction_);
+
+            if (covhash != THEMELIO_COVHASH) {
+                revert InvalidCovhash(covhash);
+            }
+
+            _mint(recipient, denom, value, '');
+
+            emit TxVerified(txHash, blockHeight_);
+
+            return true;
+        } else {
+            revert TxNotVerified();
+        }
+    }
 
     /* =========== Utility Functions =========== */
 
