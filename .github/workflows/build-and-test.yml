@@ -71,8 +71,8 @@ jobs:
       - name: Show Home
         run: echo $HOME
 
-      - name: Show Home Contents
-        run: ls -la $HOME
+      - name: Show Working
+        run: ls -la /__w
 
 #      - name: List
 #        working-directory: ~/bridge-sol/bridge-sol
