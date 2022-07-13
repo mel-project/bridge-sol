@@ -66,25 +66,24 @@ jobs:
 #      - build-differentials
 
     steps:
+
+      - name: Add Git Repository
+        run: sudo add-apt-repository -y ppa:git-core/ppa
+
+      - name: Add Git Repository
+        run: sudo add-apt-repository -y ppa:git-core/ppa
+
+      - name: Update Apt
+        run: sudo apt update
+
+      - name: Update Git
+        run: sudo apt install -y git
+
       - uses: actions/checkout@v3
 
-#      - name: Show Home
-#        run: echo $HOME
-#
-#      - name: Show Working
-#        run: ls -la /__w/bridge-sol/bridge-sol
-
-#      - name: List
-#        working-directory: ~/bridge-sol/bridge-sol
-#        run: ls -la
-
       - name: Update Submodules
-        working-directory: /__w/bridge-sol/bridge-sol
         run: git submodule update --init --recursive
 
-#      - name: Update Apt
-#        run: sudo apt update
-#
 #      - uses: actions/download-artifact@v3
 #        with:
 #          name: differentials-dev
