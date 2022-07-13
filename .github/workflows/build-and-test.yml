@@ -127,7 +127,7 @@ jobs:
         run: sudo apt install -y wget solc python3-dev
 
       - name: Install Slither
-        run: pip3 install slither-analyzer
+        run: sudo pip3 install slither-analyzer
 
       - name: Update Submodules
         run: git submodule update --init --recursive
