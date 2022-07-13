@@ -53,6 +53,66 @@ jobs:
           name: differentials-dev
           path: /tmp/differentials.tar.gz
 
+  run-mythril:
+    runs-on: self-hosted
+
+    container:
+      image: summerwind/actions-runner:latest
+      volumes:
+        - /var/lib/docker:/var/lib/docker
+
+    #    needs:
+    #      - build-differentials
+
+    steps:
+      - uses: actions/checkout@v3
+
+      #      - name: Add Ethereum Repository
+      #        run: sudo add-apt-repository -y ppa:ethereum/ethereum
+
+      - name: Update Apt
+        run: sudo apt update
+
+      - name: Update Python Dependencies
+        run: sudo apt install -y libssl-dev python3-dev
+
+      - name: Install Slither
+        run: sudo pip3 install mythril
+
+      - name: Update Submodules
+        run: git submodule update --init --recursive
+
+      #      - uses: actions/download-artifact@v3
+      #        with:
+      #          name: differentials-dev
+      #
+      #      - name: Extract Differentials
+      #        run: tar -xf differentials.tar.gz
+      #
+      #      - name: Create Differentials Directory
+      #        run: mkdir -p src/test/differentials/target/debug
+      #
+      #      - name: Move Differentials Binary
+      #        run: mv bridge_differential_tests src/test/differentials/target/debug/
+
+      #      - name: Download Forge
+      #        run: wget -q https://github.com/themeliolabs/artifacts/raw/master/forge.tar.gz
+      #
+      #      - name: Extract Forge
+      #        run: tar -xf forge.tar.gz
+      #
+      #      - name: Remove Forge Archive
+      #        run: rm forge.tar.gz
+      #
+      #      - name: Make Forge Executable
+      #        run: chmod +x forge
+      #
+      #      - name: Move Forge To A PATH Directory
+      #        run: sudo mv forge /usr/local/bin/forge
+
+      - name: Run Mythril Analysis
+        run: myth analyze src/*.sol
+
   run-forge-tests:
     runs-on: self-hosted
 
@@ -160,5 +220,5 @@ jobs:
       - name: Move Forge To A PATH Directory
         run: sudo mv forge /usr/local/bin/forge
 
-      - name: Run Slither
+      - name: Run Slither Analysis
         run: slither .
