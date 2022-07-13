@@ -15,43 +15,43 @@ env:
   RUSTC_WRAPPER: "/usr/local/bin/sccache"
 
 jobs:
-  build-differentials:
-    runs-on: self-hosted
-
-    container:
-      image: rust:latest
-      volumes:
-        - /var/lib/docker:/var/lib/docker
-        - /usr/local/cargo/git:/usr/local/cargo/git
-        - /usr/local/cargo/registry:/usr/local/cargo/registry
-        - /usr/local/sccache:/usr/local/sccache
-        - /usr/local/rustup:/usr/local/rustup
-        - /usr/local/forge-cache:/usr/local/forge-cache
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: themeliolabs/actions-sccache@v1
-
-      - uses: themeliolabs/actions-mold@v1
-
-      - name: Update Submodules
-        run: git submodule update --init --recursive
-
-      - name: Add Default Toolchain
-        run: rustup default stable
-
-      - name: Build Differentials
-        working-directory: src/test/differentials
-        run: mold --run cargo build
-
-      - name: Create Differentials Archive
-        run: tar -czvf /tmp/differentials.tar.gz -C src/test/differentials/target/debug bridge_differential_tests
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: differentials-dev
-          path: /tmp/differentials.tar.gz
+#  build-differentials:
+#    runs-on: self-hosted
+#
+#    container:
+#      image: rust:latest
+#      volumes:
+#        - /var/lib/docker:/var/lib/docker
+#        - /usr/local/cargo/git:/usr/local/cargo/git
+#        - /usr/local/cargo/registry:/usr/local/cargo/registry
+#        - /usr/local/sccache:/usr/local/sccache
+#        - /usr/local/rustup:/usr/local/rustup
+#        - /usr/local/forge-cache:/usr/local/forge-cache
+#
+#    steps:
+#      - uses: actions/checkout@v3
+#
+#      - uses: themeliolabs/actions-sccache@v1
+#
+#      - uses: themeliolabs/actions-mold@v1
+#
+#      - name: Update Submodules
+#        run: git submodule update --init --recursive
+#
+#      - name: Add Default Toolchain
+#        run: rustup default stable
+#
+#      - name: Build Differentials
+#        working-directory: src/test/differentials
+#        run: mold --run cargo build
+#
+#      - name: Create Differentials Archive
+#        run: tar -czvf /tmp/differentials.tar.gz -C src/test/differentials/target/debug bridge_differential_tests
+#
+#      - uses: actions/upload-artifact@v3
+#        with:
+#          name: differentials-dev
+#          path: /tmp/differentials.tar.gz
 
   run-forge-tests:
     runs-on: self-hosted
@@ -62,30 +62,33 @@ jobs:
         - /var/lib/docker:/var/lib/docker
         - /usr/local/forge-cache:/usr/local/forge-cache
 
-    needs:
-      - build-differentials
+#    needs:
+#      - build-differentials
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Update Submodules
-        run: git submodule update --init --recursive
+      - name: List
+        run: ls -la
 
-      - name: Update Apt
-        run: sudo apt update
-
-      - uses: actions/download-artifact@v3
-        with:
-          name: differentials-dev
-
-      - name: Extract Differentials
-        run: tar -xf differentials.tar.gz
-
-      - name: Create Differentials Directory
-        run: mkdir -p src/test/differentials/target/debug
-
-      - name: Move Differentials Binary
-        run: mv bridge_differential_tests src/test/differentials/target/debug/
+#      - name: Update Submodules
+#        run: git submodule update --init --recursive
+#
+#      - name: Update Apt
+#        run: sudo apt update
+#
+#      - uses: actions/download-artifact@v3
+#        with:
+#          name: differentials-dev
+#
+#      - name: Extract Differentials
+#        run: tar -xf differentials.tar.gz
+#
+#      - name: Create Differentials Directory
+#        run: mkdir -p src/test/differentials/target/debug
+#
+#      - name: Move Differentials Binary
+#        run: mv bridge_differential_tests src/test/differentials/target/debug/
 
 #      - name: Install Wget
 #        run: apt install -y wget
