@@ -106,7 +106,7 @@ jobs:
     runs-on: self-hosted
 
     container:
-      image: trailofbits/eth-security-toolbox:latest
+      image: summerwind/actions-runner:latest
       volumes:
         - /var/lib/docker:/var/lib/docker
         - /usr/local/forge-cache:/usr/local/forge-cache
@@ -115,17 +115,19 @@ jobs:
       - build-differentials
 
     steps:
-      #     Git needs to be updated due to an actions bug: https://github.com/actions/checkout/issues/335
-      - name: Add Git Repository
-        run: sudo add-apt-repository -y ppa:git-core/ppa
+      - uses: actions/checkout@v3
+
+      - name: Add Ethereum Repository
+        run: sudo add-apt-repository -y ppa:ethereum/ethereum
 
       - name: Update Apt
         run: sudo apt update
 
-      - name: Update Git
-        run: sudo apt install -y git wget
+      - name: Update Wget, Solidity, And Python
+        run: sudo apt install -y wget solc python3-dev
 
-      - uses: actions/checkout@v3
+      - name: Install Slither
+        run: pip3 install slither-analyzer
 
       - name: Update Submodules
         run: git submodule update --init --recursive
