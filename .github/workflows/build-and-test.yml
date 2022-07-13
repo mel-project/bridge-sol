@@ -109,5 +109,8 @@ jobs:
       - name: Move Forge To A PATH Directory
         run: mv forge /usr/local/bin/forge
 
-      - name: Run Forge Tests
-        run: forge test --out ${{ env.FORGE_OUTPUT_DIRECTORY}} -vvv --ffi
+      - name: Run Slither
+        run: slither .
+
+#      - name: Run Forge Tests
+#        run: forge test --out ${{ env.FORGE_OUTPUT_DIRECTORY}} -vvv --ffi
