@@ -72,7 +72,7 @@ jobs:
         run: echo $HOME
 
       - name: Show Working
-        run: ls -la /__w
+        run: ls -la /__w/bridge-sol
 
 #      - name: List
 #        working-directory: ~/bridge-sol/bridge-sol
