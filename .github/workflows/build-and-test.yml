@@ -68,9 +68,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: List
-        working-directory: ~/bridge-sol/bridge-sol
-        run: ls -la
+      - name: Show Home
+        run: echo $HOME
+
+      - name: Show Home Contents
+        run: ls -la $HOME
+
+#      - name: List
+#        working-directory: ~/bridge-sol/bridge-sol
+#        run: ls -la
 
 #      - name: Update Submodules
 #        run: git submodule update --init --recursive
