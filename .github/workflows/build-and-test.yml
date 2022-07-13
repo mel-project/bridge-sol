@@ -54,13 +54,9 @@ jobs:
     runs-on: self-hosted
 
     container:
-      image: rust:latest
+      image: trailofbits/eth-security-toolbox:latest
       volumes:
         - /var/lib/docker:/var/lib/docker
-        - /usr/local/cargo/git:/usr/local/cargo/git
-        - /usr/local/cargo/registry:/usr/local/cargo/registry
-        - /usr/local/sccache:/usr/local/sccache
-        - /usr/local/rustup:/usr/local/rustup
         - /usr/local/forge-cache:/usr/local/forge-cache
 
     needs:
@@ -76,7 +72,7 @@ jobs:
         with:
           name: differentials-dev
 
-      - name: Extract Ginkou-Loader
+      - name: Extract Differentials
         run: tar -xf differentials.tar.gz
 
       - name: Create Differentials Directory
@@ -84,6 +80,9 @@ jobs:
 
       - name: Move Differentials Binary
         run: mv bridge_differential_tests src/test/differentials/target/debug/
+
+      - name: Update Submodules
+        run: git submodule update --init --recursive
 
 #      - name: Install Wget
 #        run: apt install -y wget
@@ -102,17 +101,6 @@ jobs:
 #
 #      - name: Move Forge To A PATH Directory
 #        run: mv forge /usr/local/bin/forge
-#
-#      - uses: themeliolabs/actions-sccache@v1
-#
-#      - uses: themeliolabs/actions-mold@v1
-#
-#      - name: Update Submodules
-#        run: git submodule update --init --recursive
-#
-#      - name: Build Differentials
-#        working-directory: src/test/differentials
-#        run: mold --run cargo build
 #
 #      - name: Run Forge Tests
 #        run: forge test --out ${{ env.FORGE_OUTPUT_DIRECTORY}} -vvv --ffi
