@@ -111,10 +111,10 @@ jobs:
       #        run: sudo mv forge /usr/local/bin/forge
 
       - name: Run Mythril Analysis On BridgeProxy
-        run: myth analyze src/BridgeProxy.sol
+        run: myth analyze src/BridgeProxy.sol --solc-json mythril.config.json
 
       - name: Run Mythril Analysis On ThemelioBridge
-        run: myth analyze src/ThemelioBridge.sol
+        run: myth analyze src/ThemelioBridge.sol --solc-json mythril.config.json
 
   run-forge-tests:
     runs-on: self-hosted
