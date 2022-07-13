@@ -68,6 +68,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Update Submodules
+        run: git submodule update --init --recursive
+
       - name: Update Apt
         run: sudo apt update
 
@@ -83,9 +86,6 @@ jobs:
 
       - name: Move Differentials Binary
         run: mv bridge_differential_tests src/test/differentials/target/debug/
-
-      - name: Update Submodules
-        run: git submodule update --init --recursive
 
 #      - name: Install Wget
 #        run: apt install -y wget
