@@ -38,6 +38,9 @@ jobs:
       - name: Update Submodules
         run: git submodule update --init --recursive
 
+      - name: Add Default Toolchain
+        run: rustup default stable
+
       - name: Build Differentials
         working-directory: src/test/differentials
         run: mold --run cargo build
