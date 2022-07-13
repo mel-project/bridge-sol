@@ -57,6 +57,55 @@ jobs:
     runs-on: self-hosted
 
     container:
+      image: summerwind/actions-runner:latest
+      volumes:
+        - /var/lib/docker:/var/lib/docker
+        - /usr/local/forge-cache:/usr/local/forge-cache
+
+    needs:
+      - build-differentials
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Update Submodules
+        run: git submodule update --init --recursive
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: differentials-dev
+
+      - name: Extract Differentials
+        run: tar -xf differentials.tar.gz
+
+      - name: Create Differentials Directory
+        run: mkdir -p src/test/differentials/target/debug
+
+      - name: Move Differentials Binary
+        run: mv bridge_differential_tests src/test/differentials/target/debug/
+
+      - name: Download Forge
+        run: wget -q https://github.com/themeliolabs/artifacts/raw/master/forge.tar.gz
+
+      - name: Extract Forge
+        run: tar -xf forge.tar.gz
+
+      - name: Remove Forge Archive
+        run: rm forge.tar.gz
+
+      - name: Make Forge Executable
+        run: chmod +x forge
+
+      - name: Move Forge To A PATH Directory
+        run: sudo mv forge /usr/local/bin/forge
+
+      - name: Run Forge Tests
+        run: forge test --out ${{ env.FORGE_OUTPUT_DIRECTORY}} -vvv --ffi
+
+  run-slither:
+    runs-on: self-hosted
+
+    container:
       image: trailofbits/eth-security-toolbox:latest
       volumes:
         - /var/lib/docker:/var/lib/docker
@@ -66,7 +115,7 @@ jobs:
       - build-differentials
 
     steps:
-#     Git needs to be updated due to an actions bug: https://github.com/actions/checkout/issues/335
+      #     Git needs to be updated due to an actions bug: https://github.com/actions/checkout/issues/335
       - name: Add Git Repository
         run: sudo add-apt-repository -y ppa:git-core/ppa
 
@@ -111,6 +160,3 @@ jobs:
 
       - name: Run Slither
         run: slither .
-
-#      - name: Run Forge Tests
-#        run: forge test --out ${{ env.FORGE_OUTPUT_DIRECTORY}} -vvv --ffi
