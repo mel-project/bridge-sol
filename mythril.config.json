@@ -7,7 +7,6 @@
         "openzeppelin-contracts/=lib/openzeppelin-contracts/",
         "openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/"
     ],
-    "viaIR": true,
     "optimizer": {
         "enabled": true,
         "runs": 100
