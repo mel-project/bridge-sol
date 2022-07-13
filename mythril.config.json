@@ -6,5 +6,9 @@
         "forge-std/=lib/forge-std/src/",
         "openzeppelin-contracts/=lib/openzeppelin-contracts/",
         "openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/"
-    ]
+    ],
+    "optimizer": {
+        "enabled": true,
+        "runs": 100
+    }
 }
