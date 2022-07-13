@@ -1,0 +1,10 @@
+{
+    "remappings": [
+        "blake3-sol/=lib/blake3-sol/src/",
+        "ds-test/=lib/forge-std/lib/ds-test/src/",
+        "ed25519-sol/=lib/ed25519-sol/src/",
+        "forge-std/=lib/forge-std/src/",
+        "openzeppelin-contracts/=lib/openzeppelin-contracts/",
+        "openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/"
+    ]
+}
