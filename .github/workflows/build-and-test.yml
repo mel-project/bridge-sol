@@ -76,7 +76,7 @@ jobs:
       - name: Update Python Dependencies
         run: sudo apt install -y libssl-dev python3-dev
 
-      - name: Install Slither
+      - name: Install Mythril
         run: sudo pip3 install mythril
 
       - name: Update Submodules
@@ -111,7 +111,7 @@ jobs:
       #        run: sudo mv forge /usr/local/bin/forge
 
       - name: Run Mythril Analysis
-        run: myth analyze src/*.sol
+        run: myth --solc-json remappings.json analyze src/*.sol
 
   run-forge-tests:
     runs-on: self-hosted
