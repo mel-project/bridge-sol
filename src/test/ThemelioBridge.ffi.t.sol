@@ -62,8 +62,6 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
             return "SYM";
         } else if (denom == ERG) {
             return "ERG";
-        } else if (denom == NEWCOIN) {
-            return "(NEWCOIN)";
         } else {
             string memory txHash = abi.encodePacked(denom).toHexString();
             txHash = string(_slice(abi.encodePacked(txHash), 2, 66));

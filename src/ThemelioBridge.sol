@@ -88,7 +88,6 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     uint256 internal constant MEL = 0;
     uint256 internal constant SYM = 1;
     uint256 internal constant ERG = 2;
-    uint256 internal constant NEWCOIN = 3;
 
     // the hashing keys used when hashing datablocks and nodes, respectively
     bytes internal constant DATA_BLOCK_HASH_KEY =
@@ -829,9 +828,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
         uint256 denom;
 
-        if (denomSize == 0) {
-            denom = NEWCOIN;
-        } else if (denomSize == 1) {
+        if (denomSize == 1) {
             uint256 coin = uint8(bytes1(transaction_[offset:offset + 1]));
 
             if (coin == 0x64) {
