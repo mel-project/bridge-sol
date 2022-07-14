@@ -13,7 +13,7 @@ contract ThemelioBridgeScript is Script {
 
         address implementationAddress = address(implementation);
         bytes memory data = abi.encode(
-            bytes4(keccak256('initialize(address,bytes)')),
+            bytes4(keccak256('initialize(uint256,bytes32,bytes32)')),
             0, // initial block height
             0, // initial transactions hash
             0 // initial stakes hash

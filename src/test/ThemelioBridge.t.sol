@@ -519,15 +519,15 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     function testDeploy() public {
         ThemelioBridge implementation = new ThemelioBridge();
 
-        address _logic = address(implementation);
-        bytes memory _data = abi.encode(
+        address logic = address(implementation);
+        bytes memory data = abi.encode(
             bytes4(keccak256('initialize(uint256,bytes32,bytes32)')),
             0,
             0,
             0
         );
 
-        ThemelioBridgeProxy proxy = new ThemelioBridgeProxy(_logic, _data);
+        ThemelioBridgeProxy proxy = new ThemelioBridgeProxy(logic, data);
 
         string memory uri = IThemelioBridge(address(proxy)).uri(0);
 
