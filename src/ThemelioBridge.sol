@@ -424,6 +424,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
             revert InvalidVerifier(verifierHeight_, blockHeight);
         }
 
+
         bytes32 verifierStakesHash = headers[verifierHeight_].stakesHash;
         if (verifierStakesHash == 0) {
             revert MissingVerifier(blockHeight);

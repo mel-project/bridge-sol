@@ -22,5 +22,7 @@ contract ThemelioBridgeScript is Script {
         ThemelioBridgeProxy proxy = new ThemelioBridgeProxy(implementationAddress, data);
 
         vm.stopBroadcast();
+
+        proxy;
     }
 }
