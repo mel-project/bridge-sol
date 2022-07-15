@@ -5,7 +5,7 @@ import 'forge-std/Test.sol';
 import 'openzeppelin-contracts/contracts/utils/Strings.sol';
 import './utils/ByteStrings.sol';
 import '../ThemelioBridge.sol';
-import '../BridgeProxy.sol';
+import '../ThemelioBridgeProxy.sol';
 import '../IThemelioBridge.sol';
 
 contract ThemelioBridgeTest is ThemelioBridge, Test {
@@ -519,15 +519,15 @@ contract ThemelioBridgeTestInternalCalldata is Test {
     function testDeploy() public {
         ThemelioBridge implementation = new ThemelioBridge();
 
-        address _logic = address(implementation);
-        bytes memory _data = abi.encode(
+        address logic = address(implementation);
+        bytes memory data = abi.encode(
             bytes4(keccak256('initialize(uint256,bytes32,bytes32)')),
             0,
             0,
             0
         );
 
-        BridgeProxy proxy = new BridgeProxy(_logic, _data);
+        ThemelioBridgeProxy proxy = new ThemelioBridgeProxy(logic, data);
 
         string memory uri = IThemelioBridge(address(proxy)).uri(0);
 

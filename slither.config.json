@@ -1,5 +1,6 @@
 {
-    "remappings": [
+    "filter_paths": "lib",
+    "solc_remaps": [
         "blake3-sol/=lib/blake3-sol/src/",
         "ds-test/=lib/forge-std/lib/ds-test/src/",
         "ed25519-sol/=lib/ed25519-sol/src/",

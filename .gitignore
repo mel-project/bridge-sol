@@ -1,3 +1,5 @@
 out/
-/cache
+cache/
 remappings.txt
+.env
+broadcast/
