@@ -108,12 +108,8 @@ jobs:
       - name: Update Submodules
         run: git submodule update --init --recursive
 
-
       - name: Run Mythril Analysis On ThemelioBridge
-        run: myth analyze src/ThemelioBridge.sol --solv ${{ env.SOLIDITY_VERSION}} --solc-json mythril.config.json --execution-timeout 60 --parallel-solving > mythril_output
-
-      - name: Show File Contents
-        run: cat mythril_output
+        run: myth analyze src/ThemelioBridge.sol --solv ${{ env.SOLIDITY_VERSION}} --solc-json mythril.config.json --execution-timeout 60 --parallel-solving -o json > mythril_output
 
       # Parsing the output through jq is necessary due to mythril not exiting with an error status code: https://github.com/ConsenSys/mythril/issues/1650
       - name: Check ThemelioBridge Output
