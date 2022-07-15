@@ -13,6 +13,7 @@ env:
   RUSTUP_HOME: "/usr/local/rustup"
   SCCACHE_DIR: "/usr/local/sccache"
   RUSTC_WRAPPER: "/usr/local/bin/sccache"
+  SOLIDITY_VERSION: "0.8.13"
 
 jobs:
   build-differentials:
@@ -53,7 +54,7 @@ jobs:
           name: differentials-dev
           path: /tmp/differentials.tar.gz
 
-  run-mythril:
+  run-mythril-on-bridge-proxy:
     runs-on: self-hosted
 
     container:
@@ -64,17 +65,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-#      - name: Add Ethereum Repository
-#        run: sudo add-apt-repository -y ppa:ethereum/ethereum
-
       - name: Update Apt
         run: sudo apt update
 
       - name: Install Dependencies
         run: sudo apt install -y libssl-dev python3-dev
-
-#      - name: Install Dependencies
-#        run: sudo apt install -y solc libssl-dev python3-dev
 
       - name: Install Mythril
         run: sudo pip3 install mythril
@@ -83,10 +78,42 @@ jobs:
         run: git submodule update --init --recursive
 
       - name: Run Mythril Analysis On BridgeProxy
-        run: myth analyze src/BridgeProxy.sol --solc-json mythril.config.json --parallel-solving
+        run: myth analyze src/BridgeProxy.sol --solv ${{ env.SOLIDITY_VERSION}} --solc-json mythril.config.json --parallel-solving -o json > mythril_output
+
+      # Parsing the output through jq is necessary due to mythril not exiting with an error status code: https://github.com/ConsenSys/mythril/issues/1650
+      - name: Check BridgeProxy Output
+        run: if [[ $(cat mythril_output | jq '.error == null') ]]; then exit 0; else echo $(cat mythril_output | jq .issues) && exit 1; fi
+
+  run-mythril-on-themelio-bridge:
+    runs-on: self-hosted
+
+    container:
+      image: summerwind/actions-runner:latest
+      volumes:
+        - /var/lib/docker:/var/lib/docker
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Update Apt
+        run: sudo apt update
+
+      - name: Install Dependencies
+        run: sudo apt install -y libssl-dev python3-dev
+
+      - name: Install Mythril
+        run: sudo pip3 install mythril
+
+      - name: Update Submodules
+        run: git submodule update --init --recursive
+
 
       - name: Run Mythril Analysis On ThemelioBridge
-        run: myth analyze src/ThemelioBridge.sol --solc-json mythril.config.json --execution-timeout 2 --parallel-solving
+        run: myth analyze src/ThemelioBridge.sol --solv ${{ env.SOLIDITY_VERSION}} --solc-json mythril.config.json --execution-timeout 60 --parallel-solving > mythril_output
+
+      # Parsing the output through jq is necessary due to mythril not exiting with an error status code: https://github.com/ConsenSys/mythril/issues/1650
+      - name: Check ThemelioBridge Output
+        run: if [[ $(cat mythril_output | jq '.error == null') ]]; then exit 0; else echo $(cat mythril_output | jq .issues) && exit 1; fi
 
   run-forge-tests:
     runs-on: self-hosted
