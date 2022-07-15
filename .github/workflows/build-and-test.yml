@@ -82,6 +82,7 @@ jobs:
 
       # Parsing the output through jq is necessary due to mythril not exiting with an error status code: https://github.com/ConsenSys/mythril/issues/1650
       - name: Check BridgeProxy Output
+        shell: bash
         run: if [[ $(cat mythril_output | jq '.error == null') ]]; then exit 0; else echo $(cat mythril_output | jq .issues) && exit 1; fi
 
   run-mythril-on-themelio-bridge:
@@ -113,6 +114,7 @@ jobs:
 
       # Parsing the output through jq is necessary due to mythril not exiting with an error status code: https://github.com/ConsenSys/mythril/issues/1650
       - name: Check ThemelioBridge Output
+        shell: bash
         run: if [[ $(cat mythril_output | jq '.error == null') ]]; then exit 0; else echo $(cat mythril_output | jq .issues) && exit 1; fi
 
   run-forge-tests:
