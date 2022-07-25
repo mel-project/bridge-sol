@@ -147,8 +147,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
     /**
     * Header at height `verifierHeight` cannot be used to verify header at `headerHeight`.
-    * Make sure that the verifying header is in the same epoch or is the last header in the epoch
-    * just before the header to be verified.
+    * Make sure that the verifying header is in the same epoch or is the last header in the
+    * previous epoch.
     *
     * @param verifierHeight Block height of header that will be used to verify the header at
     *        `headerHeight` height.
@@ -165,16 +165,24 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     error MalformedData();
 
     /**
-    * The header at block height `height` has not been submitted yet. Please submit it before
-    * attempting to verify transactions at that block height.
+    * The header at block height `height` has not been submitted yet. Please submit it with
+    * verifyHeader() before attempting to verify transactions at that block height.
     *
     * @param height Block height of the header in which the transaction was included.
     */
     error MissingHeader(uint256 height);
 
     /**
-    * A header can only be verified by another header that shares the same epoch. Headers which
-    * end epochs can also verify headers in the next epoch, which is how you can "cross epochs".
+    * The stakes with keccak hash `keccakStakesHash` have not been submitted yet. Please submit
+    * them with verifyStakes() before attempting to verify headers with those stakes.
+    *
+    * @param keccakStakesHash Block height of the header in which the transaction was included.
+    */
+    error MissingStakes(bytes32 keccakStakesHash);
+
+    /**
+    * The chosen verifier, at block height `height`, has not yet been submitted. Try submitting
+    * it with verifyHeader() or choosing a different verifier height.
     *
     * @param height Block height of the header which was unable to be verified.
     */
@@ -224,13 +232,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     );
 
     event TxVerified(
-        bytes32 indexed tx_hash,
-        uint256 indexed height
-    );
-
-    event TokensMinted(
-        address indexed account,
-        uint256 indexed value
+        uint256 indexed height,
+        bytes32 indexed tx_hash
     );
 
     event TokensBurned(
@@ -394,9 +397,6 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     * @param stakes_ An array of serialized Themelio 'StakeDoc's.
     *
     * @param signatures_ An array of signatures of `header_` by each staker in `signers_`.
-
-    * @param firstTime_ A boolean flag that allows the function to make gas optimizations
-    *        depending on whether this is the first time this header is being verified.
     *
     * @return 'true' if header was successfully validated, otherwise reverts.
     */
@@ -404,8 +404,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         uint256 verifierHeight_,
         bytes calldata header_,
         bytes calldata stakes_,
-        bytes32[] calldata signatures_,
-        bool firstTime_
+        bytes32[] calldata signatures_
     ) external returns (bool) {
         (
             uint256 blockHeight,
@@ -431,16 +430,10 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         }
 
         bytes32 keccakStakesHash = keccak256(stakes_);
-        bytes32 blake3StakesHash;
-
-        if (!firstTime_) {
-            blake3StakesHash = stakesHashes[keccakStakesHash];
-        }
+        bytes32 blake3StakesHash = stakesHashes[keccakStakesHash];
 
         if (blake3StakesHash == 0) {
-            blake3StakesHash = _hashDatablock(stakes_);
-
-            stakesHashes[keccakStakesHash] = blake3StakesHash;
+            revert MissingStakes(keccakStakesHash);
         }
 
         if (blake3StakesHash != verifierStakesHash) {
@@ -448,15 +441,9 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         }
 
         bytes32 headerHash = keccak256(header_);
-        uint256 votes;
-        uint256 stakesOffset;
-        uint256 stakeDocIndex;
-
-        if (!firstTime_) {
-            votes = headerLimbo[headerHash].votes;
-            stakesOffset = headerLimbo[headerHash].bytesVerified;
-            stakeDocIndex = headerLimbo[headerHash].stakeDocIndex;
-        }
+        uint256 votes = headerLimbo[headerHash].votes;
+        uint256 stakesOffset = headerLimbo[headerHash].bytesVerified;
+        uint256 stakeDocIndex = headerLimbo[headerHash].stakeDocIndex;
 
         // todo: assumption here that in future TIP total epoch syms will be first value in
         // 'stakes_hash' preimage (note: subsequent epoch's total is needed to cross epochs)
@@ -579,7 +566,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
             _mint(recipient, denom, value, '');
 
-            emit TxVerified(txHash, blockHeight_);
+            emit TxVerified(blockHeight_, txHash);
 
             return true;
         } else {
@@ -739,22 +726,25 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         bytes calldata stakeDoc,
         uint256 offset
     ) internal pure returns (StakeDoc memory, uint256) {
-        bytes32 publicKey = bytes32(_slice(stakeDoc, offset, offset + 32));
-
-        (uint256 epochStart, uint256 epochStartSize) = _decodeInteger(stakeDoc, offset + 32);
-        offset += 32 + epochStartSize;
-
-        (uint256 epochPostEnd,  uint256 epochPostEndSize) = _decodeInteger(stakeDoc, offset);
-        offset += epochPostEndSize;
-
-        (uint256 symsStaked, uint256 symsStakedSize) = _decodeInteger(stakeDoc, offset);
-        offset += symsStakedSize;
-
         StakeDoc memory decodedStakeDoc;
-        decodedStakeDoc.publicKey = publicKey;
-        decodedStakeDoc.epochStart = epochStart;
-        decodedStakeDoc.epochPostEnd = epochPostEnd;
-        decodedStakeDoc.symsStaked = symsStaked;
+
+        // first member of 'StakeDoc' struct is 32-byte 'public_key'
+        decodedStakeDoc.publicKey = bytes32(_slice(stakeDoc, offset, offset + 32));
+
+        // 'epoch_start' is an encoded integer
+        (uint256 data, uint256 dataSize) = _decodeInteger(stakeDoc, offset + 32);
+        decodedStakeDoc.epochStart = data;
+        offset += 32 + dataSize;
+
+        // 'epoch_post_end' is an encoded integer
+        (data,  dataSize) = _decodeInteger(stakeDoc, offset);
+        decodedStakeDoc.epochPostEnd = data;
+        offset += dataSize;
+
+        // 'syms_staked' is an encoded integer
+        (data, dataSize) = _decodeInteger(stakeDoc, offset);
+        decodedStakeDoc.symsStaked = data;
+        offset += dataSize;
 
         return (decodedStakeDoc, offset);
     }

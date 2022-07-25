@@ -23,6 +23,6 @@ contract ThemelioBridgeScript is Script {
 
         vm.stopBroadcast();
 
-        proxy;
+        proxy; // removes compiler warning
     }
 }

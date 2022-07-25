@@ -1,4 +1,4 @@
-[default]
+[profile.default]
 gas-reports = ["*"]
 verbosity = 3
 optimizer = true

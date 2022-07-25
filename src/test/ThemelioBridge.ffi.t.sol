@@ -271,46 +271,39 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
     //     assertEq(extractedRecipient, recipient);
     // }
 
-    function testVerifyHeaderDifferentialFFI(uint8 numStakeDocs) public {
-        vm.assume(numStakeDocs != 0 && numStakeDocs < 90);
+    // function testVerifyHeaderDifferentialFFI(uint8 numStakeDocs) public {
+    //     vm.assume(numStakeDocs != 0 && numStakeDocs < 90);
 
-        string[] memory cmds = new string[](3);
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-        cmds[1] = '--verify-header';
-        cmds[2] = uint256(numStakeDocs).toString();
+    //     string[] memory cmds = new string[](3);
+    //     cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+    //     cmds[1] = '--verify-header';
+    //     cmds[2] = uint256(numStakeDocs).toString();
 
-        bytes memory data = vm.ffi(cmds);
+    //     bytes memory data = vm.ffi(cmds);
 
-        (
-            uint256 verifierHeight,
-            bytes32 verifierStakesHash,
-            bytes memory header,
-            bytes memory stakeDocs,
-            bytes32[] memory signatures
-        ) = abi.decode(data, (uint256, bytes32, bytes, bytes, bytes32[]));
+    //     (
+    //         uint256 verifierHeight,
+    //         bytes32 verifierStakesHash,
+    //         bytes memory header,
+    //         bytes memory stakeDocs,
+    //         bytes32[] memory signatures
+    //     ) = abi.decode(data, (uint256, bytes32, bytes, bytes, bytes32[]));
 
-        bridgeTest.verifyHeaderHelper(verifierStakesHash, verifierHeight);
+    //     bridgeTest.verifyHeaderHelper(verifierStakesHash, verifierHeight);
 
-        bool success;
+    //     bridgeTest.verifyStakes(stakeDocs);
 
-        success = bridgeTest.verifyHeader{gas: 25_000_000}(
-            verifierHeight,
-            header,
-            stakeDocs,
-            signatures,
-            true
-        );
+    //     bool success;
 
-        while (!success) {
-            success = bridgeTest.verifyHeader{gas: 25_000_000}(
-                verifierHeight,
-                header,
-                stakeDocs,
-                signatures,
-                false
-            );
-        }
+    //     while (!success) {
+    //         success = bridgeTest.verifyHeader{gas: 25_000_000}(
+    //             verifierHeight,
+    //             header,
+    //             stakeDocs,
+    //             signatures
+    //         );
+    //     }
 
-        assertTrue(success);
-    }
+    //     assertTrue(success);
+    // }
 }
