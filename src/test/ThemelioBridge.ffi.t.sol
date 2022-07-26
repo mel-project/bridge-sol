@@ -51,10 +51,6 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
         );
     }
 
-    function decodeTransactionHelper() public {
-
-    }
-
     function denomToStringHelper(uint256 denom) public pure returns (string memory) {
         if (denom == MEL) {
             return "MEL";
@@ -113,20 +109,6 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
         assertEq(solHash, rustHash);
     }
 
-    function testEd25519DifferentialFFI(bytes memory message) public {
-        string[] memory cmds = new string[](3);
-
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-        cmds[1] = '--ed25519';
-        cmds[2] = message.toHexString();
-
-        bytes memory result = vm.ffi(cmds);
-
-        (bytes32 signer, bytes32 r, bytes32 S) = abi.decode(result, (bytes32, bytes32, bytes32));
-
-        assertTrue(Ed25519.verify(signer, r, S, message));
-    }
-
     function testDecodeIntegerDifferentialFFI(uint128 integer) public {
         string[] memory cmds = new string[](3);
 
@@ -142,6 +124,20 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
 
         assertEq(decodedInteger, integer);
         assertEq(decodedIntegerSize, resultsIntegerSize);
+    }
+
+    function testEd25519DifferentialFFI(bytes memory message) public {
+        string[] memory cmds = new string[](3);
+
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[1] = '--ed25519';
+        cmds[2] = message.toHexString();
+
+        bytes memory result = vm.ffi(cmds);
+
+        (bytes32 signer, bytes32 r, bytes32 S) = abi.decode(result, (bytes32, bytes32, bytes32));
+
+        assertTrue(Ed25519.verify(signer, r, S, message));
     }
 
     function testKeccakBigHashFFI() public {
@@ -209,6 +205,32 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         bytes32 bigHash = bridgeTest.hashDatablockHelper(data);
 
         assertEq(bigHash, dataHash);
+    }
+
+    function testDecodeHeaderFFI(uint128 mod) public {
+        string[] memory cmds = new string[](3);
+
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[1] = '--decode-header';
+        cmds[2] = uint256(mod).toString();
+
+        bytes memory packedData = vm.ffi(cmds);
+        (
+            bytes memory header,
+            uint256 blockHeight,
+            bytes32 transactionsHash,
+            bytes32 stakesHash
+        ) = abi.decode(packedData, (bytes, uint256, bytes32, bytes32));
+
+        (
+            uint256 decodedBlockHeight,
+            bytes32 decodedTransactionsHash,
+            bytes32 decodedStakesHash
+        ) = bridgeTest.decodeHeaderHelper(header);
+
+        assertEq(decodedBlockHeight, blockHeight);
+        assertEq(decodedTransactionsHash, transactionsHash);
+        assertEq(decodedStakesHash, stakesHash);
     }
 
     // function testExtractBlockHeightDifferentialFFI(uint128 modifierNum, uint64 blockHeight) public {
