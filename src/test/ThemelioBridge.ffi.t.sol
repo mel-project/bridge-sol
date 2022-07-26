@@ -14,11 +14,11 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
         /* =========== Helpers =========== */
 
     function computeMerkleRootHelper(
-        bytes32 txHash,
-        uint256 index,
-        bytes32[] calldata proof
+        bytes32 txHash_,
+        uint256 index_,
+        bytes32[] calldata proof_
     ) public pure returns (bytes32) {
-        bytes32 merkleRoot = _computeMerkleRoot(txHash, index, proof);
+        bytes32 merkleRoot = _computeMerkleRoot(txHash_, index_, proof_);
 
         return merkleRoot;
     }
@@ -36,6 +36,24 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
             blockHeight,
             transactionsHash,
             stakesHash
+        );
+    }
+
+    function decodeTransactionHelper(
+        bytes calldata transaction_
+    ) public pure returns (bytes32, uint256, uint256, address) {
+        (
+            bytes32 covhash,
+            uint256 value,
+            uint256 denom,
+            address recipient
+        ) = _decodeTransaction(transaction_);
+
+        return (
+            covhash,
+            value,
+            denom,
+            recipient
         );
     }
 
@@ -233,65 +251,38 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         assertEq(decodedStakesHash, stakesHash);
     }
 
-    // function testExtractBlockHeightDifferentialFFI(uint128 modifierNum, uint64 blockHeight) public {
-    //     string[] memory cmds = new string[](5);
+    function testDecodeTransactionFFI(
+        bytes32 covhash,
+        uint128 value,
+        uint256 denom,
+        address recipient
+    ) public {
+        string[] memory cmds = new string[](9);
 
-    //     cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-    //     cmds[1] = '--extract-block-height';
-    //     cmds[2] = uint256(blockHeight).toString();
-    //     cmds[3] = '--modifier';
-    //     cmds[4] = uint256(modifierNum).toString();
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[1] = '--decode-transaction';
+        cmds[2] = abi.encodePacked(covhash).toHexString();
+        cmds[3] = '--value';
+        cmds[4] = uint256(value).toString();
+        cmds[5] = '--denom';
+        cmds[6] = bridgeTest.denomToStringHelper(denom);
+        cmds[7] = '--recipient';
+        cmds[8] = abi.encodePacked(recipient).toHexString();
 
-    //     bytes memory header = vm.ffi(cmds);
+        bytes memory transaction = vm.ffi(cmds);
 
-    //     uint256 extractedBlockHeight = bridgeTest.extractBlockHeightHelper(header);
+        (
+            bytes32 extractedCovhash,
+            uint256 extractedValue,
+            uint256 extractedDenom,
+            address extractedRecipient
+        ) = bridgeTest.decodeTransactionHelper(transaction);
 
-    //     assertEq(extractedBlockHeight, blockHeight);
-    // }
-
-    // function testExtractTransactionsHashDifferentialFFI(uint128 modifierNum) public {
-    //     string[] memory cmds = new string[](3);
-
-    //     cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-    //     cmds[1] = '--extract-transactions-hash';
-    //     cmds[2] = uint256(modifierNum).toString();
-
-    //     bytes memory result = vm.ffi(cmds);
-
-    //     (bytes memory header, bytes32 merkleRoot) = abi.decode(result, (bytes, bytes32));
-
-    //     bytes32 extractedTransactionsHash = bridgeTest.extractTransactionsHashHelper(header);
-
-    //     assertEq(extractedTransactionsHash, merkleRoot);
-    // }
-
-    // function testExtractValueDenomAndRecipientDifferentialFFI(
-    //     uint128 value,
-    //     uint256 denom,
-    //     address recipient
-    // ) public {
-    //     string[] memory cmds = new string[](7);
-
-    //     cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-    //     cmds[1] = '--extract-value';
-    //     cmds[2] = uint256(value).toString();
-    //     cmds[3] = '--denom';
-    //     cmds[4] = bridgeTest.denomToStringHelper(denom);
-    //     cmds[5] = '--recipient';
-    //     cmds[6] = abi.encodePacked(recipient).toHexString();
-
-    //     bytes memory header = vm.ffi(cmds);
-
-    //     (
-    //         uint256 extractedValue,
-    //         uint256 extractedDenom,
-    //         address extractedRecipient
-    //     ) = bridgeTest.extractValueDenomAndRecipientHelper(header);
-
-    //     assertEq(extractedValue, value);
-    //     assertEq(extractedDenom, denom);
-    //     assertEq(extractedRecipient, recipient);
-    // }
+        assertEq(extractedCovhash, covhash);
+        assertEq(extractedValue, value);
+        assertEq(extractedDenom, denom);
+        assertEq(extractedRecipient, recipient);
+    }
 
     // function testVerifyHeaderDifferentialFFI(uint8 numStakeDocs) public {
     //     vm.assume(numStakeDocs != 0 && numStakeDocs < 90);

@@ -801,11 +801,11 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         // aggregate size of each CoinData which is one hash (32 bytes) and one u8 integer (1 byte)
         offset += 33 * inputsLength;
 
-        // get the size of the 'outputs' array's length and add to offset along with
-        // 'covhash' size (32 bytes)
+        // get the size of the 'outputs' array's length and add to offset
         (,uint256 outputsLengthSize) = _decodeInteger(transaction_, offset);
         offset += outputsLengthSize;
 
+        // add 'covhash' size to offset (32 bytes)
         bytes32 covhash = bytes32(_slice(transaction_, offset, offset + 32));
         offset += 32;
 
