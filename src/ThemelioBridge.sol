@@ -194,8 +194,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     error NotOwner();
 
     /**
-    * Slice is out of bounds. `start` must be greater than -1 and less than `dataLength`. `end`
-    * must be greater than -2 and less than `dataLength` + 1.
+    * Slice is out of bounds. `start` must be less than `dataLength`. `end` must be less than
+    * `dataLength` + 1.
     *
     * @param start Starting index (inclusive).
     *
@@ -392,7 +392,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     * @param verifierHeight_ The height of the stored Themelio header which will be used to verify
     *        `header_`.
     *
-    * @param header_ A serialized Themelio transaction header.
+    * @param header_ A serialized Themelio block header.
     *
     * @param stakes_ An array of serialized Themelio 'StakeDoc's.
     *
@@ -416,13 +416,16 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
         // headers can only be used to verify headers from the same epoch, however, if they
         // are the last header of an epoch they can also verify headers one epoch ahead
+        bool crossingEpoch;
         if (
-            verifierEpoch != headerEpoch &&
-            verifierHeight_ != headerEpoch * STAKE_EPOCH - 1
+            verifierEpoch != headerEpoch
         ) {
-            revert InvalidVerifier(verifierHeight_, blockHeight);
+            if (verifierHeight_ != headerEpoch * STAKE_EPOCH - 1) {
+                revert InvalidVerifier(verifierHeight_, blockHeight);
+            } else {
+                crossingEpoch = true;
+            }
         }
-
 
         bytes32 verifierStakesHash = headers[verifierHeight_].stakesHash;
         if (verifierStakesHash == 0) {
@@ -441,19 +444,43 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         }
 
         bytes32 headerHash = keccak256(header_);
-        uint256 votes = headerLimbo[headerHash].votes;
-        uint256 stakesOffset = headerLimbo[headerHash].bytesVerified;
         uint256 stakeDocIndex = headerLimbo[headerHash].stakeDocIndex;
+        uint256 votes;
+        uint256 stakesOffset;
+        if (stakeDocIndex != 0) {
+            votes = headerLimbo[headerHash].votes;
+            stakesOffset = headerLimbo[headerHash].bytesVerified;
+        }
 
-        // todo: assumption here that in future TIP total epoch syms will be first value in
-        // 'stakes_hash' preimage (note: subsequent epoch's total is needed to cross epochs)
-        (uint256 totalEpochSyms, uint256 totalEpochSymsOffset) = _decodeInteger(stakes_, 0);
-        if (stakesOffset == 0) {
-            stakesOffset += totalEpochSymsOffset;
+        // Assumption here that in a future TIP total epoch syms will be the first value in
+        // 'stakes_hash' preimage and the subsequent epoch's total syms will be the second value
+        uint256 totalEpochSyms;
+        uint256 offset;
+
+        if (crossingEpoch) {
+            (, offset) = _decodeInteger(stakes_, 0);
+
+            if (stakesOffset == 0) {
+                stakesOffset += offset;
+
+                (totalEpochSyms, offset) = _decodeInteger(stakes_, offset);
+                stakesOffset += offset;
+            } else {
+                (totalEpochSyms,) = _decodeInteger(stakes_, offset);
+            }
+        } else {
+            (totalEpochSyms, offset) = _decodeInteger(stakes_, 0);
+
+            if(stakesOffset == 0) {
+                stakesOffset += offset;
+
+                (, offset) = _decodeInteger(stakes_, 0);
+                stakesOffset += offset;
+            }
         }
 
         StakeDoc memory stakeDoc;
-        uint256 gasRemaining;
+        uint256 memorySizeWords;
         uint256 stakesLength = stakes_.length;
 
         for (; stakesOffset < stakesLength; ++stakeDocIndex) {
@@ -489,14 +516,11 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
             }
 
             assembly ('memory-safe') {
-                gasRemaining := gas()
+                memorySizeWords := div(add(mload(0x40), 31), 32)
             }
-            
-            if (
-                // if not enough gas for another round, save current progress to storage
-                // todo: more accurate calc of next round gas costs
-                gasRemaining < 6_000_000
-            ) {
+
+            // if not enough gas for another round, save current progress to storage
+            if (gasleft() < 1_420_200 + memorySizeWords / 4) {
                 headerLimbo[headerHash].votes = uint128(votes); // let's double check this
                 headerLimbo[headerHash].bytesVerified = uint64(stakesOffset); // and this
                 headerLimbo[headerHash].stakeDocIndex = uint64(stakeDocIndex + 1);
