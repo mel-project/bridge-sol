@@ -223,8 +223,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     /* =========== Bridge Events =========== */
 
     event StakesVerified(
-        bytes32 keccakStakesHash,
-        bytes32 blake3StakesHash
+        bytes32 stakesHash
     );
 
     event HeaderVerified(
@@ -371,7 +370,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
         stakesHashes[keccakStakesHash] = blake3StakesHash;
 
-        emit StakesVerified(keccakStakesHash, blake3StakesHash);
+        emit StakesVerified(blake3StakesHash);
 
         return true;
     }

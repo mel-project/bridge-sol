@@ -101,6 +101,12 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
         headers[verifierHeight].stakesHash = verifierStakesHash;
     }
 
+    function verifyStakesHelper(bytes32 key) public view returns (bytes32) {
+        bytes32 stakesHash = stakesHashes[key];
+
+        return stakesHash;
+    }
+
     function verifyTxHelper(
         uint256 blockHeight,
         bytes32 transactionsHash,
@@ -285,7 +291,7 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
     }
 
     function testVerifyHeaderDifferentialFFI(uint8 numStakeDocs) public {
-        vm.assume(numStakeDocs != 0 && numStakeDocs < 90);
+        vm.assume(numStakeDocs != 0 && numStakeDocs < 100);
 
         string[] memory cmds = new string[](3);
         cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
@@ -318,5 +324,28 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         }
 
         assertTrue(success);
+    }
+
+    function testVerifyStakesDifferentialFFI() public {
+        uint256 numStakeDocs = 5;
+
+        string[] memory cmds = new string[](3);
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[1] = '--verify-stakes';
+        cmds[2] = numStakeDocs.toString();
+
+        bytes memory data = vm.ffi(cmds);
+
+        (
+            bytes memory stakes,
+            bytes32 stakesHash
+        ) = abi.decode(data, (bytes, bytes32));
+
+        bridgeTest.verifyStakes(stakes);
+
+        bytes32 savedStakesHashKey = keccak256(stakes);
+        bytes32 savedStakesHash = bridgeTest.verifyStakesHelper(savedStakesHashKey);
+
+        assertEq(savedStakesHash, stakesHash);
     }
 }
