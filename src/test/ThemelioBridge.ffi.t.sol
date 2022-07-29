@@ -6,7 +6,7 @@ import 'openzeppelin-contracts/contracts/utils/Strings.sol';
 import './utils/ByteStrings.sol';
 import '../ThemelioBridge.sol';
 
-contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
+contract ThemelioBridgeTestFFI is ThemelioBridge{//}, Test {
     using Blake3Sol for Blake3Sol.Hasher;
     using ByteStrings for bytes;
     using Strings for uint256;
@@ -25,7 +25,7 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
 
     function decodeHeaderHelper(
         bytes calldata header_
-    ) public pure returns (uint256, bytes32, bytes32) {
+    ) public /*pure*/ returns (uint256, bytes32, bytes32) {
         (
             uint256 blockHeight,
             bytes32 transactionsHash,
@@ -39,9 +39,18 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
         );
     }
 
+    function decodeIntegerHelper(
+        bytes calldata data,
+        uint256 offset
+    ) public /*pure*/ returns (uint256, uint256) {
+        (uint256 integer, uint256 length) = _decodeInteger(data, offset);
+
+        return (integer, length);
+    }
+
     function decodeTransactionHelper(
         bytes calldata transaction_
-    ) public pure returns (bytes32, uint256, uint256, address) {
+    ) public /*pure*/ returns (bytes32, uint256, uint256, address) {
         (
             bytes32 covhash,
             uint256 value,
@@ -58,7 +67,7 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
     }
 
     function decodeStakeDocHelper(bytes calldata encodedStakeDoc_)
-        public pure returns (bytes32, uint256, uint256, uint256) {
+        public /*pure*/ returns (bytes32, uint256, uint256, uint256) {
         (StakeDoc memory decodedStakeDoc,) = _decodeStakeDoc(encodedStakeDoc_, 0);
 
         return (
@@ -69,7 +78,7 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
         );
     }
 
-    function denomToStringHelper(uint256 denom) public pure returns (string memory) {
+    function denomToStringHelper(uint256 denom) public /*pure*/ returns (string memory) {
         if (denom == MEL) {
             return "MEL";
         } else if (denom == SYM) {
@@ -133,23 +142,6 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
         assertEq(solHash, rustHash);
     }
 
-    function testDecodeIntegerDifferentialFFI(uint128 integer) public {
-        string[] memory cmds = new string[](3);
-
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-        cmds[1] = '--decode-integer';
-        cmds[2] = uint256(integer).toString();
-
-        bytes memory result = vm.ffi(cmds);
-
-        (bytes memory resultsInteger, uint256 resultsIntegerSize) = abi.decode(result, (bytes, uint256));
-
-        (uint256 decodedInteger, uint256 decodedIntegerSize) = _decodeInteger(resultsInteger, 0);
-
-        assertEq(decodedInteger, integer);
-        assertEq(decodedIntegerSize, resultsIntegerSize);
-    }
-
     function testEd25519DifferentialFFI(bytes memory message) public {
         string[] memory cmds = new string[](3);
 
@@ -175,31 +167,31 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
         keccak256(data);
     }
 
-    function testSliceDifferentialFFI(bytes memory data, uint8 start, uint8 end) public {
-        uint256 dataLength = data.length;
+    // function testSliceDifferentialFFI(bytes memory data, uint8 offset, int8 length) public {
+    //     uint256 dataLength = data.length;
 
-        if (start <= end) {
-            vm.assume(end <= dataLength);
-        } else {
-            vm.assume(start < dataLength);
-        }
+    //     if (length < 0) {
+    //         vm.assume(offset + length >= 0);
+    //     } else {
+    //         vm.assume(offset + length <= dataLength);
+    //     }
 
-        string[] memory cmds = new string[](7);
+    //     string[] memory cmds = new string[](7);
 
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-        cmds[1] = '--slice';
-        cmds[2] = data.toHexString();
-        cmds[3] = '--start';
-        cmds[4] = uint256(start).toString();
-        cmds[5] = '--end';
-        cmds[6] = uint256(end).toString();
+    //     cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+    //     cmds[1] = '--slice';
+    //     cmds[2] = data.toHexString();
+    //     cmds[3] = '--start';
+    //     cmds[4] = uint256(start).toString();
+    //     cmds[5] = '--end';
+    //     cmds[6] = uint256(end).toString();
 
-        bytes memory result = vm.ffi(cmds);
+    //     bytes memory result = vm.ffi(cmds);
 
-        bytes memory slice = _slice(data, start, end);
+    //     bytes memory slice = _slice(data, start, end);
 
-        assertEq(slice, result);
-    }
+    //     assertEq(slice, result);
+    // }
 }
 
 // contract for tests involving internal functions that have calldata params
@@ -255,6 +247,23 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         assertEq(decodedBlockHeight, blockHeight);
         assertEq(decodedTransactionsHash, transactionsHash);
         assertEq(decodedStakesHash, stakesHash);
+    }
+
+    function testDecodeIntegerDifferentialFFI(uint128 integer) public {
+        string[] memory cmds = new string[](3);
+
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[1] = '--decode-integer';
+        cmds[2] = uint256(integer).toString();
+
+        bytes memory result = vm.ffi(cmds);
+
+        (bytes memory resultsInteger, uint256 resultsIntegerSize) = abi.decode(result, (bytes, uint256));
+
+        (uint256 decodedInteger, uint256 decodedIntegerSize) = bridgeTest.decodeIntegerHelper(resultsInteger, 0);
+
+        assertEq(decodedInteger, integer);
+        assertEq(decodedIntegerSize, resultsIntegerSize);
     }
 
     function testDecodeTransactionFFI(
@@ -348,4 +357,10 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
 
         assertEq(savedStakesHash, stakesHash);
     }
+
+    function testVerifyTransactionDifferentialFFI() public {}
+
+    function testVerifyHeaderCrossEpoch() public {}
+
+    function testVerifyHeaderNotEnoughSignatures() public {}
 }

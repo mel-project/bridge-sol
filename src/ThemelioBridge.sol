@@ -6,6 +6,8 @@ import 'ed25519-sol/Ed25519.sol';
 import 'openzeppelin-contracts-upgradeable/contracts/token/ERC1155/ERC1155Upgradeable.sol';
 import 'openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol';
 
+import 'forge-std/Test.sol';
+
 /**
 * @title ThemelioBridge: A bridge for transferring Themelio assets to Ethereum and back
 *
@@ -41,7 +43,7 @@ import 'openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable
 *
 *      Questions or concerns? Come chat with us on Discord! https://discord.com/invite/VedNp7EXFc
 */
-contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
+contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable, Test {
     using Blake3Sol for Blake3Sol.Hasher;
 
     // an abbreviated Themelio header with the only two fields we need for header and tx validation
@@ -197,13 +199,13 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     * Slice is out of bounds. `start` must be less than `dataLength`. `end` must be less than
     * `dataLength` + 1.
     *
-    * @param start Starting index (inclusive).
+    * @param offset Starting index (inclusive).
     *
-    * @param end Ending index (exclusive).
+    * @param length Length of slice.
     *
     * @param dataLength Length of data to be sliced.
     */
-    error OutOfBoundsSlice(uint256 start, uint256 end, uint256 dataLength);
+    error OutOfBoundsSlice(uint256 offset, int256 length, uint256 dataLength);
 
     /**
     * Transactions can only be verified once. The transaction with hash `txHash` has previously
@@ -636,50 +638,58 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     }
 
     /**
-    * @notice Slices the `data` argument from its `start` index (inclusive) to its
-    *         `end` index (exclusive), and returns the slice as a new 'bytes' array.
+    * @notice Slices the `data` argument from its `offset` index (inclusive) returning a bytes
+    *         array of length abs(`length`). If `length` is negative then the slice is copied
+    *         backwards.
     *
-    * @dev It can also return 'inverted slices' where `start` > `end` in order to better
+    * @dev It can return 'inverted slices' where `length` < 0 in order to better
     *      accomodate switching between big and little endianness in incompatible systems.
     *
     * @param data The data to be sliced, in bytes.
     *
-    * @param start The start index of the slice (inclusive).
+    * @param offset The start index of the slice (inclusive).
     *
-    * @param end The end index of the slice (exclusive).
+    * @param length The length of the slice.
     *
-    * @return A newly created 'bytes' variable containing the slice.
+    * @return A new 'bytes' variable containing the slice.
     */
     function _slice(
         bytes memory data,
-        uint256 start,
-        uint256 end
-    ) internal pure returns (bytes memory) {
-        uint256 dataLength = data.length;
+        uint256 offset,
+        int256 length
+    ) internal /*pure*/ returns (bytes memory) {
+        emit log_uint(offset);
+        emit log_int(length);
+        emit log_uint(data.length);
 
-        if (start <= end) {
-            if (!(end <= dataLength)) {
-                revert OutOfBoundsSlice(start, end, dataLength);
+        uint256 dataLength = data.length;
+        uint256 lengthAbsolute = length > 0 ? uint256(length) : uint256(-length);
+
+        if (length > 0) {
+            emit log('hey');
+            if (offset + lengthAbsolute > dataLength) {
+                revert OutOfBoundsSlice(offset, length, dataLength);
             }
 
-            uint256 sliceLength = end - start;
-            bytes memory dataSlice = new bytes(sliceLength);
+            bytes memory dataSlice = new bytes(lengthAbsolute);
 
-            for (uint256 i = 0; i < sliceLength; ++i) {
-                dataSlice[i] = data[start + i];
+            for (uint256 i = 0; i < lengthAbsolute; ++i) {
+                emit log_uint(uint8(dataSlice[i]));
+                emit log_uint(uint8(data[offset + i]));
+                dataSlice[i] = data[offset + i];
             }
 
             return dataSlice;
         } else {
-            if (!(start < dataLength)) {
-                revert OutOfBoundsSlice(start, end, dataLength);
+            emit log('bye');
+            if (offset + 1 < lengthAbsolute) {
+                revert OutOfBoundsSlice(offset, length, dataLength);
             }
 
-            uint256 sliceLength = start - end;
-            bytes memory dataSlice = new bytes(sliceLength);
+            bytes memory dataSlice = new bytes(lengthAbsolute);
 
-            for (uint256 i = 0; i < sliceLength; ++i) {
-                dataSlice[i] = data[start - i];
+            for (uint256 i = 0; i < lengthAbsolute; ++i) {
+                dataSlice[i] = data[offset - i];
             }
 
             return dataSlice;
@@ -701,31 +711,32 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     */
 
     function _decodeInteger(
-        bytes memory data,
+        bytes calldata data,
         uint256 offset
-    ) internal pure returns (uint256, uint256) {
-        bytes1 lengthByte = bytes1(_slice(data, offset, offset + 1));
+    ) internal /*pure*/ returns (uint256, uint256) {
         uint256 integer;
         uint256 size;
+
+        bytes1 lengthByte = bytes1(data[offset:1]);
 
         if (lengthByte < 0xfb) {
             integer = uint8(lengthByte);
 
             size = 1;
         } else if (lengthByte == 0xfb) {
-            integer = uint16(bytes2(_slice(data, offset + 2, offset)));
+            integer = uint16(bytes2(_slice(data, offset + 2, -2)));
 
             size = 3;
         } else if (lengthByte == 0xfc) {
-            integer = uint32(bytes4(_slice(data, offset + 4, offset)));
+            integer = uint32(bytes4(_slice(data, offset + 4, -4)));
 
             size = 5;
         } else if (lengthByte == 0xfd) {
-            integer = uint64(bytes8(_slice(data, offset + 8, offset)));
+            integer = uint64(bytes8(_slice(data, offset + 8, -8)));
 
             size = 9;
         } else if (lengthByte == 0xfe) {
-            integer = uint128(bytes16(_slice(data, offset + 16, offset)));
+            integer = uint128(bytes16(_slice(data, offset + 16, -16)));
 
             size = 17;
         } else {
@@ -734,6 +745,90 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
         return (integer, size);
     }
+
+    function _decodeIntegerCalldata(
+        bytes calldata data,
+        uint256 offset
+    ) internal /*pure*/ returns (uint256, uint256) {
+        uint256 integer;
+        uint256 size;
+
+        bytes1 lengthByte = bytes1(data[offset:offset + 1]);
+        emit log_uint(uint8(lengthByte));
+        ++offset;
+
+        if (lengthByte < 0xfb) {
+            integer = uint8(lengthByte);
+
+            size = 1;
+        } else if (lengthByte == 0xfb) {
+            integer = uint16(bytes2(data[offset:offset + 2]));
+            emit log('fb');
+            emit log_uint(integer);
+
+            // swap bytes
+            integer = (integer >> 8) | (integer << 8);
+            emit log_uint(integer);
+
+            size = 3;
+        } else if (lengthByte == 0xfc) {
+            integer = uint32(bytes4(data[offset:offset + 4]));
+
+            emit log('fc');
+            emit log_uint(integer);
+
+            // swap bytes
+            integer = ((integer & 0xFF00FF00) >> 8) |
+                ((integer & 0x00FF00FF) << 8);
+
+            // swap 2-byte long pairs
+            integer = (integer >> 16) | (integer << 16);
+            emit log_uint(integer);
+
+            size = 5;
+        } else if (lengthByte == 0xfd) {
+            integer = uint64(bytes8(data[offset:offset + 8]));
+emit log('fd');
+            emit log_uint(integer);
+            // swap bytes
+            integer = ((integer & 0xFF00FF00FF00FF00) >> 8) |
+                ((integer & 0x00FF00FF00FF00FF) << 8);
+
+            // swap 2-byte long pairs
+            integer = ((integer & 0xFFFF0000FFFF0000) >> 16) |
+                ((integer & 0x0000FFFF0000FFFF) << 16);
+
+            // swap 4-byte long pairs
+            integer = (integer >> 32) | (integer << 32);
+            emit log_uint(integer);
+
+            size = 9;
+        } else if (lengthByte == 0xfe) {
+            integer = uint128(bytes16(data[offset:offset + 16]));
+
+            // swap bytes
+            integer = ((integer & 0xFF00FF00FF00FF00FF00FF00FF00FF00) >> 8) |
+                ((integer & 0x00FF00FF00FF00FF00FF00FF00FF00FF) << 8);
+
+            // swap 2-byte long pairs
+            integer = ((integer & 0xFFFF0000FFFF0000FFFF0000FFFF0000) >> 16) |
+                ((integer & 0x0000FFFF0000FFFF0000FFFF0000FFFF) << 16);
+
+            // swap 4-byte long pairs
+            integer = ((integer & 0xFFFFFFFF00000000FFFFFFFF00000000) >> 32) |
+                ((integer & 0x00000000FFFFFFFF00000000FFFFFFFF) << 32);
+
+            // swap 8-byte long pairs
+            integer = (integer >> 64) | (integer << 64);
+
+            size = 17;
+        } else {
+            assert(false);
+        }
+
+        return (integer, size);
+    }
+
 
     /**
     * @notice Decodes and returns 'StakeDoc' structs.
@@ -748,16 +843,17 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     function _decodeStakeDoc(
         bytes calldata stakeDoc,
         uint256 offset
-    ) internal pure returns (StakeDoc memory, uint256) {
+    ) internal /*pure*/ returns (StakeDoc memory, uint256) {
         StakeDoc memory decodedStakeDoc;
 
         // first member of 'StakeDoc' struct is 32-byte 'public_key'
-        decodedStakeDoc.publicKey = bytes32(_slice(stakeDoc, offset, offset + 32));
+        decodedStakeDoc.publicKey = bytes32(stakeDoc[offset:offset + 32]);
+        offset += 32;
 
         // 'epoch_start' is an encoded integer
-        (uint256 data, uint256 dataSize) = _decodeInteger(stakeDoc, offset + 32);
+        (uint256 data, uint256 dataSize) = _decodeInteger(stakeDoc, offset);
         decodedStakeDoc.epochStart = data;
-        offset += 32 + dataSize;
+        offset += dataSize;
 
         // 'epoch_post_end' is an encoded integer
         (data,  dataSize) = _decodeInteger(stakeDoc, offset);
@@ -766,6 +862,34 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
         // 'syms_staked' is an encoded integer
         (data, dataSize) = _decodeInteger(stakeDoc, offset);
+        decodedStakeDoc.symsStaked = data;
+        offset += dataSize;
+
+        return (decodedStakeDoc, offset);
+    }
+
+    function _decodeStakeDocCalldata(
+        bytes calldata stakeDoc,
+        uint256 offset
+    ) internal /*pure*/ returns (StakeDoc memory, uint256) {
+        StakeDoc memory decodedStakeDoc;
+
+        // first member of 'StakeDoc' struct is 32-byte 'public_key'
+        decodedStakeDoc.publicKey = bytes32(stakeDoc[offset:offset + 32]);
+        offset += 32;
+
+        // 'epoch_start' is an encoded integer
+        (uint256 data, uint256 dataSize) = _decodeIntegerCalldata(stakeDoc, offset);
+        decodedStakeDoc.epochStart = data;
+        offset += dataSize;
+
+        // 'epoch_post_end' is an encoded integer
+        (data,  dataSize) = _decodeIntegerCalldata(stakeDoc, offset);
+        decodedStakeDoc.epochPostEnd = data;
+        offset += dataSize;
+
+        // 'syms_staked' is an encoded integer
+        (data, dataSize) = _decodeIntegerCalldata(stakeDoc, offset);
         decodedStakeDoc.symsStaked = data;
         offset += dataSize;
 
@@ -782,7 +906,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     * @return The block height, transactions hash, and stakes hash of the header.
     */
     function _decodeHeader(bytes calldata header_)
-        internal pure returns(uint256, bytes32, bytes32) {
+        internal /*pure*/ returns(uint256, bytes32, bytes32) {
         // using an offset of 33 to skip 'network' (1 byte) and 'previous' (32 bytes)
         uint256 offset = 33;
 
@@ -792,9 +916,9 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         // 'history_hash' (32 bytes) and 'coins_hash' (32 bytes)
         offset += blockHeightSize + 64;
 
-        bytes32 transactionsHash = bytes32(_slice(header_, offset, offset + 32));
+        bytes32 transactionsHash = bytes32(header_[offset:offset + 32]);
 
-        bytes32 stakesHash = bytes32(_slice(header_, header_.length - 32, header_.length));
+        bytes32 stakesHash = bytes32(header_[header_.length - 32:header_.length]);
 
         return (blockHeight, transactionsHash, stakesHash);
     }
@@ -813,7 +937,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     */
     function _decodeTransaction(
         bytes calldata transaction_
-    ) internal pure returns (bytes32, uint256, uint256, address) {
+    ) internal /*pure*/ returns (bytes32, uint256, uint256, address) {
         // skip 'kind' enum (1 byte)
         uint256 offset = 1;
 
@@ -829,7 +953,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         offset += outputsLengthSize;
 
         // add 'covhash' size to offset (32 bytes)
-        bytes32 covhash = bytes32(_slice(transaction_, offset, offset + 32));
+        bytes32 covhash = bytes32(transaction_[offset:offset + 32]);
         offset += 32;
 
         // decode 'value' and add its size to 'offset'

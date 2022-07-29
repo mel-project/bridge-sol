@@ -8,7 +8,7 @@ import '../ThemelioBridge.sol';
 import '../ThemelioBridgeProxy.sol';
 import '../IThemelioBridge.sol';
 
-contract ThemelioBridgeTest is ThemelioBridge, Test {
+contract ThemelioBridgeTest is ThemelioBridge{//, Test {
     using Blake3Sol for Blake3Sol.Hasher;
     using ByteStrings for bytes;
     using Strings for uint256;
@@ -26,7 +26,7 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
     }
 
     function decodeStakeDocHelper(bytes calldata encodedStakeDoc_)
-        public pure returns (bytes32, uint256, uint256, uint256) {
+        public /*pure*/ returns (bytes32, uint256, uint256, uint256) {
         (StakeDoc memory decodedStakeDoc,) = _decodeStakeDoc(encodedStakeDoc_, 0);
 
         return (
@@ -39,7 +39,7 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
 
     function decodeHeaderHelper(
         bytes calldata header_
-    ) public pure returns (uint256, bytes32, bytes32) {
+    ) public /*pure*/ returns (uint256, bytes32, bytes32) {
         (
             uint256 blockHeight,
             bytes32 transactionsHash,
@@ -53,9 +53,27 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         );
     }
 
+    function decodeIntegerHelper(
+        bytes calldata data,
+        uint256 offset
+    ) public /*pure*/ returns (uint256, uint256) {
+        (uint256 integer, uint256 length) = _decodeInteger(data, offset);
+
+        return (integer, length);
+    }
+
+    function decodeIntegerHelperCalldata(
+        bytes calldata data,
+        uint256 offset
+    ) public /*pure*/ returns (uint256, uint256) {
+        (uint256 integer, uint256 length) = _decodeIntegerCalldata(data, offset);
+
+        return (integer, length);
+    }
+
     function decodeTransactionHelper(
         bytes calldata transactions_
-    ) public pure returns (bytes32, uint256, uint256, address) {
+    ) public /*pure*/ returns (bytes32, uint256, uint256, address) {
         (
             bytes32 covhash,
             uint256 value,
@@ -99,75 +117,6 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
 
         /* =========== Unit Tests =========== */
 
-    function testdecodeInteger() public {
-        // 250 with no padding
-        bytes memory integer1Bytes = abi.encodePacked(bytes1(0xfa));
-        uint256 integer1 = 0xfa;
-        uint256 integer1Length = 1;
-        uint256 integer1Offset = 0;
-        (
-            uint256 decodedInteger1,
-            uint256 decodedInteger1Length
-        ) = _decodeInteger(integer1Bytes, integer1Offset);
-
-        assertEq(decodedInteger1, integer1);
-        assertEq(decodedInteger1Length, integer1Length);
-
-        // 251 with 1 byte of padding on both sides
-        bytes memory integer3Bytes = abi.encodePacked(bytes5(0xfffbfbfbff));
-        uint256 integer3 = 0xfbfb;
-        uint256 integer3Length = 3;
-        uint256 integer3Offset = 1;
-        (
-            uint256 decodedInteger3,
-            uint256 decodedInteger3Length
-        ) = _decodeInteger(integer3Bytes, integer3Offset);
-
-        assertEq(decodedInteger3, integer3);
-        assertEq(decodedInteger3Length, integer3Length);
-
-        // 2**16 with 2 bytes of padding on both sides
-        bytes memory integer5Bytes = abi.encodePacked(bytes9(0xfffffcfcfcfcfcffff));
-        uint256 integer5 = 0xfcfcfcfc;
-        uint256 integer5Length = 5;
-        uint256 integer5Offset = 2;
-        (
-            uint256 decodedInteger5,
-            uint256 decodedInteger5Length
-        ) = _decodeInteger(integer5Bytes, integer5Offset);
-
-        assertEq(decodedInteger5, integer5);
-        assertEq(decodedInteger5Length, integer5Length);
-
-        // 2**32 with 3 bytes of padding on both sides
-        bytes memory integer9Bytes = abi.encodePacked(bytes15(0xfffffffdfdfdfdfdfdfdfdfdffffff));
-        uint256 integer9 = 0xfdfdfdfdfdfdfdfd;
-        uint256 integer9Length = 9;
-        uint256 integer9Offset = 3;
-        (
-            uint256 decodedInteger9,
-            uint256 decodedInteger9Length
-        ) = _decodeInteger(integer9Bytes, integer9Offset);
-
-        assertEq(decodedInteger9, integer9);
-        assertEq(decodedInteger9Length, integer9Length);
-
-        // 2**64 with 4 bytes of padding on both sides
-        bytes memory integer17Bytes = abi.encodePacked(
-            bytes25(0xfffffffffefefefefefefefefefefefefefefefefeffffffff)
-        );
-        uint256 integer17 = 0xfefefefefefefefefefefefefefefefe;
-        uint256 integer17Length = 17;
-        uint256 integer17Offset = 4;
-        (
-            uint256 decodedInteger17,
-            uint256 decodedInteger17Length
-        ) = _decodeInteger(integer17Bytes, integer17Offset);
-
-        assertEq(decodedInteger17, integer17);
-        assertEq(decodedInteger17Length, integer17Length);
-    }
-
     function testEd25519() public {
         bytes memory message = abi.encodePacked('The foundation of a trustless Internet');
         bytes32 signer = 0xd82042fffbb34d09630aa9c56a2c3f0f2be196f28aaea9cc7332b509c7fc69da;
@@ -189,21 +138,21 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         bytes memory data = abi.encodePacked(
             bytes8(0x0123456789abcdef)
         );
-        uint256 start;
-        uint256 end;
+        uint256 offset;
+        int256 length;
         bytes memory result;
 
-        // start <= end, regular slice
-        start = 2;
-        end = 5;
-        result = _slice(data, start, end);
+        // regular slice
+        offset = 2;
+        length = 3;
+        result = _slice(data, offset, length);
         assertEq0(result, abi.encodePacked(bytes3(0x456789)));
 
-        // start > end, reverse slice
-        start = 7;
-        end = 0;
-        result = _slice(data, start, end);
-        assertEq0(result, abi.encodePacked(bytes7(0xefcdab89674523)));
+        // reverse slice
+        offset = 7;
+        length = -8;
+        result = _slice(data, offset, length);
+        assertEq0(result, abi.encodePacked(bytes8(0xefcdab8967452301)));
     }
 }
 
@@ -261,6 +210,144 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         );
 
         assertEq(merkleRoot, 0xfdb8082e4be32395b895e7e46719f70c9155f426db3d2e31ce7632dced994608);
+    }
+
+    function testDecodeInteger() public {
+        // 250 with no padding
+        bytes memory integer1Bytes = abi.encodePacked(bytes1(0xfa));
+        uint256 integer1 = 0xfa;
+        uint256 integer1Length = 1;
+        uint256 integer1Offset = 0;
+        (
+            uint256 decodedInteger1,
+            uint256 decodedInteger1Length
+        ) = bridgeTest.decodeIntegerHelper(integer1Bytes, integer1Offset);
+
+        assertEq(decodedInteger1, integer1);
+        assertEq(decodedInteger1Length, integer1Length);
+
+        // 251 with 1 byte of padding on both sides
+        bytes memory integer3Bytes = abi.encodePacked(bytes5(0xfffbfbfbff));
+        uint256 integer3 = 0xfbfb;
+        uint256 integer3Length = 3;
+        uint256 integer3Offset = 1;
+        (
+            uint256 decodedInteger3,
+            uint256 decodedInteger3Length
+        ) = bridgeTest.decodeIntegerHelper(integer3Bytes, integer3Offset);
+
+        assertEq(decodedInteger3, integer3);
+        assertEq(decodedInteger3Length, integer3Length);
+
+        // 2**16 with 2 bytes of padding on both sides
+        bytes memory integer5Bytes = abi.encodePacked(bytes9(0xfffffcfcfcfcfcffff));
+        uint256 integer5 = 0xfcfcfcfc;
+        uint256 integer5Length = 5;
+        uint256 integer5Offset = 2;
+        (
+            uint256 decodedInteger5,
+            uint256 decodedInteger5Length
+        ) = bridgeTest.decodeIntegerHelper(integer5Bytes, integer5Offset);
+
+        assertEq(decodedInteger5, integer5);
+        assertEq(decodedInteger5Length, integer5Length);
+
+        // 2**32 with 3 bytes of padding on both sides
+        bytes memory integer9Bytes = abi.encodePacked(bytes15(0xfffffffdfdfdfdfdfdfdfdfdffffff));
+        uint256 integer9 = 0xfdfdfdfdfdfdfdfd;
+        uint256 integer9Length = 9;
+        uint256 integer9Offset = 3;
+        (
+            uint256 decodedInteger9,
+            uint256 decodedInteger9Length
+        ) = bridgeTest.decodeIntegerHelper(integer9Bytes, integer9Offset);
+
+        assertEq(decodedInteger9, integer9);
+        assertEq(decodedInteger9Length, integer9Length);
+
+        // 2**64 with 4 bytes of padding on both sides
+        bytes memory integer17Bytes = abi.encodePacked(
+            bytes25(0xfffffffffefefefefefefefefefefefefefefefefeffffffff)
+        );
+        uint256 integer17 = 0xfefefefefefefefefefefefefefefefe;
+        uint256 integer17Length = 17;
+        uint256 integer17Offset = 4;
+        (
+            uint256 decodedInteger17,
+            uint256 decodedInteger17Length
+        ) = bridgeTest.decodeIntegerHelper(integer17Bytes, integer17Offset);
+
+        assertEq(decodedInteger17, integer17);
+        assertEq(decodedInteger17Length, integer17Length);
+    }
+
+    function testDecodeIntegerCalldata() public {
+        // 250 with no padding
+        bytes memory integer1Bytes = abi.encodePacked(bytes1(0xfa));
+        uint256 integer1 = 0xfa;
+        uint256 integer1Length = 1;
+        uint256 integer1Offset = 0;
+        (
+            uint256 decodedInteger1,
+            uint256 decodedInteger1Length
+        ) = bridgeTest.decodeIntegerHelper(integer1Bytes, integer1Offset);
+
+        assertEq(decodedInteger1, integer1);
+        assertEq(decodedInteger1Length, integer1Length);
+
+        // 251 with 1 byte of padding on both sides
+        bytes memory integer3Bytes = abi.encodePacked(bytes5(0xfffbfbfbff));
+        uint256 integer3 = 0xfbfb;
+        uint256 integer3Length = 3;
+        uint256 integer3Offset = 1;
+        (
+            uint256 decodedInteger3,
+            uint256 decodedInteger3Length
+        ) = bridgeTest.decodeIntegerHelper(integer3Bytes, integer3Offset);
+
+        assertEq(decodedInteger3, integer3);
+        assertEq(decodedInteger3Length, integer3Length);
+
+        // 2**16 with 2 bytes of padding on both sides
+        bytes memory integer5Bytes = abi.encodePacked(bytes9(0xfffffcfcfcfcfcffff));
+        uint256 integer5 = 0xfcfcfcfc;
+        uint256 integer5Length = 5;
+        uint256 integer5Offset = 2;
+        (
+            uint256 decodedInteger5,
+            uint256 decodedInteger5Length
+        ) = bridgeTest.decodeIntegerHelper(integer5Bytes, integer5Offset);
+
+        assertEq(decodedInteger5, integer5);
+        assertEq(decodedInteger5Length, integer5Length);
+
+        // 2**32 with 3 bytes of padding on both sides
+        bytes memory integer9Bytes = abi.encodePacked(bytes15(0xfffffffdfdfdfdfdfdfdfdfdffffff));
+        uint256 integer9 = 0xfdfdfdfdfdfdfdfd;
+        uint256 integer9Length = 9;
+        uint256 integer9Offset = 3;
+        (
+            uint256 decodedInteger9,
+            uint256 decodedInteger9Length
+        ) = bridgeTest.decodeIntegerHelper(integer9Bytes, integer9Offset);
+
+        assertEq(decodedInteger9, integer9);
+        assertEq(decodedInteger9Length, integer9Length);
+
+        // 2**64 with 4 bytes of padding on both sides
+        bytes memory integer17Bytes = abi.encodePacked(
+            bytes25(0xfffffffffefefefefefefefefefefefefefefefefeffffffff)
+        );
+        uint256 integer17 = 0xfefefefefefefefefefefefefefefefe;
+        uint256 integer17Length = 17;
+        uint256 integer17Offset = 4;
+        (
+            uint256 decodedInteger17,
+            uint256 decodedInteger17Length
+        ) = bridgeTest.decodeIntegerHelper(integer17Bytes, integer17Offset);
+
+        assertEq(decodedInteger17, integer17);
+        assertEq(decodedInteger17Length, integer17Length);
     }
 
     function testDecodeStakeDoc() public {
