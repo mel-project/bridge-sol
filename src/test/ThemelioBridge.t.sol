@@ -8,7 +8,7 @@ import '../ThemelioBridge.sol';
 import '../ThemelioBridgeProxy.sol';
 import '../IThemelioBridge.sol';
 
-contract ThemelioBridgeTest is ThemelioBridge{//, Test {
+contract ThemelioBridgeTest is ThemelioBridge, Test {
     using Blake3Sol for Blake3Sol.Hasher;
     using ByteStrings for bytes;
     using Strings for uint256;
@@ -26,7 +26,7 @@ contract ThemelioBridgeTest is ThemelioBridge{//, Test {
     }
 
     function decodeStakeDocHelper(bytes calldata encodedStakeDoc_)
-        public /*pure*/ returns (bytes32, uint256, uint256, uint256) {
+        public pure returns (bytes32, uint256, uint256, uint256) {
         (StakeDoc memory decodedStakeDoc,) = _decodeStakeDoc(encodedStakeDoc_, 0);
 
         return (
@@ -39,7 +39,7 @@ contract ThemelioBridgeTest is ThemelioBridge{//, Test {
 
     function decodeHeaderHelper(
         bytes calldata header_
-    ) public /*pure*/ returns (uint256, bytes32, bytes32) {
+    ) public pure returns (uint256, bytes32, bytes32) {
         (
             uint256 blockHeight,
             bytes32 transactionsHash,
@@ -56,24 +56,15 @@ contract ThemelioBridgeTest is ThemelioBridge{//, Test {
     function decodeIntegerHelper(
         bytes calldata data,
         uint256 offset
-    ) public /*pure*/ returns (uint256, uint256) {
+    ) public pure returns (uint256, uint256) {
         (uint256 integer, uint256 length) = _decodeInteger(data, offset);
-
-        return (integer, length);
-    }
-
-    function decodeIntegerHelperCalldata(
-        bytes calldata data,
-        uint256 offset
-    ) public /*pure*/ returns (uint256, uint256) {
-        (uint256 integer, uint256 length) = _decodeIntegerCalldata(data, offset);
 
         return (integer, length);
     }
 
     function decodeTransactionHelper(
         bytes calldata transactions_
-    ) public /*pure*/ returns (bytes32, uint256, uint256, address) {
+    ) public pure returns (bytes32, uint256, uint256, address) {
         (
             bytes32 covhash,
             uint256 value,
@@ -132,27 +123,6 @@ contract ThemelioBridgeTest is ThemelioBridge{//, Test {
             _hashNodes(abi.encodePacked('node')),
             0x7b568d1038ae40d3683670f02841d47a11794b6a629c2c02fedd5856e868cc2b
         );
-    }
-
-    function testSlice() public {
-        bytes memory data = abi.encodePacked(
-            bytes8(0x0123456789abcdef)
-        );
-        uint256 offset;
-        int256 length;
-        bytes memory result;
-
-        // regular slice
-        offset = 2;
-        length = 3;
-        result = _slice(data, offset, length);
-        assertEq0(result, abi.encodePacked(bytes3(0x456789)));
-
-        // reverse slice
-        offset = 7;
-        length = -8;
-        result = _slice(data, offset, length);
-        assertEq0(result, abi.encodePacked(bytes8(0xefcdab8967452301)));
     }
 }
 
@@ -281,75 +251,6 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         assertEq(decodedInteger17Length, integer17Length);
     }
 
-    function testDecodeIntegerCalldata() public {
-        // 250 with no padding
-        bytes memory integer1Bytes = abi.encodePacked(bytes1(0xfa));
-        uint256 integer1 = 0xfa;
-        uint256 integer1Length = 1;
-        uint256 integer1Offset = 0;
-        (
-            uint256 decodedInteger1,
-            uint256 decodedInteger1Length
-        ) = bridgeTest.decodeIntegerHelper(integer1Bytes, integer1Offset);
-
-        assertEq(decodedInteger1, integer1);
-        assertEq(decodedInteger1Length, integer1Length);
-
-        // 251 with 1 byte of padding on both sides
-        bytes memory integer3Bytes = abi.encodePacked(bytes5(0xfffbfbfbff));
-        uint256 integer3 = 0xfbfb;
-        uint256 integer3Length = 3;
-        uint256 integer3Offset = 1;
-        (
-            uint256 decodedInteger3,
-            uint256 decodedInteger3Length
-        ) = bridgeTest.decodeIntegerHelper(integer3Bytes, integer3Offset);
-
-        assertEq(decodedInteger3, integer3);
-        assertEq(decodedInteger3Length, integer3Length);
-
-        // 2**16 with 2 bytes of padding on both sides
-        bytes memory integer5Bytes = abi.encodePacked(bytes9(0xfffffcfcfcfcfcffff));
-        uint256 integer5 = 0xfcfcfcfc;
-        uint256 integer5Length = 5;
-        uint256 integer5Offset = 2;
-        (
-            uint256 decodedInteger5,
-            uint256 decodedInteger5Length
-        ) = bridgeTest.decodeIntegerHelper(integer5Bytes, integer5Offset);
-
-        assertEq(decodedInteger5, integer5);
-        assertEq(decodedInteger5Length, integer5Length);
-
-        // 2**32 with 3 bytes of padding on both sides
-        bytes memory integer9Bytes = abi.encodePacked(bytes15(0xfffffffdfdfdfdfdfdfdfdfdffffff));
-        uint256 integer9 = 0xfdfdfdfdfdfdfdfd;
-        uint256 integer9Length = 9;
-        uint256 integer9Offset = 3;
-        (
-            uint256 decodedInteger9,
-            uint256 decodedInteger9Length
-        ) = bridgeTest.decodeIntegerHelper(integer9Bytes, integer9Offset);
-
-        assertEq(decodedInteger9, integer9);
-        assertEq(decodedInteger9Length, integer9Length);
-
-        // 2**64 with 4 bytes of padding on both sides
-        bytes memory integer17Bytes = abi.encodePacked(
-            bytes25(0xfffffffffefefefefefefefefefefefefefefefefeffffffff)
-        );
-        uint256 integer17 = 0xfefefefefefefefefefefefefefefefe;
-        uint256 integer17Length = 17;
-        uint256 integer17Offset = 4;
-        (
-            uint256 decodedInteger17,
-            uint256 decodedInteger17Length
-        ) = bridgeTest.decodeIntegerHelper(integer17Bytes, integer17Offset);
-
-        assertEq(decodedInteger17, integer17);
-        assertEq(decodedInteger17Length, integer17Length);
-    }
-
     function testDecodeStakeDoc() public {
         bytes memory encodedStakeDoc = abi.encodePacked(
             bytes32(0x5dc57fc274b1235e28352d67b8ee4a30b74b5d0b070dc4400f30714cda80b280),
@@ -401,6 +302,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
             0x6ccea12fef78d2af66a4bca268cdbeccc47b3ee3ec9fbf83da1a67b526e9da2e
         );
     }
+
 
     // function testverifyHeader() public {
     //     uint256 verifierHeight = 0x183fbb57d5fe52;

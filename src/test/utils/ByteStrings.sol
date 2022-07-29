@@ -7,6 +7,57 @@ pragma solidity 0.8.13;
 
 library ByteStrings {
 
+    /**
+    * @notice Slices the `data` argument from its `offset` index (inclusive) returning a bytes
+    *         array of length abs(`length`). If `length` is negative then the slice is copied
+    *         backwards.
+    *
+    * @dev It can return 'inverted slices' where `length` < 0 in order to better
+    *      accomodate switching between big and little endianness in incompatible systems.
+    *
+    * @param data The data to be sliced, in bytes.
+    *
+    * @param offset The start index of the slice (inclusive).
+    *
+    * @param length The length of the slice.
+    *
+    * @return A new 'bytes' variable containing the slice.
+    */
+    function _slice(
+        bytes memory data,
+        uint256 offset,
+        int256 length
+    ) internal pure returns (bytes memory) {
+        uint256 dataLength = data.length;
+        uint256 lengthAbsolute = length > 0 ? uint256(length) : uint256(-length);
+
+        if (length > 0) {
+            if (offset + lengthAbsolute > dataLength) {
+                revert();
+            }
+
+            bytes memory dataSlice = new bytes(lengthAbsolute);
+
+            for (uint256 i = 0; i < lengthAbsolute; ++i) {
+                dataSlice[i] = data[offset + i];
+            }
+
+            return dataSlice;
+        } else {
+            if (offset + 1 < lengthAbsolute) {
+                revert();
+            }
+
+            bytes memory dataSlice = new bytes(lengthAbsolute);
+
+            for (uint256 i = 0; i < lengthAbsolute; ++i) {
+                dataSlice[i] = data[offset - i];
+            }
+
+            return dataSlice;
+        }
+    }
+
     ///@dev converts bytes array to its ASCII hex string representation
     /// TODO: Definitely more efficient way to do this by processing multiple (16?) bytes at once
     /// but really a helper function for the tests, efficiency not key.

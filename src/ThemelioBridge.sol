@@ -6,8 +6,6 @@ import 'ed25519-sol/Ed25519.sol';
 import 'openzeppelin-contracts-upgradeable/contracts/token/ERC1155/ERC1155Upgradeable.sol';
 import 'openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol';
 
-import 'forge-std/Test.sol';
-
 /**
 * @title ThemelioBridge: A bridge for transferring Themelio assets to Ethereum and back
 *
@@ -43,7 +41,7 @@ import 'forge-std/Test.sol';
 *
 *      Questions or concerns? Come chat with us on Discord! https://discord.com/invite/VedNp7EXFc
 */
-contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable, Test {
+contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     using Blake3Sol for Blake3Sol.Hasher;
 
     // an abbreviated Themelio header with the only two fields we need for header and tx validation
@@ -638,70 +636,22 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable, Test {
     }
 
     /**
-    * @notice Slices the `data` argument from its `offset` index (inclusive) returning a bytes
-    *         array of length abs(`length`). If `length` is negative then the slice is copied
-    *         backwards.
-    *
-    * @dev It can return 'inverted slices' where `length` < 0 in order to better
-    *      accomodate switching between big and little endianness in incompatible systems.
-    *
-    * @param data The data to be sliced, in bytes.
-    *
-    * @param offset The start index of the slice (inclusive).
-    *
-    * @param length The length of the slice.
-    *
-    * @return A new 'bytes' variable containing the slice.
-    */
-    function _slice(
-        bytes memory data,
-        uint256 offset,
-        int256 length
-    ) internal /*pure*/ returns (bytes memory) {
-        emit log_uint(offset);
-        emit log_int(length);
-        emit log_uint(data.length);
-
-        uint256 dataLength = data.length;
-        uint256 lengthAbsolute = length > 0 ? uint256(length) : uint256(-length);
-
-        if (length > 0) {
-            emit log('hey');
-            if (offset + lengthAbsolute > dataLength) {
-                revert OutOfBoundsSlice(offset, length, dataLength);
-            }
-
-            bytes memory dataSlice = new bytes(lengthAbsolute);
-
-            for (uint256 i = 0; i < lengthAbsolute; ++i) {
-                emit log_uint(uint8(dataSlice[i]));
-                emit log_uint(uint8(data[offset + i]));
-                dataSlice[i] = data[offset + i];
-            }
-
-            return dataSlice;
-        } else {
-            emit log('bye');
-            if (offset + 1 < lengthAbsolute) {
-                revert OutOfBoundsSlice(offset, length, dataLength);
-            }
-
-            bytes memory dataSlice = new bytes(lengthAbsolute);
-
-            for (uint256 i = 0; i < lengthAbsolute; ++i) {
-                dataSlice[i] = data[offset - i];
-            }
-
-            return dataSlice;
-        }
-    }
-
-    /**
     * @notice Decodes and returns integers encoded at a specified offset within a 'bytes' array as
     *         well as returning the encoded integer size.
     *
-    * @dev Decodes and returns integers (and their sizes) encoded using the 'bincode' Rust crate
-    *      with 'with_varint_encoding' and 'reject_trailing_bytes' flags set.
+    * @dev To decode an integer, we must read its length and slice the corresponding number of
+    *      subsequent bytes because integers in Themelio use a variable length encoding scheme to
+    *      minimize their size.
+    *
+    *      After slicing, the bytes must be reversed from little-endian (the bincode default used
+    *      by Themelio) to big-endian (the way they are encoded in the EVM). To do this
+    *      efficiently, we employ the algorithm described here, for reversing N-bit integers in
+    *      place: https://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
+    *
+    *      Credit to k06a finding and implementing the byte swapping algorithm for specific uints.
+    *
+    *      Encoding uses bincode Rust crate with 'with_varint_encoding' and 'reject_trailing_bytes'
+    *      flags set.
     *
     * @param data The data, in bytes, which contains an encoded integer.
     *
@@ -709,124 +659,87 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable, Test {
     *
     * @return The decoded integer and its size in bytes.
     */
-
     function _decodeInteger(
         bytes calldata data,
         uint256 offset
-    ) internal /*pure*/ returns (uint256, uint256) {
-        uint256 integer;
-        uint256 size;
-
-        bytes1 lengthByte = bytes1(data[offset:1]);
-
-        if (lengthByte < 0xfb) {
-            integer = uint8(lengthByte);
-
-            size = 1;
-        } else if (lengthByte == 0xfb) {
-            integer = uint16(bytes2(_slice(data, offset + 2, -2)));
-
-            size = 3;
-        } else if (lengthByte == 0xfc) {
-            integer = uint32(bytes4(_slice(data, offset + 4, -4)));
-
-            size = 5;
-        } else if (lengthByte == 0xfd) {
-            integer = uint64(bytes8(_slice(data, offset + 8, -8)));
-
-            size = 9;
-        } else if (lengthByte == 0xfe) {
-            integer = uint128(bytes16(_slice(data, offset + 16, -16)));
-
-            size = 17;
-        } else {
-            assert(false);
-        }
-
-        return (integer, size);
-    }
-
-    function _decodeIntegerCalldata(
-        bytes calldata data,
-        uint256 offset
-    ) internal /*pure*/ returns (uint256, uint256) {
-        uint256 integer;
+    ) internal pure returns (uint256, uint256) {
         uint256 size;
 
         bytes1 lengthByte = bytes1(data[offset:offset + 1]);
-        emit log_uint(uint8(lengthByte));
         ++offset;
 
         if (lengthByte < 0xfb) {
-            integer = uint8(lengthByte);
+            uint8 integer = uint8(lengthByte);
 
             size = 1;
+
+            return (integer, size);
         } else if (lengthByte == 0xfb) {
-            integer = uint16(bytes2(data[offset:offset + 2]));
-            emit log('fb');
-            emit log_uint(integer);
+            uint16 integer = uint16(bytes2(data[offset:offset + 2]));
 
             // swap bytes
             integer = (integer >> 8) | (integer << 8);
-            emit log_uint(integer);
 
             size = 3;
-        } else if (lengthByte == 0xfc) {
-            integer = uint32(bytes4(data[offset:offset + 4]));
 
-            emit log('fc');
-            emit log_uint(integer);
+            return (integer, size);
+        } else if (lengthByte == 0xfc) {
+            uint32 integer = uint32(bytes4(data[offset:offset + 4]));
 
             // swap bytes
-            integer = ((integer & 0xFF00FF00) >> 8) |
-                ((integer & 0x00FF00FF) << 8);
+            integer = ((integer & 0xff00ff00) >> 8) |
+                ((integer & 0x00ff00ff) << 8);
 
             // swap 2-byte long pairs
             integer = (integer >> 16) | (integer << 16);
-            emit log_uint(integer);
 
             size = 5;
+
+            return (integer, size);
         } else if (lengthByte == 0xfd) {
-            integer = uint64(bytes8(data[offset:offset + 8]));
-emit log('fd');
-            emit log_uint(integer);
+            uint64 integer = uint64(bytes8(data[offset:offset + 8]));
+
             // swap bytes
-            integer = ((integer & 0xFF00FF00FF00FF00) >> 8) |
-                ((integer & 0x00FF00FF00FF00FF) << 8);
+            integer = ((integer & 0xff00ff00ff00ff00) >> 8) |
+                ((integer & 0x00ff00ff00ff00ff) << 8);
 
             // swap 2-byte long pairs
-            integer = ((integer & 0xFFFF0000FFFF0000) >> 16) |
-                ((integer & 0x0000FFFF0000FFFF) << 16);
+            integer = ((integer & 0xffff0000ffff0000) >> 16) |
+                ((integer & 0x0000ffff0000ffff) << 16);
 
             // swap 4-byte long pairs
             integer = (integer >> 32) | (integer << 32);
-            emit log_uint(integer);
 
             size = 9;
+
+            return (integer, size);
         } else if (lengthByte == 0xfe) {
-            integer = uint128(bytes16(data[offset:offset + 16]));
+            uint128 integer = uint128(bytes16(data[offset:offset + 16]));
 
             // swap bytes
-            integer = ((integer & 0xFF00FF00FF00FF00FF00FF00FF00FF00) >> 8) |
-                ((integer & 0x00FF00FF00FF00FF00FF00FF00FF00FF) << 8);
+            integer = ((integer & 0xff00ff00ff00ff00ff00ff00ff00ff00) >> 8) |
+                ((integer & 0x00ff00ff00ff00ff00ff00ff00ff00ff) << 8);
 
             // swap 2-byte long pairs
-            integer = ((integer & 0xFFFF0000FFFF0000FFFF0000FFFF0000) >> 16) |
-                ((integer & 0x0000FFFF0000FFFF0000FFFF0000FFFF) << 16);
+            integer = ((integer & 0xffff0000ffff0000ffff0000ffff0000) >> 16) |
+                ((integer & 0x0000ffff0000ffff0000ffff0000ffff) << 16);
 
             // swap 4-byte long pairs
-            integer = ((integer & 0xFFFFFFFF00000000FFFFFFFF00000000) >> 32) |
-                ((integer & 0x00000000FFFFFFFF00000000FFFFFFFF) << 32);
+            integer = ((integer & 0xffffffff00000000ffffffff00000000) >> 32) |
+                ((integer & 0x00000000ffffffff00000000ffffffff) << 32);
 
             // swap 8-byte long pairs
             integer = (integer >> 64) | (integer << 64);
 
             size = 17;
+
+            return (integer, size);
         } else {
             assert(false);
-        }
 
-        return (integer, size);
+            // to silence compiler warning
+            return (0, 0);
+        }
     }
 
 
@@ -843,55 +756,25 @@ emit log('fd');
     function _decodeStakeDoc(
         bytes calldata stakeDoc,
         uint256 offset
-    ) internal /*pure*/ returns (StakeDoc memory, uint256) {
+    ) internal pure returns (StakeDoc memory, uint256) {
         StakeDoc memory decodedStakeDoc;
+        uint256 integerSize;
 
         // first member of 'StakeDoc' struct is 32-byte 'public_key'
         decodedStakeDoc.publicKey = bytes32(stakeDoc[offset:offset + 32]);
         offset += 32;
 
         // 'epoch_start' is an encoded integer
-        (uint256 data, uint256 dataSize) = _decodeInteger(stakeDoc, offset);
-        decodedStakeDoc.epochStart = data;
-        offset += dataSize;
+        (decodedStakeDoc.epochStart, integerSize) = _decodeInteger(stakeDoc, offset);
+        offset += integerSize;
 
         // 'epoch_post_end' is an encoded integer
-        (data,  dataSize) = _decodeInteger(stakeDoc, offset);
-        decodedStakeDoc.epochPostEnd = data;
-        offset += dataSize;
+        (decodedStakeDoc.epochPostEnd,  integerSize) = _decodeInteger(stakeDoc, offset);
+        offset += integerSize;
 
         // 'syms_staked' is an encoded integer
-        (data, dataSize) = _decodeInteger(stakeDoc, offset);
-        decodedStakeDoc.symsStaked = data;
-        offset += dataSize;
-
-        return (decodedStakeDoc, offset);
-    }
-
-    function _decodeStakeDocCalldata(
-        bytes calldata stakeDoc,
-        uint256 offset
-    ) internal /*pure*/ returns (StakeDoc memory, uint256) {
-        StakeDoc memory decodedStakeDoc;
-
-        // first member of 'StakeDoc' struct is 32-byte 'public_key'
-        decodedStakeDoc.publicKey = bytes32(stakeDoc[offset:offset + 32]);
-        offset += 32;
-
-        // 'epoch_start' is an encoded integer
-        (uint256 data, uint256 dataSize) = _decodeIntegerCalldata(stakeDoc, offset);
-        decodedStakeDoc.epochStart = data;
-        offset += dataSize;
-
-        // 'epoch_post_end' is an encoded integer
-        (data,  dataSize) = _decodeIntegerCalldata(stakeDoc, offset);
-        decodedStakeDoc.epochPostEnd = data;
-        offset += dataSize;
-
-        // 'syms_staked' is an encoded integer
-        (data, dataSize) = _decodeIntegerCalldata(stakeDoc, offset);
-        decodedStakeDoc.symsStaked = data;
-        offset += dataSize;
+        (decodedStakeDoc.symsStaked, integerSize) = _decodeInteger(stakeDoc, offset);
+        offset += integerSize;
 
         return (decodedStakeDoc, offset);
     }
@@ -906,7 +789,7 @@ emit log('fd');
     * @return The block height, transactions hash, and stakes hash of the header.
     */
     function _decodeHeader(bytes calldata header_)
-        internal /*pure*/ returns(uint256, bytes32, bytes32) {
+        internal pure returns(uint256, bytes32, bytes32) {
         // using an offset of 33 to skip 'network' (1 byte) and 'previous' (32 bytes)
         uint256 offset = 33;
 
@@ -937,7 +820,7 @@ emit log('fd');
     */
     function _decodeTransaction(
         bytes calldata transaction_
-    ) internal /*pure*/ returns (bytes32, uint256, uint256, address) {
+    ) internal pure returns (bytes32, uint256, uint256, address) {
         // skip 'kind' enum (1 byte)
         uint256 offset = 1;
 
