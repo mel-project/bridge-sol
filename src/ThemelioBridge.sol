@@ -194,18 +194,6 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     error NotOwner();
 
     /**
-    * Slice is out of bounds. `start` must be less than `dataLength`. `end` must be less than
-    * `dataLength` + 1.
-    *
-    * @param offset Starting index (inclusive).
-    *
-    * @param length Length of slice.
-    *
-    * @param dataLength Length of data to be sliced.
-    */
-    error OutOfBoundsSlice(uint256 offset, int256 length, uint256 dataLength);
-
-    /**
     * Transactions can only be verified once. The transaction with hash `txHash` has previously
     * been verified.
     *

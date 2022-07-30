@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: None
 
-// credit to @dmfxyz:
+// credit to @dmfxyz for toHexString():
 // https://github.com/dmfxyz/murky/blob/main/differential_testing/test/utils/Strings2.sol
 
 pragma solidity 0.8.13;
@@ -23,7 +23,7 @@ library ByteStrings {
     *
     * @return A new 'bytes' variable containing the slice.
     */
-    function _slice(
+    function slice(
         bytes memory data,
         uint256 offset,
         int256 length

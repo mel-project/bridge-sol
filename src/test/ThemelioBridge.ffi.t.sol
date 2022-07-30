@@ -87,7 +87,7 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
             return "ERG";
         } else {
             string memory txHash = abi.encodePacked(denom).toHexString();
-            txHash = string(ByteStrings._slice(abi.encodePacked(txHash), 2, 64));
+            txHash = string(abi.encodePacked(txHash).slice(2, 64));
 
             return string(abi.encodePacked("CUSTOM-", txHash));
         }
@@ -155,43 +155,6 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
 
         assertTrue(Ed25519.verify(signer, r, S, message));
     }
-
-    function testKeccakBigHashFFI() public {
-        string[] memory cmds = new string[](2);
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-        cmds[1] = '--big-hash';
-
-        bytes memory packedData = vm.ffi(cmds);
-        (bytes memory data,) = abi.decode(packedData, (bytes, bytes32));
-
-        keccak256(data);
-    }
-
-    // function testSliceDifferentialFFI(bytes memory data, uint8 offset, int8 length) public {
-    //     uint256 dataLength = data.length;
-
-    //     if (length < 0) {
-    //         vm.assume(offset + length >= 0);
-    //     } else {
-    //         vm.assume(offset + length <= dataLength);
-    //     }
-
-    //     string[] memory cmds = new string[](7);
-
-    //     cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-    //     cmds[1] = '--slice';
-    //     cmds[2] = data.toHexString();
-    //     cmds[3] = '--start';
-    //     cmds[4] = uint256(start).toString();
-    //     cmds[5] = '--end';
-    //     cmds[6] = uint256(end).toString();
-
-    //     bytes memory result = vm.ffi(cmds);
-
-    //     bytes memory slice = _slice(data, start, end);
-
-    //     assertEq(slice, result);
-    // }
 }
 
 // contract for tests involving internal functions that have calldata params
