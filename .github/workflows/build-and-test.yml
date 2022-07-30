@@ -9,6 +9,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_LOG: forge=trace
+  FOUNDRY_OPTIMIZER: true
+  FOUNDRY_OPTIMIZER_RUNS: 100
+  FOUNDRY_VIA_IR: true
   FORGE_OUTPUT_DIRECTORY: "/usr/local/forge-cache"
   RUSTUP_HOME: "/usr/local/rustup"
   SCCACHE_DIR: "/usr/local/sccache"
@@ -163,7 +166,7 @@ jobs:
         run: sudo mv forge /usr/local/bin/forge
 
       - name: Run Forge Tests
-        run: forge test --out ${{ env.FORGE_OUTPUT_DIRECTORY}} -vvv --ffi --optimize --optimizer-runs 100 --via-ir
+        run: forge test --out ${{ env.FORGE_OUTPUT_DIRECTORY}} -vvv --ffi
 
   run-slither:
     runs-on: self-hosted
