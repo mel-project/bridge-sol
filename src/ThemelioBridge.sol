@@ -11,32 +11,35 @@ import 'openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable
 *
 * @author Marco Serrano (https://github.com/sadministrator)
 *
-* @notice This contract is a Themelio SPV client which allows users to submit Themelio staker sets,
+* @notice This contract is a Themelio SPV client which allows users to submit Themelio stakes,
 *         block headers, and transactions for the purpose of creating tokenized versions of
 *         Themelio assets, on the Ethereum network, which have previously been locked up in a
 *         sister contract which resides on the Themelio network. Check us out at
 *         https://themelio.org !
 *
-* @dev Themelio staker sets are verified per epoch (each epoch comprising 200,000 blocks), with
-*      each epoch's staker set being verified by the previous epoch's staker set using ed25519
-*      signature verification (the base epoch staker set being introduced manually in the
-*      constructor, the authenticity of which can be verified very easily by manually checking that
-*      it coincides with the epoch's staker set on-chain).
+* @dev Themelio stakes are verified per epoch (each epoch spans 200,000 blocks), with
+*      each epoch's stakes being verified by the previous epoch's stakers using ed25519
+*      signature verification (the base epoch stakes hash is introduced manually in the constructor
+*      and its authenticity can be verified very easily by manually checking that it coincides
+*      with the stakes hash at its header's height on-chain via Melscan, the Themelio block
+*      explorer at https://scan.themelio.org/).
 *
-*      Themelio block headers are validated by verifying that the included staker signatures
-*      are authentic (using ed25519 signature verification) and that the total syms staked by all
-*      stakers that signed the header are at least 2/3 of the total staked syms for that epoch.
+*      Incoming Themelio block headers are verified using the stakes hash of a trusted header that
+*      is in the same epoch as the incoming header or is in the previous epoch, but only if it is
+*      the last header of the previous epoch. After this, the included staker signatures are
+*      checked and must account for at least 2/3 of all syms staked during the incoming header's
+*      epoch. 
 *
-*      Transactions are verified using the 'transactions_root' Merkle root of
-*      their respective block headers by including a Merkle proof which is used to verify that the
-*      transaction is a member of the 'transactions_root' tree. Upon successful verification of
-*      a compliant transaction, the specified amount of Themelio assets are minted on the
-*      Ethereum network as tokens and transferred to the address specified in the
-*      'additional_data' field of the first output of the Themelio transaction.
+*      Transactions are verified using the transactions hash Merkle root of their respective block
+*      headers by including a Merkle proof which is used to prove that the transaction is a member
+*      of that header's transactions Merkle tree. Upon successful verification of a compliant
+*      transaction, the specified amount of Themelio assets will be minted on the Ethereum network
+*      as ERC-1155 tokens and transferred to the address specified in the additional data field of
+*      the first output of the Themelio transaction.
 *
 *      To transfer tokenized Themelio assets back to the Themelio network the token holder must
-*      burn their tokens on the Ethereum network and use the resulting transaction as a receipt
-*      which must be submitted to the sister contract on the Themelio network to release the
+*      burn their tokens on the Ethereum network and use the resultant transaction as a receipt
+*      which must be submitted to the bridge covenant on the Themelio network to release the
 *      locked assets.
 *
 *      Questions or concerns? Come chat with us on Discord! https://discord.com/invite/VedNp7EXFc
@@ -337,7 +340,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     /* =========== Themelio Staker Set, Header, and Transaction Verification =========== */
 
     /**
-    * @notice Accepts incoming Themelio staker sets and verifies them via blake3 hashing. The
+    * @notice Accepts incoming Themelio stakes and verifies them via blake3 hashing. The
     *         staker set hash is then saved to a storage mapping with a keccak256 hash of the
     *         staker set being the key.
     *

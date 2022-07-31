@@ -1,34 +1,41 @@
-# Themelio Bridge Contract
+# Themelio->Ethereum Bridge
 
-This contract is a Themelio SPV client which allows users to submit Themelio staker sets,
-block headers, and transactions for the purpose of creating tokenized versions of Themelio
-assets, on the Ethereum network, which have already been locked up in a sister contract
-previously existing on the Themelio network. Check us out at https://themelio.org !
+This set of smart contracts act as a bridge that allows the transfer of Themelio coins to
+to the Ethereum network and back, allowing users to hold and trade Themelio assets in the wider
+Ethereum ecosystem and transfer them back to use on the Themelio network whenever they choose,
+trustlessly. Learn more about Themelio at https://themelio.org and discover a world secured by
+robust mechanisms and decentralized incentives, not untrustworthy and centralized third parties.
 
-Themelio staker sets are verified per epoch, with each epoch's staker set being verified by
-the previous epoch's staker set using ed25519 signature verification (the base epoch staker set
-being introduced manually in the constructor, the authenticity of which can be verified very easily
-by manually checking that it coincides with the epoch's staker set on-chain). The staker set is an
-array of `StakeDoc`s seen in the [spec](https://docs.themelio.org/specifications/consensus-spec/#stakes).
+The bridge's main functionality is Themelio SPV which allows users to submit Themelio stakes, block
+headers, and transactions for the purpose of creating tokenized versions of Themelio assets which
+were previously locked up in a corresponding bridge covenant on Themelio (a covenant is the
+Themelio equivalent of a smart contract, learn more about covenants and get started writing them at
+https://melodeonlang.org/).
 
-Themelio block headers are validated by verifying that the included staker signatures
-are authentic (using ed25519 signature verification) and that the total syms staked by all
-stakers that signed the header are at least 2/3 of the total staked syms for that epoch.
+Themelio stakes are verified per epoch (each epoch spans 200,000 blocks), with each epoch's stakes
+being verified by the previous epoch's stakers using ed25519 signature verification (the base epoch
+stakes hash is introduced manually in the constructor and its authenticity can be verified very
+easily by manually checking that it coincides with the stakes hash at its header's height on-chain
+via Melscan, the Themelio block explorer, at https://scan.themelio.org/).
 
-Transactions are verified using the `transactions_root` Merkle root stored in their respective
-block headers, in addition to a Merkle proof containing their siblings which, together, are used to
-verify that the transaction is a member of the `transactions_root` Merkle tree, and thus, is
-included in that block. Upon successful verification of a compliant transaction, the specified
-amount of Themelio assets are minted on the Ethereum network as tokens and transferred to the
-address specified in the `additional_data` field of the first output of the Themelio transaction.
+Incoming Themelio block headers are verified using the stakes hash of a trusted header that is in
+the same epoch as the incoming header or is in the previous epoch, but only if it is the last
+header of the previous epoch. After this, the included staker signatures are checked and must
+account for at least 2/3 of all syms staked during the incoming header's epoch. 
+
+Transactions are verified using the transactions hash Merkle root of their respective block
+headers by including a Merkle proof which is used to prove that the transaction is a member of that
+header's transactions Merkle tree. Upon successful verification of a compliant transaction, the
+specified amount of Themelio assets will be minted on the Ethereum network as ERC-1155 tokens and
+transferred to the address specified in the additional data field of the first output of the
+Themelio transaction.
 
 To transfer tokenized Themelio assets back to the Themelio network the token holder must burn
-their tokens on the Ethereum network and use the resulting transaction as a receipt which
-must be submitted to the sister contract on the Themelio network to release the specified
-assets.
+their tokens on the Ethereum network and use the resultant transaction as a receipt which must be
+submitted to the bridge covenant on the Themelio network to release the specified assets.
 
 
-## Themelio Bridge contract address:
+## Themelio->Ethereum Bridge contract address:
 
 * [Rinkeby testnet](https://rinkeby.etherscan.io/address/0x77653c46fbbadb73a389f99bc2a19ab5efb2ec01)
 
@@ -38,36 +45,47 @@ assets.
 
 ### verifyStakes(bytes stakes) returns (bool)
 
-This function can be used to verify a stakes byte array using blake3 and store it in contract
-storage for later verification of Themelio headers. It is recommended that this function be used
-when the stakes array is very large (>4kb) due gas constraints.
+This function is used for hashing a stakes byte array using blake3 and storing it in contract
+storage for subsequent verification of Themelio headers.
 
-* `stakes`: a `bytes` array consisting of serialized and concatenated Themelio `StakeDocs`, which
+* `stakes`: a `bytes` array consisting of serialized and concatenated Themelio `StakeDoc`s, which
 each represent a certain amount of `sym` coins staked on the the themelio network for a specified
-amount of time by a specific public key.
+amount of time by a specific public key. The `StakeDoc`s array is prepended with the amount of
+total syms staked for the current and next epochs for more efficient verification of headers
+in the bridge contracts.
 
-Returns `true` if `stakes` was successfully hashed and stored, reverts otherwise.
+Returns `true` if `stakes` were successfully hashed and stored, reverts otherwise.
 
 ----
 
-### verifyHeader(header, signers, signatures) returns (bool)
+### verifyHeader(bytes header, bytes32[] signers, bytes32[] signatures) returns (bool)
 
 Stores header information for a particular block height once the header has been verified through
-ed25519 signature verification of at least 2/3 sym holders from the previous epoch.
+ed25519 signature verification of stakes worth at least 2/3 of total sym staked for that epoch.
+
+The process of header verification can be completed in multiple transactions in the case of
+particularly computationally intensive verifications which exceed the block gas limit. In this
+case, progress is saved in an intermediary state until the header has enough votes for
+verification.
 
 * `header`: the bincode serialized Themelio block header in `bytes`
-* `signers`: list of public keys of stakers that have signed `header`, in `bytes32[]`
-* `signatures`: list of signatures made by stakers, of `header`, in the same order as and twice the
-size of `signers`, in a `bytes32[]`
+* `signers`: array of 32-byte ed25519 public keys of stakers that have signed `header`, in
+`bytes32[]`
+* `signatures`: array of 64-byte ed25519 staker signatures of `header` in the same order as
+`signers`, split into 32-byte `R` and 32-byte `s` (this means
+`signatures.length == signers.length * 2`)
 
 Returns `true` if the header was successfully verified and stored, reverts otherwise.
 
 ----
 
-### verifyTx(transaction, txIndex, blockHeight, proof) returns (bool)
+### verifyTx(bytes transaction, uint256 txIndex, uint256 blockHeight, bytes32[] proof) returns (bool)
 
-Verifies the presence of a transaction on the Bitcoin blockchain, primarily that the transaction is
-on Bitcoin's main chain and has at least 6 confirmations.
+Verifies that `transaction` was included in the header at `blockHeight` by running a proof of
+inclusion using `proof` and comparing the result with the transactions hash of the header. Once
+the transaction has been proven to have been included in the block, the value and denomination of
+the first output of the transaction will be minted and sent to the Ethereum address included in the
+addition data field of the output.
 
 * `transaction`: the bincode serialized Themelio transaction, in `bytes`
 * `txIndex`: the transaction's index within the block, as `uint256`
@@ -75,6 +93,32 @@ on Bitcoin's main chain and has at least 6 confirmations.
 * `proof` - an array of the sibling hashes comprising the Merkle proof, as `bytes32[]`
 
 Returns `true` if the header was successfully verified and stored, reverts otherwise.
+
+---
+
+### burn(address account, uint256 id, uint256 value, bytes32 themelioRecipient)
+
+Burns `value` amount of `id` denominated tokens belonging to `account` and emits a log which
+signals that the burned coins should be released to `themelioRecipient` address on the Themelio
+network.
+
+* `account`: the account owning the tokens to be burned
+* `id`: the denomation id of the tokens to be burned
+* `value`: the amount of tokens to be burned
+* `themelioRecipient`: the address to release the burns assets to on the Themelio network
+
+---
+
+### burnBatch(address account, uint256[] ids, uint256[] values, bytes32 themelioRecipient)
+
+Burns multiple denominations of tokens at a time by burning the amounts in `values` of the
+corresponding denomination in `ids` belonging to `account`. Emits a log which signals that the
+burned coins should be released to `themelioRecipient` address on the Themelio network.
+
+* `account`: the account owning the tokens to be burned
+* `ids`: an array of denomation ids of the tokens to be burned
+* `values`: the amount of tokens to be burned
+* `themelioRecipient`: the address to release the burns assets to on the Themelio network
 
 ---
 
