@@ -1,6 +1,7 @@
 [profile.default]
+fuzz_runs = 256
 gas-reports = ["*"]
-verbosity = 3
 optimizer = true
 optimizer_runs = 100
+verbosity = 3
 via_ir = true
