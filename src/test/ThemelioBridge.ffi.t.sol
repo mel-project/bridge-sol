@@ -325,7 +325,7 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         uint256 numTransactions = 10;
 
         string[] memory cmds = new string[](3);
-        cmds[0] = '../bridge-differential-tests/target/debug/bridge_differential_tests';
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
         cmds[1] = '--verify-transaction';
         cmds[2] = numTransactions.toString();
 
