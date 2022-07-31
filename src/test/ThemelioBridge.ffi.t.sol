@@ -321,7 +321,40 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         assertEq(savedStakesHash, stakesHash);
     }
 
-    function testVerifyTransactionDifferentialFFI() public {}
+    function testVerifyTransactionDifferentialFFI() public {
+        uint256 numTransactions = 10;
+
+        string[] memory cmds = new string[](3);
+        cmds[0] = '../bridge-differential-tests/target/debug/bridge_differential_tests';
+        cmds[1] = '--verify-transaction';
+        cmds[2] = numTransactions.toString();
+
+        bytes memory data = vm.ffi(cmds);
+
+        (
+            bytes32 transactionsHash,
+            bytes memory transaction,
+            uint256 txIndex,
+            uint256 blockHeight,
+            bytes32[] memory proof,
+            uint256 denom,
+            uint256 value,
+            address recipient
+        ) = abi.decode(
+            data,
+            (bytes32, bytes, uint256, uint256, bytes32[], uint256, uint256, address)
+        );
+
+        uint256 preBalance = bridgeTest.balanceOf(recipient, denom);
+
+        bridgeTest.verifyTxHelper(blockHeight, transactionsHash, 0);
+
+        bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
+
+        uint256 postBalance = bridgeTest.balanceOf(recipient, denom);
+
+        assertEq(postBalance, preBalance + value);
+    }
 
     function testVerifyHeaderCrossEpoch() public {}
 

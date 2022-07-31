@@ -43,6 +43,15 @@ submitted to the bridge covenant on the Themelio network to release the specifie
 
 ## API
 
+### stakesHashes(bytes32 keccakStakesHash) returns (bytes32 blake3StakesHash)
+
+This getter function should be used to check if a particular stakes has already been submitted
+and stored via `verifyStakes()` so you don't waste gas submitting it again.
+
+* `keccakStakesHash`: the keccak256 hash of a stakes bytes array
+
+---
+
 ### verifyStakes(bytes stakes) returns (bool)
 
 This function is used for hashing a stakes byte array using blake3 and storing it in contract
@@ -58,7 +67,16 @@ Returns `true` if `stakes` were successfully hashed and stored, reverts otherwis
 
 ----
 
-### verifyHeader(bytes header, bytes32[] signers, bytes32[] signatures) returns (bool)
+### headers(uint256 blockHeight) returns (bytes32 transactionsHash, bytes32 stakesHash)
+
+This getter function should be used to check if a header at a particular height has already been
+submitted so you don't waste gas submitting it again.
+
+* `blockHeight`: the block height of the header
+
+---
+
+### verifyHeader(bytes header, bytes32[] signers, bytes32[] signatures) returns (bool success)
 
 Stores header information for a particular block height once the header has been verified through
 ed25519 signature verification of stakes worth at least 2/3 of total sym staked for that epoch.
@@ -79,7 +97,7 @@ Returns `true` if the header was successfully verified and stored, reverts other
 
 ----
 
-### verifyTx(bytes transaction, uint256 txIndex, uint256 blockHeight, bytes32[] proof) returns (bool)
+### verifyTx(bytes transaction, uint256 txIndex, uint256 blockHeight, bytes32[] proof) returns (bool success)
 
 Verifies that `transaction` was included in the header at `blockHeight` by running a proof of
 inclusion using `proof` and comparing the result with the transactions hash of the header. Once
@@ -150,9 +168,9 @@ $ forge build
 
 ## Testing
 
-To run all tests, including tests which use foreign function interfaces to differentially fuzz test
-Solidity functions against reference implementations in Rust, you will first have to build the
-Rust project in `src/test/differentials` by running:
+To run all tests, including tests which use FFI to differentially fuzz test Solidity functions
+against reference implementations in Rust, you will first have to build the Rust project in
+`src/test/differentials` by running:
 ```
 $ cd src/test/differentials && cargo build && cd ../../..
 ```
