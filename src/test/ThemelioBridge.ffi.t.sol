@@ -188,31 +188,31 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         assertEq(bigHash, dataHash);
     }
 
-    // function testDecodeHeaderDifferentialFFI(uint128 mod) public {
-    //     string[] memory cmds = new string[](3);
+    function testDecodeHeaderDifferentialFFI(uint128 mod) public {
+        string[] memory cmds = new string[](3);
 
-    //     cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-    //     cmds[1] = '--decode-header';
-    //     cmds[2] = uint256(mod).toString();
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[1] = '--decode-header';
+        cmds[2] = uint256(mod).toString();
 
-    //     bytes memory packedData = vm.ffi(cmds);
-    //     (
-    //         bytes memory header,
-    //         uint256 blockHeight,
-    //         bytes32 transactionsHash,
-    //         bytes32 stakesHash
-    //     ) = abi.decode(packedData, (bytes, uint256, bytes32, bytes32));
+        bytes memory packedData = vm.ffi(cmds);
+        (
+            bytes memory header,
+            uint256 blockHeight,
+            bytes32 transactionsHash,
+            bytes32 stakesHash
+        ) = abi.decode(packedData, (bytes, uint256, bytes32, bytes32));
 
-    //     (
-    //         uint256 decodedBlockHeight,
-    //         bytes32 decodedTransactionsHash,
-    //         bytes32 decodedStakesHash
-    //     ) = bridgeTest.decodeHeaderHelper(header);
+        (
+            uint256 decodedBlockHeight,
+            bytes32 decodedTransactionsHash,
+            bytes32 decodedStakesHash
+        ) = bridgeTest.decodeHeaderHelper(header);
 
-    //     assertEq(decodedBlockHeight, blockHeight);
-    //     assertEq(decodedTransactionsHash, transactionsHash);
-    //     assertEq(decodedStakesHash, stakesHash);
-    // }
+        assertEq(decodedBlockHeight, blockHeight);
+        assertEq(decodedTransactionsHash, transactionsHash);
+        assertEq(decodedStakesHash, stakesHash);
+    }
 
     function testDecodeIntegerDifferentialFFI(uint128 integer) public {
         string[] memory cmds = new string[](3);
