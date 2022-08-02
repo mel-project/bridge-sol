@@ -401,6 +401,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
             bytes32 transactionsHash,
             bytes32 stakesHash
         ) = _decodeHeader(header_);
+
         uint256 headerEpoch = blockHeight / STAKE_EPOCH;
         uint256 verifierEpoch = verifierHeight_ / STAKE_EPOCH;
 

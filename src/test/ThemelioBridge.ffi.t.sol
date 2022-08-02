@@ -6,6 +6,8 @@ import 'openzeppelin-contracts/contracts/utils/Strings.sol';
 import './utils/ByteStrings.sol';
 import '../ThemelioBridge.sol';
 
+uint256 constant GAS_LIMIT = 25_000_000;
+
 contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
     using Blake3Sol for Blake3Sol.Hasher;
     using ByteStrings for bytes;
@@ -186,31 +188,31 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         assertEq(bigHash, dataHash);
     }
 
-    function testDecodeHeaderFFI(uint128 mod) public {
-        string[] memory cmds = new string[](3);
+    // function testDecodeHeaderDifferentialFFI(uint128 mod) public {
+    //     string[] memory cmds = new string[](3);
 
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
-        cmds[1] = '--decode-header';
-        cmds[2] = uint256(mod).toString();
+    //     cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+    //     cmds[1] = '--decode-header';
+    //     cmds[2] = uint256(mod).toString();
 
-        bytes memory packedData = vm.ffi(cmds);
-        (
-            bytes memory header,
-            uint256 blockHeight,
-            bytes32 transactionsHash,
-            bytes32 stakesHash
-        ) = abi.decode(packedData, (bytes, uint256, bytes32, bytes32));
+    //     bytes memory packedData = vm.ffi(cmds);
+    //     (
+    //         bytes memory header,
+    //         uint256 blockHeight,
+    //         bytes32 transactionsHash,
+    //         bytes32 stakesHash
+    //     ) = abi.decode(packedData, (bytes, uint256, bytes32, bytes32));
 
-        (
-            uint256 decodedBlockHeight,
-            bytes32 decodedTransactionsHash,
-            bytes32 decodedStakesHash
-        ) = bridgeTest.decodeHeaderHelper(header);
+    //     (
+    //         uint256 decodedBlockHeight,
+    //         bytes32 decodedTransactionsHash,
+    //         bytes32 decodedStakesHash
+    //     ) = bridgeTest.decodeHeaderHelper(header);
 
-        assertEq(decodedBlockHeight, blockHeight);
-        assertEq(decodedTransactionsHash, transactionsHash);
-        assertEq(decodedStakesHash, stakesHash);
-    }
+    //     assertEq(decodedBlockHeight, blockHeight);
+    //     assertEq(decodedTransactionsHash, transactionsHash);
+    //     assertEq(decodedStakesHash, stakesHash);
+    // }
 
     function testDecodeIntegerDifferentialFFI(uint128 integer) public {
         string[] memory cmds = new string[](3);
@@ -280,14 +282,14 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
             bytes32[] memory signatures
         ) = abi.decode(data, (uint256, bytes32, bytes, bytes, bytes32[]));
 
-        bridgeTest.verifyHeaderHelper{gas: 25_000_000}(verifierStakesHash, verifierHeight);
+        bridgeTest.verifyHeaderHelper{gas: GAS_LIMIT}(verifierStakesHash, verifierHeight);
 
-        bridgeTest.verifyStakes{gas: 25_000_000}(stakeDocs);
+        bridgeTest.verifyStakes{gas: GAS_LIMIT}(stakeDocs);
 
         bool success;
 
         while (!success) {
-            success = bridgeTest.verifyHeader{gas: 25_000_000}(
+            success = bridgeTest.verifyHeader{gas: GAS_LIMIT}(
                 verifierHeight,
                 header,
                 stakeDocs,
@@ -298,13 +300,51 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         assertTrue(success);
     }
 
-    function testVerifyStakesDifferentialFFI() public {
-        uint256 numStakeDocs = 5;
+    function testVerifyHeaderCrossEpochDifferentialFFI(uint8 epoch) public {
+        vm.assume(epoch > 0);
+
+        string[] memory cmds = new string[](3);
+        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[1] = '--verify-header-cross-epoch';
+        cmds[2] = uint256(epoch).toString();
+
+        bytes memory data = vm.ffi(cmds);
+
+        (
+            uint256 verifierHeight,
+            bytes32 verifierStakesHash,
+            bytes memory header,
+            bytes memory stakeDocs,
+            bytes32[] memory signatures
+        ) = abi.decode(data, (uint256, bytes32, bytes, bytes, bytes32[]));
+
+        bridgeTest.verifyHeaderHelper{gas: GAS_LIMIT}(verifierStakesHash, verifierHeight);
+
+        bridgeTest.verifyStakes{gas: GAS_LIMIT}(stakeDocs);
+
+        bool success;
+
+        while (!success) {
+            success = bridgeTest.verifyHeader{gas: GAS_LIMIT}(
+                verifierHeight,
+                header,
+                stakeDocs,
+                signatures
+            );
+        }
+
+        assertTrue(success);
+    }
+
+    function testVerifyHeaderNotEnoughSignaturesDifferentialFFI() public {}
+
+    function testVerifyStakesDifferentialFFI(uint8 numStakeDocs) public {
+        vm.assume(numStakeDocs < 100);
 
         string[] memory cmds = new string[](3);
         cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
         cmds[1] = '--verify-stakes';
-        cmds[2] = numStakeDocs.toString();
+        cmds[2] = uint256(numStakeDocs).toString();
 
         bytes memory data = vm.ffi(cmds);
 
@@ -321,13 +361,13 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         assertEq(savedStakesHash, stakesHash);
     }
 
-    function testVerifyTransactionDifferentialFFI() public {
-        uint256 numTransactions = 10;
+    function testVerifyTxDifferentialFFI(uint8 numTransactions) public {
+        vm.assume(numTransactions > 0);
 
         string[] memory cmds = new string[](3);
         cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
         cmds[1] = '--verify-transaction';
-        cmds[2] = numTransactions.toString();
+        cmds[2] = uint256(numTransactions).toString();
 
         bytes memory data = vm.ffi(cmds);
 
@@ -355,8 +395,4 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
 
         assertEq(postBalance, preBalance + value);
     }
-
-    function testVerifyHeaderCrossEpoch() public {}
-
-    function testVerifyHeaderNotEnoughSignatures() public {}
 }
