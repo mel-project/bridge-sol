@@ -11,7 +11,7 @@ import 'openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable
 *
 * @author Marco Serrano (https://github.com/sadministrator)
 *
-* @notice This contract is a Themelio SPV client which allows users to submit Themelio stakes,
+* @notice This contract uses Themelio SPV to enable users to submit Themelio stakes,
 *         block headers, and transactions for the purpose of creating tokenized versions of
 *         Themelio assets, on the Ethereum network, which have previously been locked up in a
 *         sister contract which resides on the Themelio network. Check us out at

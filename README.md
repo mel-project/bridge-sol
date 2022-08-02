@@ -1,10 +1,10 @@
 # Themelio->Ethereum Bridge
 
-This set of smart contracts act as a bridge that allows the transfer of Themelio coins to
-to the Ethereum network and back, allowing users to hold and trade Themelio assets in the wider
+This contract acts as a bridge that allows the transfer of Themelio coins to the Ethereum
+network and back, allowing users to hold and trade Themelio assets as tokens in the wider
 Ethereum ecosystem and transfer them back to use on the Themelio network whenever they choose,
-trustlessly. Learn more about Themelio at https://themelio.org and discover a world secured by
-robust mechanisms and decentralized incentives, not untrustworthy and centralized third parties.
+trustlessly. Learn more about Themelio at https://themelio.org and discover a world secured by an
+unchanging trust substrate and robust incentives, not untrustworthy and centralized third-parties.
 
 The bridge's main functionality is Themelio SPV which allows users to submit Themelio stakes, block
 headers, and transactions for the purpose of creating tokenized versions of Themelio assets which

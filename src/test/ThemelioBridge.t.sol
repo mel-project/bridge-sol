@@ -27,15 +27,17 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         return merkleRoot;
     }
 
-    function decodeStakeDocHelper(bytes calldata encodedStakeDoc_)
-        public pure returns (bytes32, uint256, uint256, uint256) {
-        (StakeDoc memory decodedStakeDoc,) = _decodeStakeDoc(encodedStakeDoc_, 0);
+    function decodeStakeDocHelper(bytes calldata encodedStakeDoc_, uint256 offset)
+        public pure returns (bytes32, uint256, uint256, uint256, uint256) {
+        StakeDoc memory stakeDoc;
+        (stakeDoc, offset) = _decodeStakeDoc(encodedStakeDoc_, offset);
 
         return (
-            decodedStakeDoc.publicKey,
-            decodedStakeDoc.epochStart,
-            decodedStakeDoc.epochPostEnd,
-            decodedStakeDoc.symsStaked
+            stakeDoc.publicKey,
+            stakeDoc.epochStart,
+            stakeDoc.epochPostEnd,
+            stakeDoc.symsStaked,
+            offset
         );
     }
 
@@ -97,6 +99,10 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
         uint256 verifierHeight
     ) public {
         headers[verifierHeight].stakesHash = verifierStakesHash;
+    }
+
+    function verifyStakesHelper(bytes32 keccakStakesHash, bytes32 blake3StakesHash) public {
+        stakesHashes[keccakStakesHash] = blake3StakesHash;
     }
 
     function verifyTxHelper(
@@ -259,8 +265,8 @@ contract ThemelioBridgeTestInternalCalldata is Test {
             bytes32 publicKey,
             uint256 epochStart,
             uint256 epochPostEnd,
-            uint256 symsStaked
-        ) = bridgeTest.decodeStakeDocHelper(encodedStakeDoc);
+            uint256 symsStaked,
+        ) = bridgeTest.decodeStakeDocHelper(encodedStakeDoc, 0);
 
         assertEq(publicKey, 0x5dc57fc274b1235e28352d67b8ee4a30b74b5d0b070dc4400f30714cda80b280);
         assertEq(epochStart, 499329790025850207);
@@ -362,59 +368,61 @@ contract ThemelioBridgeTestInternalCalldata is Test {
         assertTrue(success);
     }
 
-    // function testCannotVerifyHeader() public {
-    //     bytes memory header = abi.encodePacked(
-    //         bytes32(0xffa011c4104d79413ef82b91c5dc1d93991b144d0a5c388f56c49997cb90fe61),
-    //         bytes32(0xdcfd90cade26f7d43c1dae753f62c43a2e9e8980092d74b176d44e66934e7d4f),
-    //         bytes32(0x695dab16ad3709ab4ddd18e38c16fef2b41f08ca978f073fd284dc4afb38847c),
-    //         bytes32(0xb429c88ca67f20e2fceac8fc42d07e3c70edb34d2580a56577e7efba232ec576),
-    //         bytes32(0x53d9589ea14aeaf0a538fee973f4378fbe51d158637bed4a909ee8fe44a095b0),
-    //         bytes32(0x9d5fb644423e6805bded708afe9ecbc17767c13584eb68a2f813ddfd3b099c23),
-    //         bytes32(0x89c2290dd6def728f395ce85c4067636d33c2b4708872728f8308508331b73c0),
-    //         bytes29(0xcee7078be495c4144b8d486a34ec81fc893d515a79ed2b1b860b381f63)
-    //     );
+    function testCantVerifyHeader() public {
+        uint256 verifierHeight = 1749110936825120;
+        bytes32 verifierStakesHash =
+            0x9a2cc9eb108a14202a749b201da4dab5eafa1d72d8818f4f67f7cc6b3f4585b3;
 
-    //     bytes32[] memory signersSubmitStakers = new bytes32[](3);
-    //     // 30 syms staked
-    //     signersSubmitStakers[0] = 0x2eb2115fe909017c0dcff17846dba5da36ccc56ddf01506a1ebca94ab0f65bc9;
-    //     // 31 syms staked
-    //     signersSubmitStakers[1] = 0x419b43ad463c65f7ef872bb2eb3aa6ac5fd094351703dfed73656627b3bcdd7d;
-    //     // 32 syms staked
-    //     signersSubmitStakers[2] = 0x00083c8fe73cfdb00f1c3f8998aeb87f9d2534d6ee21fc442b4fe40eba03e39e;
+        bytes memory header = hex'ffc0e0c667f78948df7164ea7220e59d0679aec9345a16cab3cf9fa01ae7230eb2fd21ed0fa0ce36060056f4b83a4e5db252f5fe3810453affe208f9b8620f62b0ee543cc64101c26ba08118849e005258b677ddb0f57b6e6aa4af75745c2dca4c0f5d0302638c28ab21bc58b17e9d56e6cea11ccc4bfa42c4a1a330fb0c58a8da086744de73b04db321fed0351f6fee8dd421d2ceda7e17e5310ffe8aa3ebbc3ff5601d2ea03468c84d9e81fe4d9521d9a7da862e8bd425956d33546a5a6cb78b7ee8209759cebcedda5a66cbc4929e906b8a579283df78b64cb78c60406e01278d12397af71135a226963a47b2512df1dd5760b952e64e61ca97efb7';
 
-    //     // we are only including signatures for the first 2 signers so staked syms of signers < 2/3
-    //     bytes32[] memory signatures = new bytes32[](4);
-    //     signatures[0] = 0xab10f3f8e8fd7987b903bee83c4d935db6e41c8cdb0149e81569b50f737fe79f;
-    //     signatures[1] = 0x77f8fb24f0ebdaa0634b79358a5d576c36897eea06985a38af811e930c702702;
-    //     signatures[2] = 0xd5e16061798104ca5fd82587fd499239df5f72d7a76dbabce4b0fcc90b297957;
-    //     signatures[3] = 0x0fa9456df1c04d95286cd3b1cf25ba0676670171c22e5085f6346a13f2f3ae0a;
+        // the stakes for the header's epoch total 387 syms; consensus requires at least 258 syms
+        bytes memory stakes = hex'fd6e04ece002000000fd6e04ece0020000002d8ea4c3ad09070cac09cc5ec9df767e7cd95c5bdb8524d6da119e5d646a2e96fc2995aa07fd45e46abe8bbc04dbfcb2c42c53393082157f0d64f9e814369662692c8ef650399b634d900f7dc366b6e148e007fc53f12300fd2af9b1f62acd67cffc328636c9300a6c1fb3012d51584b96ee80af6dda06666a87ee55be73e9f127641709403ffc97284d30fdd9cdd3e41864f3b7fc1f1e815176404024abba884cb5797dc16ff7ee56586c9a98073ad9126e8c9b064f1a81fbfc69e0e806fd29ade4e2ad6e2ef0fc89de34a63e3f7527380c72a85bb877f1027992aea23e32554f2a140d8dd3083cba95ee48fc5ab22d1dfd8476bab34467502cfce2bcd2cc';
+        bytes32 keccakStakesHash =
+            0x36d3b289e1875df8bb587447251147525e54d1cb630ae4c66e72d272e5722c8b;
+        bytes32 blake3StakesHash =
+            0x9a2cc9eb108a14202a749b201da4dab5eafa1d72d8818f4f67f7cc6b3f4585b3;
 
-    //     // this call saves the staker information in the appropriate epoch for this test
-    //     bridgeTest.submitHeaderTestHelper(signersSubmitStakers);
+        bytes32[] memory signatures = new bytes32[](10);
+        // signer 1 has 1395442866 syms staked during the header's epoch
+        signatures[0] = 0xa5638c64fc9e472ab5a10bd2241a1feed2b3385b5eef4b3a25e8295d9a74ed86;
+        signatures[1] = 0x8d9c8b7f533f2e09258f026068cc7795af79977f62ff9d513723723666927b0e;
 
-    //     // declaring a new signers array so the size is correct in relation to the signatures array
-    //     bytes32[] memory signersSubmitHeader = new bytes32[](2);
-    //     // 30 syms staked
-    //     signersSubmitHeader[0] = 0x2eb2115fe909017c0dcff17846dba5da36ccc56ddf01506a1ebca94ab0f65bc9;
-    //     // 31 syms staked
-    //     signersSubmitHeader[1] = 0x419b43ad463c65f7ef872bb2eb3aa6ac5fd094351703dfed73656627b3bcdd7d;
+        // signer 2 has 3375793714 syms staked during the header's epoch, but we will zero out his
+        // signatures to simulate not having enough signatures to verify a header
+        signatures[2] = 0;
+        signatures[3] = 0;
 
-    //     // expect a revert due to insufficient signatures
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             ThemelioBridge.InsufficientSignatures.selector,
-    //             61,
-    //             93
-    //         )
-    //     );
+        // signer 3 has 1367416351 syms staked during the header's epoch
+        signatures[4] = 0xd46c598158a3fd666c704ea881df3381b51525e2a3d3cb62903885ca2029f5c9;
+        signatures[5] = 0xd220aa4dc4dba24744b1a85a739da6d4050087e5c3b2e82a296921d74282fc0d;
 
-    //     bridgeTest.submitHeader(header, signersSubmitHeader, signatures);
-    // }
+        // signer 4 has 2788482697 syms staked during the header's epoch, but we will zero out his
+        // signatures to simulate not having enough signatures to verify a header
+        signatures[6] = 0;
+        signatures[7] = 0;
+
+        // signer 5 has 3436362978 syms staked during the header's epoch
+        signatures[8] = 0x5bc6cd88bd7a794ce698abeaf46e6e71b3fd3ebf5e3c7ceb7bcd8df5153a9b69;
+        signatures[9] = 0xd564664daed9e51fa1a59cfef8bc45f9f5174b44ebb82fc952c03a38696e2302;
+
+        // this call saves the staker information in the appropriate epoch for this test
+        bridgeTest.verifyHeaderHelper(verifierStakesHash, verifierHeight);
+
+        bridgeTest.verifyStakesHelper(keccakStakesHash, blake3StakesHash);
+
+        // expect a revert due to insufficient signatures
+        vm.expectRevert(
+            ThemelioBridge.HeaderNotVerified.selector
+        );
+
+        bridgeTest.verifyHeader(verifierHeight, header, stakes, signatures);
+    }
 
     function testVerifyStakes() public {
         bytes memory stakes = hex'01f3f5ce31ad81eb931f650b8ed28391e3ad5aed976e1c3eee2deae6742116edfd771094398f929904fd44c797252c32eb62fcfad60898e36bb7d8e487f739b106f90752f3b600d9dfc7730648e9393ff47874bee6dc7ffd9b003a187f9d582ffd87858eff7318e4d4fca9b9aaa809df64970bdae36063da9473f6a3a74557276fab21cd261fbf4aa67b8c87f0dffd085178637beaa836fdde321617bfd48f91fcb2d3bc0702a81c22937020f6419ae7147f0b698755ba09afafd4d7e79e9ea05f47e5f624fd9a55ff651490541dfd131cbedcdb0340a4fcd32bd0ee784a63e58563d9b96d250b836e70f4b2e2aade20c3efe4f38a146c447ab447b7fd3eb1005ad5a1e404fd42790cefa4aad592fc41552389b513614ca930dbd7fdd2bfd11d59d29760ee5c1413c19189077fd593e3098315fd7039c9a22f164f0bfd9a799fb415ff9edffcb49e4d971eff0b390b03782062066ca2133a48ff3868fc61b06b7aee0893d46b5977fa14fd5d036c5da9d9012dfd3178127831674c95fc1e6b9f10';
         bytes32 keccakStakesHash = keccak256(stakes);
-        bytes32 blake3StakesHash = 0xa5765ec3667c460cb610b5368fd2ba18917b2ed14fa998cce6cc95820911ec54;
+        bytes32 blake3StakesHash =
+            0xa5765ec3667c460cb610b5368fd2ba18917b2ed14fa998cce6cc95820911ec54;
 
         bridgeTest.verifyStakes(stakes);
 
