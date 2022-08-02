@@ -75,7 +75,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     // maps keccak hashes of unverified headers to votes
     mapping(bytes32 => UnverifiedHeader) public headerLimbo;
     // maps keccak hashes of encoded StakeDoc arrays (stakes) to their corresponding blake3 hashes
-    mapping(bytes32 => bytes32) internal stakesHashes;
+    mapping(bytes32 => bytes32) public stakesHashes;
     // keeps track of successful token mints
     mapping(bytes32 => bool) public spends;
 

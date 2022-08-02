@@ -12,7 +12,7 @@ contract ThemelioBridgeScript is Script {
         ThemelioBridge implementation = new ThemelioBridge();
 
         address implementationAddress = address(implementation);
-        bytes memory data = abi.encode(
+        bytes memory data = abi.encodeWithSelector(
             bytes4(keccak256('initialize(uint256,bytes32,bytes32)')),
             0, // initial block height
             0, // initial transactions hash
