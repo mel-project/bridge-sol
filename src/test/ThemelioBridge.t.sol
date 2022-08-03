@@ -144,6 +144,10 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
     ThemelioBridgeTest bridgeTest;
 
+    event TokensBurned(
+        bytes32 indexed themelioRecipient
+    );
+
     function setUp() public {
         bridgeTest = new ThemelioBridgeTest();
     }
@@ -170,10 +174,6 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
         assertEq(finalBalance, startBalance);
     }
-
-    event TokensBurned(
-        bytes32 indexed themelioRecipient
-    );
 
     function testBatchBurn() public {
         address burner = address(42);

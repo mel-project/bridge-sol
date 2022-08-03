@@ -93,14 +93,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     uint256 internal constant ERG = 2;
 
     // the hashing keys used when hashing datablocks and nodes, respectively
-    bytes internal constant DATA_BLOCK_HASH_KEY =
-        abi.encodePacked(
-            bytes32(0xc811f2ef6eb6bd09fb973c747cbf349e682393ca4d8df88e5f0bcd564c10a84b)
-        );
-    bytes internal constant NODE_HASH_KEY =
-        abi.encodePacked(
-            bytes32(0xd943cb6e931507cafe2357fbe5cce15af420a84c67251eddb0bf934b7bbbef91)
-        );
+    bytes internal constant DATA_BLOCK_HASH_KEY = hex'c811f2ef6eb6bd09fb973c747cbf349e682393ca4d8df88e5f0bcd564c10a84b';
+    bytes internal constant NODE_HASH_KEY = hex'd943cb6e931507cafe2357fbe5cce15af420a84c67251eddb0bf934b7bbbef91';
 
     /* =========== Modifiers =========== */
 
@@ -119,13 +113,6 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     * order to transfer them.
     */
     error ERC1155NotOwnerOrApproved();
-
-    /**
-    * Header at height `height` has already been verified.
-    *
-    * @param height Block height of the header being submitted.
-    */
-    error HeaderAlreadyVerified(uint256 height);
 
     /**
     * The header was unable to be verified. This could be because of incorrect serialization
@@ -159,13 +146,6 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     * @param headerHeight Block height of header to be verified.
     */
     error InvalidVerifier(uint256 verifierHeight, uint256 headerHeight);
-
-    /**
-    * The length of the `stakes_` array must coincide with the length of the `proofs_` array and
-    * the `signatures_` array must be exactly twice the length of each of the aforementioned
-    * arrays.
-    */
-    error MalformedData();
 
     /**
     * The header at block height `height` has not been submitted yet. Please submit it with
@@ -223,7 +203,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
     event TxVerified(
         uint256 indexed height,
-        bytes32 indexed tx_hash
+        bytes32 indexed txHash
     );
 
     event TokensBurned(
@@ -268,8 +248,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
     /**
      * @notice This function is used to release frozen assets on Themelio by burning them first on
-     *         Ethereum. You will use the blockheight and tx hash of your burn transaction as a
-     *         receipt to release the funds on Themelio.
+     *         Ethereum. You will use the blockheight and transaction hash of your burn transaction
+     *         as a receipt to release the funds on Themelio.
      *
      * @dev Destroys `value_` tokens of token type `id_` from `from_`
      *      Emits a {TransferSingle} event.
@@ -342,9 +322,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     /* =========== Themelio Staker Set, Header, and Transaction Verification =========== */
 
     /**
-    * @notice Accepts incoming Themelio stakes and verifies them via blake3 hashing. The
-    *         staker set hash is then saved to a storage mapping with a keccak256 hash of the
-    *         staker set being the key.
+    * @notice Accepts incoming Themelio stakes and hashes them. The staker set hash is then saved
+    *         in storage so it can be used to verify Themelio headers via verifyHeader().
     *
     * @dev The `stakes_` array is an array of serialized Themelio 'StakeDocs' which represent
     *      stakes in the Themelio network. They are serialized into a stakes byte array and hashed
@@ -537,11 +516,10 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     *      and then sent together with its index in the 'transactions_hash' Merkle tree,
     *      `txIndex_`, and with its Merkle proof, `proof_, to calculate its Merkle root. If its
     *      Merkle root matches the Merkle root of its corresponding header (at block
-    *      `blockHeight_`), then the transaction has been validated and the 'value' field of the
-    *      transaction is extracted from the first output of the transaction and the recipient is
-    *      extracted from the 'additional_data' field in the first output of the transaction and
-    *      the corresponding 'value' amount of tokens are minted to the Ethereum address contained
-    *      in 'additional_data'.
+    *      `blockHeight_`), then the transaction has been validated and the 'value', 'denom', and
+    *      'additional_data' fields of the transaction are extracted from its first output and the
+    *      corresponding 'value' amount of 'denom' tokens are minted to the Ethereum address
+    *      contained in 'additional_data'.
     *
     *      Emits a {TxVerified} event.
     *
@@ -640,7 +618,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     *         well as returning the encoded integer size.
     *
     * @dev To decode an integer, we must read its length and slice the corresponding number of
-    *      subsequent bytes because integers in Themelio use a variable length encoding scheme to
+    *      subsequent bytes because integers in Themelio use a variable-length encoding scheme to
     *      minimize their size.
     *
     *      After slicing, the bytes must be reversed from little-endian (the bincode default used
@@ -782,7 +760,9 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     /**
     * @notice Decodes a Themelio header.
     *
-    * @dev Decodes the relevant attributes of a serialized Themelio header.
+    * @dev Decodes the relevant attributes of a serialized Themelio header, 'stakes_hash' and
+    *      'transactions_hash', which are utilized for verifying Themelio headers and transactions,
+    *      respectively.
     *
     * @param header_ A serialized Themelio block header.
     *
@@ -807,14 +787,20 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     }
 
     /**
-    * @notice Extracts and decodes the value and recipient of a Themelio bridge transaction.
+    * @notice Extracts and decodes the covhash, value, denom, and recipient of a Themelio
+    *         transaction.
     *
-    * @dev Extracts and decodes 'value' and 'additional_data' fields in the first CoinData struct
-    *      in the 'outputs' array of a bincode serialized themelio_structs::Transaction struct.
+    * @dev Extracts and decodes 'covhash', 'value', 'denom', and 'additional_data' fields in the
+    *      first CoinData struct in the 'outputs' array of a bincode serialized
+    *      themelio_structs::Transaction struct.
     *
     * @param transaction_ A serialized Themelio transaction.
     *
+    * @return covhash The address of a Themelio covenant.
+    *
     * @return value The 'value' field in the first output of a Themelio transaction.
+    *
+    * @return denom The denomination of a Themelio coin (it is converted to token id).
     *
     * @return recipient The 'additional_data' field in the first output of a Themelio transaction.
     */
@@ -888,13 +874,12 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     * @param leaf_ The leaf for which we are performing the proof of inclusion.
     *
     * @param index The index of the leaf in the Merkle tree. This is used to determine whether
-    *        the 'tx_hash' should be concatenated on the left or the right before hashing.
+    *        the leaf/node should be concatenated on the left or the right before hashing.
     *
     * @param proof_ An array of blake3 hashes which together form the Merkle proof for this
     *        particular Themelio transaction.
     *
-    * @return The Merkle root obtained by hashing 'tx_hash' together with each hash in 'proof' in
-    *         sequence.
+    * @return root The Merkle root obtained running the proof.
     */
     function _computeMerkleRoot(
         bytes32 leaf_,
