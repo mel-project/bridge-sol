@@ -336,8 +336,6 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         assertTrue(success);
     }
 
-    function testVerifyHeaderNotEnoughSignaturesDifferentialFFI() public {}
-
     function testVerifyStakesDifferentialFFI(uint8 numStakeDocs) public {
         vm.assume(numStakeDocs < 100);
 

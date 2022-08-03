@@ -303,24 +303,26 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     }
 
     /**
-     * @notice This is the batch version of burn(), it can be used to burn an array of different
-     *         token types using a corresponding array of values.
-     *
-     * @dev xref:ROOT:erc1155.adoc#batch-operations[Batched] version of {_burn}.
-     *      Emits a {TransferBatch} and TokensBurned event.
-     *
-     *      Requirements:
-     *          - `ids` and `amounts` must have the same length.
-     *
-     * @param account_ The owner of the tokens to be burned.
-     *
-     * @param ids_ An array of token ids
-     *
-     * @param values_ An array of values of tokens to be burned, corresponding to the ids array
-     *
-     * @param themelioRecipient_ The Themelio recipient (technically covenant) to release the
-     *        funds to on the Themelio network.
-     */
+    * @notice This is the batch version of burn(), it can be used to burn an array of different
+    *         token types using a corresponding array of values.
+    *
+    * @dev xref:ROOT:erc1155.adoc#batch-operations[Batched] version of {_burn}.
+    *      Emits a {TransferBatch} and TokensBurned event.
+    *
+    *      Requirements:
+    *          - `ids` and `amounts` must have the same length.
+    *
+    *      Emits a {TokensBurned} event.
+    *
+    * @param account_ The owner of the tokens to be burned.
+    *
+    * @param ids_ An array of token ids
+    *
+    * @param values_ An array of values of tokens to be burned, corresponding to the ids array
+    *
+    * @param themelioRecipient_ The Themelio recipient (technically covenant) to release the
+    *        funds to on the Themelio network.
+    */
     function burnBatch(
         address account_,
         uint256[] calldata ids_,
@@ -348,6 +350,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     *      stakes in the Themelio network. They are serialized into a stakes byte array and hashed
     *      using the blake3 algorithm to create the 'stakes_hash' member present in every Themelio
     *      block header.
+    *
+    *      Emits a {StakesVerified} event.
     *
     * @param stakes_ An array of serialized Themelio 'StakeDoc's.
     *
@@ -378,6 +382,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     *      from stakers that have signed is at least 2/3 of the total staked syms for that epoch
     *      then the header is successfully validated and is stored for future transaction
     *      verifications.
+    *
+    *      Emits a {HeaderVerified} event.
     *
     * @param verifierHeight_ The height of the stored Themelio header which will be used to verify
     *        `header_`.
@@ -536,6 +542,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     *      extracted from the 'additional_data' field in the first output of the transaction and
     *      the corresponding 'value' amount of tokens are minted to the Ethereum address contained
     *      in 'additional_data'.
+    *
+    *      Emits a {TxVerified} event.
     *
     * @param transaction_ The serialized Themelio transaction.
     *
