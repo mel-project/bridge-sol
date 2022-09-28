@@ -154,51 +154,51 @@ contract ThemelioBridgeTestInternalCalldata is Test {
 
             /* =========== Unit Tests =========== */
 
-    function testBurn() public {
-        address burner = address(42);
-        uint256 id = MEL;
-        uint256 startBalance = bridgeTest.balanceOf(burner, id);
-        uint256 value = 666;
-        bytes32 themelioRecipient;
+    // function testBurn() public {
+    //     address burner = address(42);
+    //     uint256 id = MEL;
+    //     uint256 startBalance = bridgeTest.balanceOf(burner, id);
+    //     uint256 value = 666;
+    //     bytes32 themelioRecipient;
 
-        bridgeTest.mintHelper(burner, id, value);
+    //     bridgeTest.mintHelper(burner, id, value);
 
-        assertEq(bridgeTest.balanceOf(burner, id), startBalance + value);
+    //     assertEq(bridgeTest.balanceOf(burner, id), startBalance + value);
 
-        vm.prank(burner);
-        bridgeTest.burn(burner, id, value, themelioRecipient);
+    //     vm.prank(burner);
+    //     bridgeTest.burn(burner, id, value, themelioRecipient);
 
 
 
-        uint256 finalBalance = bridgeTest.balanceOf(burner, id);
+    //     uint256 finalBalance = bridgeTest.balanceOf(burner, id);
 
-        assertEq(finalBalance, startBalance);
-    }
+    //     assertEq(finalBalance, startBalance);
+    // }
 
-    function testBatchBurn() public {
-        address burner = address(42);
-        uint256 value1 = 0x74e3e110;
-        uint256 value2 = 17;
-        bytes32 themelioRecipient = 
-            0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B000000000000000000000000;
+    // function testBatchBurn() public {
+    //     address burner = address(42);
+    //     uint256 value1 = 0x74e3e110;
+    //     uint256 value2 = 17;
+    //     bytes32 themelioRecipient = 
+    //         0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B000000000000000000000000;
 
-        bridgeTest.mintHelper(burner, MEL, value1);
-        bridgeTest.mintHelper(burner, SYM, value2);
+    //     bridgeTest.mintHelper(burner, MEL, value1);
+    //     bridgeTest.mintHelper(burner, SYM, value2);
 
-        uint256[] memory ids = new uint256[](2);
-        ids[0] = MEL;
-        ids[1] = SYM;
+    //     uint256[] memory ids = new uint256[](2);
+    //     ids[0] = MEL;
+    //     ids[1] = SYM;
 
-        uint256[] memory values = new uint256[](2);
-        ids[0] = value1;
-        ids[1] = value2;
+    //     uint256[] memory values = new uint256[](2);
+    //     ids[0] = value1;
+    //     ids[1] = value2;
 
-        vm.expectEmit(true, true, false, false);
-        emit TokensBurned(themelioRecipient);
+    //     vm.expectEmit(true, true, false, false);
+    //     emit TokensBurned(themelioRecipient);
 
-        vm.prank(burner);
-        bridgeTest.burnBatch(burner, ids, values, themelioRecipient);
-    }
+    //     vm.prank(burner);
+    //     bridgeTest.burnBatch(burner, ids, values, themelioRecipient);
+    // }
 
     function testComputeMerkleRoot() public {
         bytes32[] memory proof = new bytes32[](2);

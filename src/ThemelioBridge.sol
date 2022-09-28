@@ -68,6 +68,13 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         uint256 symsStaked;
     }
 
+// a Themelio UTXO
+    struct Coin {
+        uint256 denom;
+        uint256 value;
+        bytes32 status;
+    }
+
     /* =========== Themelio Header Validation Storage =========== */
 
     // maps header block heights to Headers for verifying headers and transactions
@@ -76,8 +83,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     mapping(bytes32 => UnverifiedHeader) public headerLimbo;
     // maps keccak hashes of encoded StakeDoc arrays (stakes) to their corresponding blake3 hashes
     mapping(bytes32 => bytes32) public stakesHashes;
-    // keeps track of successful token mints
-    mapping(bytes32 => bool) public spends;
+    // keeps track of a particular coin's status
+    mapping(bytes32 => Coin) public coins;
 
     /* =========== Constants =========== */
 
@@ -260,24 +267,25 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
      *
      * @param account_ The owner of the tokens to be burned.
      *
-     * @param id_ The token id of the tokens to be burned.
-     *
-     * @param value_ An array of values of tokens to be burned, corresponding to the ids array
+     * @param txHash_ The transaction hash of the coin being burned
      *
      * @param themelioRecipient_ The Themelio recipient (technically covenant) to release the
      *        funds to on the Themelio network.
      */
     function burn(
         address account_,
-        uint256 id_,
-        uint256 value_,
+        bytes32 txHash_,
         bytes32 themelioRecipient_
     ) external {
         if (account_ != _msgSender() && !isApprovedForAll(account_, _msgSender())) {
             revert ERC1155NotOwnerOrApproved();
         }
 
-        _burn(account_, id_, value_);
+        Coin storage coin = coins[txHash_];
+
+        _burn(account_, coin.denom, coin.value);
+
+        coin.status = themelioRecipient_;
 
         emit TokensBurned(themelioRecipient_);
     }
@@ -296,24 +304,33 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     *
     * @param account_ The owner of the tokens to be burned.
     *
-    * @param ids_ An array of token ids
-    *
-    * @param values_ An array of values of tokens to be burned, corresponding to the ids array
-    *
+    * @param txHashes_ An array of transaction hashes identifying specific Themelio coins to be
+    *                  burned.
     * @param themelioRecipient_ The Themelio recipient (technically covenant) to release the
     *        funds to on the Themelio network.
     */
     function burnBatch(
         address account_,
-        uint256[] calldata ids_,
-        uint256[] calldata values_,
+        bytes32[] calldata txHashes_,
         bytes32 themelioRecipient_
     ) external {
         if (account_ != _msgSender() && !isApprovedForAll(account_, _msgSender())) {
             revert ERC1155NotOwnerOrApproved();
         }
+        uint256 length = txHashes_.length;
 
-        _burnBatch(account_, ids_, values_);
+        uint256[] memory denoms;
+        uint256[] memory values;
+        Coin storage coin;
+
+        for (uint256 i = 0; i > length; ++i) {
+            coin = coins[txHashes_[i]];
+            denoms[i] = coin.denom;
+            values[i] = coin.value;
+            coin.status = themelioRecipient_;
+        }
+
+        _burnBatch(account_, denoms, values);
 
         emit TokensBurned(themelioRecipient_);
     }
@@ -547,19 +564,23 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
         bytes32 txHash = _hashDatablock(transaction_);
 
-        if(spends[txHash]) {
+        if(coins[txHash].status != 0) {
             revert TxAlreadyVerified(txHash);
         }
 
         if (_computeMerkleRoot(txHash, txIndex_, proof_) == transactionsHash) {
-            spends[txHash] = true;
-
             (
                 bytes32 covhash,
                 uint256 value,
                 uint256 denom,
                 address recipient
             ) = _decodeTransaction(transaction_);
+
+            coins[txHash] = Coin(
+                denom,
+                value,
+                0x0000000000000000000000000000000000000000000000000000000000000001
+            );
 
             if (covhash != THEMELIO_COVHASH) {
                 revert InvalidCovhash(covhash);
