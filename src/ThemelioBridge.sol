@@ -72,10 +72,10 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     struct Coin {
         uint256 denom;
         uint256 value;
-        bytes32 status;
+        uint256 status;
     }
 
-    /* =========== Themelio Header Validation Storage =========== */
+    /* =========== Themelio State Storage =========== */
 
     // maps header block heights to Headers for verifying headers and transactions
     mapping(uint256 => Header) public headers;
@@ -99,6 +99,10 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     uint256 internal constant SYM = 1;
     uint256 internal constant ERG = 2;
 
+    // coin statuses; all other values are considered Themelio addresses
+    uint256 internal constant HYPOTHETICAL = 0;
+    uint256 internal constant MINTED = 1;
+
     // the hashing keys used when hashing datablocks and nodes, respectively
     bytes internal constant DATA_BLOCK_HASH_KEY = hex'c811f2ef6eb6bd09fb973c747cbf349e682393ca4d8df88e5f0bcd564c10a84b';
     bytes internal constant NODE_HASH_KEY = hex'd943cb6e931507cafe2357fbe5cce15af420a84c67251eddb0bf934b7bbbef91';
@@ -114,6 +118,14 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     }
 
     /* =========== Errors =========== */
+
+    /**
+    * Coin cannot be burned because its status is either HYPOTHETICAL (there's no Themelio coin
+    * with that transaction hash that's been bridged over to Ethereum) or it has already been
+    * burned by someone else and the coin status now points to the burner's Themelio address (i.e.
+    * the coin has already been redeemed).
+    */
+    error CannotBurn(uint256 status);
 
     /**
     * Transaction sender must either be the owner or be approved by the owner of the tokens in
@@ -281,11 +293,16 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
             revert ERC1155NotOwnerOrApproved();
         }
 
-        Coin storage coin = coins[txHash_];
+        Coin storage coin = coins[txHash_]; // todo: cheaper to read in pieces?
+        uint256 coinStatus = coin.status;
+
+        if(coinStatus != MINTED) {
+            revert CannotBurn(coinStatus);
+        }
 
         _burn(account_, coin.denom, coin.value);
 
-        coin.status = themelioRecipient_;
+        coin.status = uint256(themelioRecipient_);
 
         emit TokensBurned(themelioRecipient_);
     }
@@ -327,7 +344,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
             coin = coins[txHashes_[i]];
             denoms[i] = coin.denom;
             values[i] = coin.value;
-            coin.status = themelioRecipient_;
+            coin.status = uint256(themelioRecipient_);
         }
 
         _burnBatch(account_, denoms, values);
@@ -508,7 +525,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
                 return true;
             }
 
-            assembly ('memory-safe') {
+            assembly('memory-safe') {
                 memorySizeWords := div(add(mload(0x40), 31), 32)
             }
 

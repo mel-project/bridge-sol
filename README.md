@@ -37,7 +37,7 @@ submitted to the bridge covenant on the Themelio network to release the specifie
 
 ## Themelio->Ethereum Bridge contract address:
 
-* [Rinkeby testnet](https://rinkeby.etherscan.io/address/0xf59848A6EC89C12499D79dD3a97C3fEA6Ff982d2)
+* [Goerli testnet](https://goerli.etherscan.io/address/0x56e618fb75b9344efbcd63ef138f90277b1c1593)
 
 
 
