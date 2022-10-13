@@ -72,7 +72,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     struct Coin {
         uint256 denom;
         uint256 value;
-        uint256 status;
+        bytes32 status;
     }
 
     /* =========== Themelio State Storage =========== */
@@ -100,8 +100,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     uint256 internal constant ERG = 2;
 
     // coin statuses; all other values are considered Themelio addresses
-    uint256 internal constant HYPOTHETICAL = 0;
-    uint256 internal constant MINTED = 1;
+    bytes32 internal constant HYPOTHETICAL = 0;
+    bytes32 internal constant MINTED = bytes32(uint256(1));
 
     // the hashing keys used when hashing datablocks and nodes, respectively
     bytes internal constant DATA_BLOCK_HASH_KEY = hex'c811f2ef6eb6bd09fb973c747cbf349e682393ca4d8df88e5f0bcd564c10a84b';
@@ -125,7 +125,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     * burned by someone else and the coin status now points to the burner's Themelio address (i.e.
     * the coin has already been redeemed).
     */
-    error CannotBurn(uint256 status);
+    error CannotBurn(bytes32 status);
 
     /**
     * Transaction sender must either be the owner or be approved by the owner of the tokens in
@@ -294,7 +294,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         }
 
         Coin storage coin = coins[txHash_]; // todo: cheaper to read in pieces?
-        uint256 coinStatus = coin.status;
+        bytes32 coinStatus = coin.status;
 
         if(coinStatus != MINTED) {
             revert CannotBurn(coinStatus);
@@ -302,7 +302,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
         _burn(account_, coin.denom, coin.value);
 
-        coin.status = uint256(themelioRecipient_);
+        coin.status = themelioRecipient_;
 
         emit TokensBurned(themelioRecipient_);
     }
@@ -344,7 +344,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
             coin = coins[txHashes_[i]];
             denoms[i] = coin.denom;
             values[i] = coin.value;
-            coin.status = uint256(themelioRecipient_);
+            coin.status = themelioRecipient_;
         }
 
         _burnBatch(account_, denoms, values);
