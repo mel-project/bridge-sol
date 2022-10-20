@@ -54,7 +54,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     }
 
     // represents an unverified Themelio header with current votes and verified bytes offset
-    struct UnverifiedHeader {
+    struct UnverifiedHeader { // todo: do we need to worry about different verifierHeights being used?
         uint128 votes;
         uint64 bytesVerified;
         uint64 stakeDocIndex;
@@ -68,7 +68,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         uint256 symsStaked;
     }
 
-// a Themelio UTXO
+    // a Themelio UTXO
     struct Coin {
         uint256 denom;
         uint256 value;
@@ -77,13 +77,13 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
     /* =========== Themelio State Storage =========== */
 
-    // maps header block heights to Headers for verifying headers and transactions
-    mapping(uint256 => Header) public headers;
-    // maps keccak hashes of unverified headers to votes
-    mapping(bytes32 => UnverifiedHeader) public headerLimbo;
-    // maps keccak hashes of encoded StakeDoc arrays (stakes) to their corresponding blake3 hashes
+    // maps Keccak hashes of encoded StakeDoc arrays (stakes) to their corresponding Blake3 hashes
     mapping(bytes32 => bytes32) public stakesHashes;
-    // keeps track of a particular coin's status
+    // maps Keccak hashes of unverified headers to header verification info
+    mapping(bytes32 => UnverifiedHeader) public headerLimbo;
+    // maps header block heights to Headers for verifying transactions and other headers
+    mapping(uint256 => Header) public headers;
+    // keeps track of coins and their statuses
     mapping(bytes32 => Coin) public coins;
 
     /* =========== Constants =========== */

@@ -114,28 +114,28 @@ Returns `true` if the header was successfully verified and stored, reverts other
 
 ---
 
-### burn(address account, uint256 id, uint256 value, bytes32 themelioRecipient)
+### burn(address account, bytes32 txHash, bytes32 themelioRecipient)
 
-Burns `value` amount of `id` denominated tokens belonging to `account` and emits a log which
-signals that the burned coins should be released to `themelioRecipient` address on the Themelio
-network.
+Burns tokens owned by `account` with the value and denom specified by the locked Themelio coin with
+transaction hash `txHash`. If successful the burned coin's status will be updated to be
+`themelioRecipient`, indicating the coin has been burned and claimed, to allow unlocking on the
+Themelio network.
 
 * `account`: the account owning the tokens to be burned
-* `id`: the denomation id of the tokens to be burned
-* `value`: the amount of tokens to be burned
-* `themelioRecipient`: the address to release the burns assets to on the Themelio network
+* `txHash`: the transaction hash of the Themelio coin to be released (the coin will always be
+considered the first output of that transaction)
+* `themelioRecipient`: the address to release the burned coin to on the Themelio network
 
 ---
 
-### burnBatch(address account, uint256[] ids, uint256[] values, bytes32 themelioRecipient)
+### burnBatch(address account, bytes32[] txHashes, bytes32 themelioRecipient)
 
-Burns multiple denominations of tokens at a time by burning the amounts in `values` of the
-corresponding denomination in `ids` belonging to `account`. Emits a log which signals that the
-burned coins should be released to `themelioRecipient` address on the Themelio network.
+Can burn multiple denominations of `account`'s tokens at a time by using the `txHashes` array to
+list the transaction hash of each coin to be burned.
 
 * `account`: the account owning the tokens to be burned
-* `ids`: an array of denomation ids of the tokens to be burned
-* `values`: the amount of tokens to be burned
+* `txHashes`: an array of transaction hashes of Themelio coins to be released (the coin will always
+be considered the first output of that transaction)
 * `themelioRecipient`: the address to release the burns assets to on the Themelio network
 
 ---
