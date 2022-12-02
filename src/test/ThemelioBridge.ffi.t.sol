@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.13;
+pragma solidity 0.8.16;
 
 import 'forge-std/Test.sol';
 import 'openzeppelin-contracts/contracts/utils/Strings.sol';
 import './utils/ByteStrings.sol';
 import '../ThemelioBridge.sol';
 
+string constant FFI_PATH = './src/test/differentials/target/debug/bridge_differential_tests';
+
 uint256 constant GAS_LIMIT = 25_000_000;
-uint256 constant VERIFICATION_LIMIT = 50;
+uint256 constant VERIFICATION_LIMIT = 20;
 
 contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
     using Blake3Sol for Blake3Sol.Hasher;
@@ -133,7 +135,7 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
     function testBlake3DifferentialFFI(bytes memory data) public {
         string[] memory cmds = new string[](3);
 
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[0] = FFI_PATH;
         cmds[1] = '--blake3';
         cmds[2] = data.toHexString();
 
@@ -148,7 +150,7 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
     function testEd25519DifferentialFFI(bytes memory message) public {
         string[] memory cmds = new string[](3);
 
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[0] = FFI_PATH;
         cmds[1] = '--ed25519';
         cmds[2] = message.toHexString();
 
@@ -178,7 +180,7 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
 
     function testBigHashFFI() public {
         string[] memory cmds = new string[](2);
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[0] = FFI_PATH;
         cmds[1] = '--big-hash';
 
         bytes memory packedData = vm.ffi(cmds);
@@ -192,7 +194,7 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
     function testDecodeHeaderDifferentialFFI(uint128 mod) public {
         string[] memory cmds = new string[](3);
 
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[0] = FFI_PATH;
         cmds[1] = '--decode-header';
         cmds[2] = uint256(mod).toString();
 
@@ -218,7 +220,7 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
     function testDecodeIntegerDifferentialFFI(uint128 integer) public {
         string[] memory cmds = new string[](3);
 
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[0] = FFI_PATH;
         cmds[1] = '--decode-integer';
         cmds[2] = uint256(integer).toString();
 
@@ -240,7 +242,7 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
     ) public {
         string[] memory cmds = new string[](9);
 
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[0] = FFI_PATH;
         cmds[1] = '--decode-transaction';
         cmds[2] = abi.encodePacked(covhash).toHexString();
         cmds[3] = '--value';
@@ -269,7 +271,7 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         vm.assume(numStakeDocs != 0 && numStakeDocs < 100);
 
         string[] memory cmds = new string[](3);
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[0] = FFI_PATH;
         cmds[1] = '--verify-header';
         cmds[2] = uint256(numStakeDocs).toString();
 
@@ -306,7 +308,7 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         vm.assume(epoch > 0);
 
         string[] memory cmds = new string[](3);
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[0] = FFI_PATH;
         cmds[1] = '--verify-header-cross-epoch';
         cmds[2] = uint256(epoch).toString();
 
@@ -343,7 +345,7 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         vm.assume(numStakeDocs < 100);
 
         string[] memory cmds = new string[](3);
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[0] = FFI_PATH;
         cmds[1] = '--verify-stakes';
         cmds[2] = uint256(numStakeDocs).toString();
 
@@ -366,7 +368,7 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         vm.assume(numTransactions > 0);
 
         string[] memory cmds = new string[](3);
-        cmds[0] = './src/test/differentials/target/debug/bridge_differential_tests';
+        cmds[0] = FFI_PATH;
         cmds[1] = '--verify-transaction';
         cmds[2] = uint256(numTransactions).toString();
 

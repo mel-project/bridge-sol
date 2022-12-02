@@ -3,7 +3,7 @@
 // credit to @dmfxyz for toHexString():
 // https://github.com/dmfxyz/murky/blob/main/differential_testing/test/utils/Strings2.sol
 
-pragma solidity 0.8.13;
+pragma solidity ^0.8.16;
 
 library ByteStrings {
 

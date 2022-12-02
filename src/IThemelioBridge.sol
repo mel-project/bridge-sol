@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.10;
+pragma solidity 0.8.16;
 
 interface IThemelioBridge {
     event AdminChanged(address previousAdmin, address newAdmin);
@@ -8,7 +8,7 @@ interface IThemelioBridge {
     event HeaderVerified(uint256 indexed height);
     event Initialized(uint8 version);
     event StakesVerified(bytes32 stakesHash);
-    event TokensBurned(bytes32 indexed themelioRecipient);
+    event TokensBurned(bytes32 indexed themelioRecipient, bytes32[] txHashes);
     event TransferBatch(
         address indexed operator, address indexed from, address indexed to, uint256[] ids, uint256[] values
     );
@@ -45,7 +45,8 @@ interface IThemelioBridge {
         uint256 verifierHeight_,
         bytes memory header_,
         bytes memory stakes_,
-        bytes32[] memory signatures_
+        bytes32[] memory signatures_,
+        uint256 verificationLimit_
     ) external returns (bool);
     function verifyStakes(bytes memory stakes_) external returns (bool);
     function verifyTx(bytes memory transaction_, uint256 txIndex_, uint256 blockHeight_, bytes32[] memory proof_)

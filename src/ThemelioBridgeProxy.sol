@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.13;
+pragma solidity 0.8.16;
 
 import 'openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 
