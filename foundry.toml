@@ -5,3 +5,7 @@ optimizer = true
 optimizer_runs = 100
 verbosity = 3
 via_ir = true
+# libraries = [
+#     "lib/blake3-sol/src/Blake3Sol.sol:Blake3Sol:0x5a66Be9A3b977E5Db582D5b939652Ec0799A0E9e",
+#     "lib/ed25519-sol/src/Ed25519.sol:Ed25519:0x819d0f83477299eC00c31E29b94a4e2caa498266"
+# ]

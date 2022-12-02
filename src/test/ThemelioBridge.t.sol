@@ -9,6 +9,7 @@ import '../ThemelioBridgeProxy.sol';
 import '../IThemelioBridge.sol';
 
 uint256 constant GAS_LIMIT = 25_000_000;
+uint256 constant VERIFICATION_LIMIT = 100;
 
 contract ThemelioBridgeTest is ThemelioBridge, Test {
     using Blake3Sol for Blake3Sol.Hasher;
@@ -360,7 +361,8 @@ contract ThemelioBridgeTestInternalCalldata is Test {
             verifierHeight,
             header,
             stakes,
-            signatures
+            signatures,
+            VERIFICATION_LIMIT
         );
 
         assertTrue(success);
@@ -388,7 +390,8 @@ contract ThemelioBridgeTestInternalCalldata is Test {
                 verifierHeight,
                 header,
                 stakeDocs,
-                signatures
+                signatures,
+                VERIFICATION_LIMIT
             );
         }
 
@@ -442,7 +445,7 @@ contract ThemelioBridgeTestInternalCalldata is Test {
             ThemelioBridge.HeaderNotVerified.selector
         );
 
-        bridgeTest.verifyHeader(verifierHeight, header, stakes, signatures);
+        bridgeTest.verifyHeader(verifierHeight, header, stakes, signatures, VERIFICATION_LIMIT);
     }
 
     function testVerifyStakes() public {

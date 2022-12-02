@@ -7,6 +7,7 @@ import './utils/ByteStrings.sol';
 import '../ThemelioBridge.sol';
 
 uint256 constant GAS_LIMIT = 25_000_000;
+uint256 constant VERIFICATION_LIMIT = 50;
 
 contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
     using Blake3Sol for Blake3Sol.Hasher;
@@ -278,13 +279,13 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
             uint256 verifierHeight,
             bytes32 verifierStakesHash,
             bytes memory header,
-            bytes memory stakeDocs,
+            bytes memory stakes,
             bytes32[] memory signatures
         ) = abi.decode(data, (uint256, bytes32, bytes, bytes, bytes32[]));
 
         bridgeTest.verifyHeaderHelper{gas: GAS_LIMIT}(verifierStakesHash, verifierHeight);
 
-        bridgeTest.verifyStakes{gas: GAS_LIMIT}(stakeDocs);
+        bridgeTest.verifyStakes{gas: GAS_LIMIT}(stakes);
 
         bool success;
 
@@ -292,8 +293,9 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
             success = bridgeTest.verifyHeader{gas: GAS_LIMIT}(
                 verifierHeight,
                 header,
-                stakeDocs,
-                signatures
+                stakes,
+                signatures,
+                VERIFICATION_LIMIT
             );
         }
 
@@ -314,13 +316,13 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
             uint256 verifierHeight,
             bytes32 verifierStakesHash,
             bytes memory header,
-            bytes memory stakeDocs,
+            bytes memory stakes,
             bytes32[] memory signatures
         ) = abi.decode(data, (uint256, bytes32, bytes, bytes, bytes32[]));
 
         bridgeTest.verifyHeaderHelper{gas: GAS_LIMIT}(verifierStakesHash, verifierHeight);
 
-        bridgeTest.verifyStakes{gas: GAS_LIMIT}(stakeDocs);
+        bridgeTest.verifyStakes{gas: GAS_LIMIT}(stakes);
 
         bool success;
 
@@ -328,8 +330,9 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
             success = bridgeTest.verifyHeader{gas: GAS_LIMIT}(
                 verifierHeight,
                 header,
-                stakeDocs,
-                signatures
+                stakes,
+                signatures,
+                VERIFICATION_LIMIT
             );
         }
 

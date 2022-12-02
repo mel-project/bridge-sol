@@ -7,14 +7,14 @@ import 'openzeppelin-contracts-upgradeable/contracts/token/ERC1155/ERC1155Upgrad
 import 'openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol';
 
 /**
-* @title ThemelioBridge: A bridge for transferring Themelio assets to Ethereum and back
+* @title ThemelioBridge: A bridge for transferring Themelio coins to Ethereum and back
 *
 * @author Marco Serrano (https://github.com/sadministrator)
 *
 * @notice This contract uses Themelio SPV to enable users to submit Themelio stakes,
 *         block headers, and transactions for the purpose of creating tokenized versions of
-*         Themelio assets, on the Ethereum network, which have previously been locked up in a
-*         sister contract which resides on the Themelio network. Check us out at
+*         Themelio coins, on the Ethereum network, which have previously been locked up in a
+*         sister covenant which resides on the Themelio network. Check us out at
 *         https://themelio.org !
 *
 * @dev Themelio stakes are verified per epoch (each epoch spans 200,000 blocks), with
@@ -33,27 +33,27 @@ import 'openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable
 *      Transactions are verified using the transactions hash Merkle root of their respective block
 *      headers by including a Merkle proof which is used to prove that the transaction is a member
 *      of that header's transactions Merkle tree. Upon successful verification of a compliant
-*      transaction, the specified amount of Themelio assets will be minted on the Ethereum network
+*      transaction, the specified amount of Themelio coins will be minted on the Ethereum network
 *      as ERC-1155 tokens and transferred to the address specified in the additional data field of
 *      the first output of the Themelio transaction.
 *
-*      To transfer tokenized Themelio assets back to the Themelio network the token holder must
-*      burn their tokens on the Ethereum network and use the resultant transaction as a receipt
-*      which must be submitted to the bridge covenant on the Themelio network to release the
-*      locked assets.
+*      To transfer tokenized Themelio coins back to the Themelio network the token holder must
+*      burn tokens with the equivalent denomination and value as a currently locked Themelio coin.
+*      In the burn transaction, the burner specifies the Themelio address they want the locked
+*      coin to be released to and this address can then unlock the Themelio coin at any later date.
 *
 *      Questions or concerns? Come chat with us on Discord! https://discord.com/invite/VedNp7EXFc
 */
 contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     using Blake3Sol for Blake3Sol.Hasher;
 
-    // an abbreviated Themelio header with the only two fields we need for header and tx validation
+    // an abbreviated Themelio header with the two fields we need for header and tx validation
     struct Header {
         bytes32 transactionsHash;
         bytes32 stakesHash;
     }
 
-    // represents an unverified Themelio header with current votes and verified bytes offset
+    // represents an unverified Themelio header with current votes, current bytes offset, and 
     struct UnverifiedHeader { // todo: do we need to worry about different verifierHeights being used?
         uint128 votes;
         uint64 bytesVerified;
@@ -79,10 +79,13 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
     // maps Keccak hashes of encoded StakeDoc arrays (stakes) to their corresponding Blake3 hashes
     mapping(bytes32 => bytes32) public stakesHashes;
+
     // maps Keccak hashes of unverified headers to header verification info
     mapping(bytes32 => UnverifiedHeader) public headerLimbo;
+
     // maps header block heights to Headers for verifying transactions and other headers
     mapping(uint256 => Header) public headers;
+
     // keeps track of coins and their statuses
     mapping(bytes32 => Coin) public coins;
 
@@ -226,7 +229,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     );
 
     event TokensBurned(
-        bytes32 indexed themelioRecipient
+        bytes32 indexed themelioRecipient,
+        bytes32[] txHashes
     );
 
     /**
@@ -261,6 +265,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
         headers[blockHeight_].transactionsHash = transactionsHash_;
         headers[blockHeight_].stakesHash = stakesHash_;
+
+        emit HeaderVerified(blockHeight_);
     }
 
     /* =========== ERC-1155 Functions =========== */
@@ -304,7 +310,10 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
         coin.status = themelioRecipient_;
 
-        emit TokensBurned(themelioRecipient_);
+        bytes32[] memory txHashes = new bytes32[](1);
+        txHashes[0] = txHash_;
+
+        emit TokensBurned(themelioRecipient_, txHashes);
     }
 
     /**
@@ -349,7 +358,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
         _burnBatch(account_, denoms, values);
 
-        emit TokensBurned(themelioRecipient_);
+        emit TokensBurned(themelioRecipient_, txHashes_);
     }
 
 
@@ -413,7 +422,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         uint256 verifierHeight_,
         bytes calldata header_,
         bytes calldata stakes_,
-        bytes32[] calldata signatures_
+        bytes32[] calldata signatures_,
+        uint256 verificationLimit_
     ) external returns (bool) {
         (
             uint256 blockHeight,
@@ -458,6 +468,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         uint256 votes;
         uint256 stakesOffset;
         if (stakeDocIndex != 0) {
+            verificationLimit_ += stakeDocIndex;
+
             votes = headerLimbo[headerHash].votes;
             stakesOffset = headerLimbo[headerHash].bytesVerified;
         }
@@ -490,10 +502,9 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         }
 
         StakeDoc memory stakeDoc;
-        uint256 memorySizeWords;
         uint256 stakesLength = stakes_.length;
 
-        for (; stakesOffset < stakesLength; ++stakeDocIndex) {
+        for (; stakesOffset < stakesLength && stakeDocIndex < verificationLimit_; ++stakeDocIndex) {
             (stakeDoc, stakesOffset) = _decodeStakeDoc(stakes_, stakesOffset);
 
             if (
@@ -524,19 +535,15 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
                 return true;
             }
+        }
 
-            assembly('memory-safe') {
-                memorySizeWords := div(add(mload(0x40), 31), 32)
-            }
+        // if we've reached the verification limit, save current progress to storage
+        if (stakeDocIndex == verificationLimit_) {
+            headerLimbo[headerHash].votes = uint128(votes);
+            headerLimbo[headerHash].bytesVerified = uint64(stakesOffset);
+            headerLimbo[headerHash].stakeDocIndex = uint64(stakeDocIndex);
 
-            // if not enough gas for another round, save current progress to storage
-            if (gasleft() < 1_420_200 + memorySizeWords / 4) {
-                headerLimbo[headerHash].votes = uint128(votes); // let's double check this
-                headerLimbo[headerHash].bytesVerified = uint64(stakesOffset); // and this
-                headerLimbo[headerHash].stakeDocIndex = uint64(stakeDocIndex + 1);
-
-                return false;
-            }
+            return false;
         }
 
         revert HeaderNotVerified();
@@ -593,15 +600,15 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
                 address recipient
             ) = _decodeTransaction(transaction_);
 
-            coins[txHash] = Coin(
-                denom,
-                value,
-                0x0000000000000000000000000000000000000000000000000000000000000001
-            );
-
             if (covhash != THEMELIO_COVHASH) {
                 revert InvalidCovhash(covhash);
             }
+
+            coins[txHash] = Coin(
+                denom,
+                value,
+                MINTED
+            );
 
             _mint(recipient, denom, value, '');
 
