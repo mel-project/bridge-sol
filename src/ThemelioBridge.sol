@@ -77,8 +77,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
     /* =========== Themelio State Storage =========== */
 
-    // maps Keccak hashes of encoded StakeDoc arrays (stakes) to their corresponding Blake3 hashes
-    mapping(bytes32 => bytes32) public stakesHashes;
+    // maps Keccak hashes of verified stakes hash datablocks to their corresponding blockHeight
+    mapping(bytes32 => uint256) public stakesLeaves;
 
     // maps Keccak hashes of unverified headers to header verification info
     mapping(bytes32 => UnverifiedHeader) public headerLimbo;
@@ -109,6 +109,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     // the hashing keys used when hashing datablocks and nodes, respectively
     bytes internal constant DATA_BLOCK_HASH_KEY = hex'c811f2ef6eb6bd09fb973c747cbf349e682393ca4d8df88e5f0bcd564c10a84b';
     bytes internal constant NODE_HASH_KEY = hex'd943cb6e931507cafe2357fbe5cce15af420a84c67251eddb0bf934b7bbbef91';
+
+    string internal constant METADATA_URI = 'https://melscan.themelio.org/{id}.json';
 
     /* =========== Modifiers =========== */
 
@@ -150,12 +152,6 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     * @param covhash The covenant hash of the first output of the submitted transaction.
     */
     error InvalidCovhash(bytes32 covhash);
-
-    /**
-    * The stakes array submitted does not hash to the same value as the stakes hash of the verifier
-    * at the provided height.
-    */
-    error InvalidStakes();
 
     /**
     * Header at height `verifierHeight` cannot be used to verify header at `headerHeight`.
@@ -213,6 +209,13 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     */
     error TxNotVerified();
 
+    /**
+    * The stakes datablock was unable to be verified. This could be because of incorrect serialization
+    * of the datablock, incorrect block height, incorrect transaction index, or improperly
+    * formatted Merkle proof.
+    */
+    error StakesNotVerified();
+
     /* =========== Bridge Events =========== */
 
     event StakesVerified(
@@ -252,7 +255,7 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         bytes32 stakesHash_
     ) internal onlyInitializing {
         __UUPSUpgradeable_init_unchained();
-        __ERC1155_init_unchained('https://melscan.themelio.org/{id}.json');
+        __ERC1155_init_unchained(METADATA_URI);
         __ThemelioBridge_init_unchained(blockHeight_, transactionsHash_, stakesHash_);
     }
 
@@ -365,31 +368,46 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     /* =========== Themelio Staker Set, Header, and Transaction Verification =========== */
 
     /**
-    * @notice Accepts incoming Themelio stakes and hashes them. The staker set hash is then saved
-    *         in storage so it can be used to verify Themelio headers via verifyHeader().
+    * @notice Accepts a Themelio stakes tree datablock and runs a proof of inclusion on it using
+    *         the stakes hash stored at the specified block height. Upon verification, the stakes
+    *         hash is saved to storage so it can later be used to verify Themelio headers.
     *
-    * @dev The `stakes_` array is an array of serialized Themelio 'StakeDocs' which represent
-    *      stakes in the Themelio network. They are serialized into a stakes byte array and hashed
-    *      using the blake3 algorithm to create the 'stakes_hash' member present in every Themelio
-    *      block header.
+    * @dev The `stakesDatablock_` is a datablock of the Themelio stakes tree which is defined in
+    *      TIP-911 as being the Merkle tree composed of n datablocks where the kth datablock is the
+    *      hash of the largest k stakedocs staked on the Themelio network at a certain height.
     *
     *      Emits a {StakesVerified} event.
     *
-    * @param stakes_ An array of serialized Themelio 'StakeDoc's.
+    * @param blockHeight_ The block height whose stakes hash we are verifying our datablock
+    *                     against.
+    *
+    * @param stakesDatablock_ An array of serialized Themelio 'StakeDoc's.
+    *
+    * @param stakesIndex_ The index of the datablock within the stakes tree
+    *
+    * @param stakesProof_ The Merkle proof for the provided datablock at the specified height.
     *
     * @return 'true' if header was successfully validated and stored, otherwise reverts.
     */
     function verifyStakes(
-        bytes calldata stakes_
+        uint256 blockHeight_,
+        bytes calldata stakesDatablock_,
+        uint256 stakesIndex_,
+        bytes32[] calldata stakesProof_
     ) external returns (bool) {
-        bytes32 keccakStakesHash = keccak256(stakes_);
-        bytes32 blake3StakesHash = _hashDatablock(stakes_);
+        bytes32 stakesRoot = headers[blockHeight_].stakesHash;
+        bytes32 stakesLeaf = _hashDatablock(stakesDatablock_);
 
-        stakesHashes[keccakStakesHash] = blake3StakesHash;
+        if (_computeMerkleRoot(stakesLeaf, stakesIndex_, stakesProof_) == stakesRoot) {
+            bytes32 keccakStakesLeaf = keccak256(stakesDatablock_);
+            stakesLeaves[keccakStakesLeaf] = blockHeight_;
 
-        emit StakesVerified(blake3StakesHash);
+            emit StakesVerified(stakesLeaf);
 
-        return true;
+            return true;
+        }
+
+        revert StakesNotVerified();
     }
 
     /**
@@ -412,16 +430,20 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     *
     * @param header_ A serialized Themelio block header.
     *
-    * @param stakes_ An array of serialized Themelio 'StakeDoc's.
+    * @param stakesDatablock_ An array of serialized Themelio 'StakeDoc's.
     *
     * @param signatures_ An array of signatures of `header_` by each staker in `signers_`.
+    *
+    * @param verificationLimit_ The number of stakedocs you want to verify in a single transaction.
+    *                           This allows us to store intermediate verification data in cases
+    *                           where the block gas limit would otherwise be exceeded.
     *
     * @return 'true' if header was successfully validated, otherwise reverts.
     */
     function verifyHeader(
         uint256 verifierHeight_,
         bytes calldata header_,
-        bytes calldata stakes_,
+        bytes calldata stakesDatablock_,
         bytes32[] calldata signatures_,
         uint256 verificationLimit_
     ) external returns (bool) {
@@ -452,15 +474,11 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
             revert MissingVerifier(blockHeight);
         }
 
-        bytes32 keccakStakesHash = keccak256(stakes_);
-        bytes32 blake3StakesHash = stakesHashes[keccakStakesHash];
+        bytes32 keccakStakesLeaf = keccak256(stakesDatablock_);
+        uint256 stakesLeafHeight = stakesLeaves[keccakStakesLeaf];
 
-        if (blake3StakesHash == 0) {
-            revert MissingStakes(keccakStakesHash);
-        }
-
-        if (blake3StakesHash != verifierStakesHash) {
-            revert InvalidStakes();
+        if (stakesLeafHeight != verifierHeight_) {
+            revert MissingStakes(keccakStakesLeaf);
         }
 
         bytes32 headerHash = keccak256(header_);
@@ -480,32 +498,32 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         uint256 offset;
 
         if (crossingEpoch) {
-            (, offset) = _decodeInteger(stakes_, 0);
+            (, offset) = _decodeInteger(stakesDatablock_, 0);
 
             if (stakesOffset == 0) {
                 stakesOffset += offset;
 
-                (totalEpochSyms, offset) = _decodeInteger(stakes_, offset);
+                (totalEpochSyms, offset) = _decodeInteger(stakesDatablock_, offset);
                 stakesOffset += offset;
             } else {
-                (totalEpochSyms,) = _decodeInteger(stakes_, offset);
+                (totalEpochSyms,) = _decodeInteger(stakesDatablock_, offset);
             }
         } else {
-            (totalEpochSyms, offset) = _decodeInteger(stakes_, 0);
+            (totalEpochSyms, offset) = _decodeInteger(stakesDatablock_, 0);
 
             if(stakesOffset == 0) {
                 stakesOffset += offset;
 
-                (, offset) = _decodeInteger(stakes_, 0);
+                (, offset) = _decodeInteger(stakesDatablock_, 0);
                 stakesOffset += offset;
             }
         }
 
         StakeDoc memory stakeDoc;
-        uint256 stakesLength = stakes_.length;
+        uint256 stakesLength = stakesDatablock_.length;
 
         for (; stakesOffset < stakesLength && stakeDocIndex < verificationLimit_; ++stakeDocIndex) {
-            (stakeDoc, stakesOffset) = _decodeStakeDoc(stakes_, stakesOffset);
+            (stakeDoc, stakesOffset) = _decodeStakeDoc(stakesDatablock_, stakesOffset);
 
             if (
                 stakeDoc.epochStart <= headerEpoch &&
