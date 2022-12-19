@@ -415,12 +415,12 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
     *         stakers in the header's epoch, and stores the header for future transaction
     *         verification, upon successful validation.
     *
-    * @dev The serialized header is accompanied by an array of stakers (`signers_`) that have 
-    *      signed the header. Their signatures are included in another accompanying array
-    *      (`signatures_`). Each signature is checked using ed25519 verification and their staked
-    *      syms are added together. If at the end of the calculations the amount of staked syms
-    *      from stakers that have signed is at least 2/3 of the total staked syms for that epoch
-    *      then the header is successfully validated and is stored for future transaction
+    * @dev The serialized header is accompanied by a datablock belonging to the Themelio stakes
+    *      tree at the verifier's block height. The needed signatures are included in an
+    *      accompanying array. Each signature is checked using ed25519 verification and their 
+    *      staked syms are added together. If at the end of the calculations the amount of staked
+    *      syms from stakers that have signed is at least 2/3 of the total staked syms for that
+    *      epoch then the header is successfully validated and is stored for future transaction
     *      verifications.
     *
     *      Emits a {HeaderVerified} event.
@@ -492,8 +492,8 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
             stakesOffset = headerLimbo[headerHash].bytesVerified;
         }
 
-        // Assumption here that in a future TIP total epoch syms will be the first value in
-        // 'stakes_hash' preimage and the subsequent epoch's total syms will be the second value
+        // The total current epoch syms are the first value encoded in a Themelio stake tree
+        // datablock; the upcoming epoch's total syms is the second value
         uint256 totalEpochSyms;
         uint256 offset;
 
@@ -523,6 +523,9 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
         uint256 stakesLength = stakesDatablock_.length;
 
         for (; stakesOffset < stakesLength && stakeDocIndex < verificationLimit_; ++stakeDocIndex) {
+            // this skips the transaction hash encoded in the stakes datablock
+            stakesOffset += 32;
+
             (stakeDoc, stakesOffset) = _decodeStakeDoc(stakesDatablock_, stakesOffset);
 
             if (
