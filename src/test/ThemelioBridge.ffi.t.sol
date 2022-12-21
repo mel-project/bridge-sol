@@ -115,10 +115,8 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
         headers[verifierHeight].stakesHash = verifierStakesHash;
     }
 
-    function verifyStakesHelper(bytes32 key) public view returns (bytes32) {
-        bytes32 stakesHash = stakesHashes[key];
-
-        return stakesHash;
+    function verifyStakesHelper(uint256 blockHeight, bytes32 stakesHash) public {
+        headers[blockHeight].stakesHash = stakesHash;
     }
 
     function verifyTxHelper(
@@ -267,82 +265,82 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         assertEq(extractedRecipient, recipient);
     }
 
-    function testVerifyHeaderDifferentialFFI(uint8 numStakeDocs) public {
-        vm.assume(numStakeDocs != 0 && numStakeDocs < 100);
+    // function testVerifyHeaderDifferentialFFI(uint8 numStakeDocs) public {
+    //     vm.assume(numStakeDocs != 0 && numStakeDocs < 100);
 
-        string[] memory cmds = new string[](3);
-        cmds[0] = FFI_PATH;
-        cmds[1] = '--verify-header';
-        cmds[2] = uint256(numStakeDocs).toString();
+    //     string[] memory cmds = new string[](3);
+    //     cmds[0] = FFI_PATH;
+    //     cmds[1] = '--verify-header';
+    //     cmds[2] = uint256(numStakeDocs).toString();
 
-        bytes memory data = vm.ffi(cmds);
+    //     bytes memory data = vm.ffi(cmds);
 
-        (
-            uint256 verifierHeight,
-            bytes32 verifierStakesHash,
-            bytes memory header,
-            bytes memory stakes,
-            bytes32[] memory signatures
-        ) = abi.decode(data, (uint256, bytes32, bytes, bytes, bytes32[]));
+    //     (
+    //         uint256 verifierHeight,
+    //         bytes32 verifierStakesHash,
+    //         bytes memory header,
+    //         bytes memory stakes,
+    //         bytes32[] memory signatures
+    //     ) = abi.decode(data, (uint256, bytes32, bytes, bytes, bytes32[]));
 
-        bridgeTest.verifyHeaderHelper{gas: GAS_LIMIT}(verifierStakesHash, verifierHeight);
+    //     bridgeTest.verifyHeaderHelper{gas: GAS_LIMIT}(verifierStakesHash, verifierHeight);
 
-        bridgeTest.verifyStakes{gas: GAS_LIMIT}(stakes);
+    //     bridgeTest.verifyStakes{gas: GAS_LIMIT}(stakes);
 
-        bool success;
+    //     bool success;
 
-        while (!success) {
-            success = bridgeTest.verifyHeader{gas: GAS_LIMIT}(
-                verifierHeight,
-                header,
-                stakes,
-                signatures,
-                VERIFICATION_LIMIT
-            );
-        }
+    //     while (!success) {
+    //         success = bridgeTest.verifyHeader{gas: GAS_LIMIT}(
+    //             verifierHeight,
+    //             header,
+    //             stakes,
+    //             signatures,
+    //             VERIFICATION_LIMIT
+    //         );
+    //     }
 
-        assertTrue(success);
-    }
+    //     assertTrue(success);
+    // }
 
-    function testVerifyHeaderCrossEpochDifferentialFFI(uint8 epoch) public {
-        vm.assume(epoch > 0);
+    // function testVerifyHeaderCrossEpochDifferentialFFI(uint8 epoch) public {
+    //     vm.assume(epoch > 0);
 
-        string[] memory cmds = new string[](3);
-        cmds[0] = FFI_PATH;
-        cmds[1] = '--verify-header-cross-epoch';
-        cmds[2] = uint256(epoch).toString();
+    //     string[] memory cmds = new string[](3);
+    //     cmds[0] = FFI_PATH;
+    //     cmds[1] = '--verify-header-cross-epoch';
+    //     cmds[2] = uint256(epoch).toString();
 
-        bytes memory data = vm.ffi(cmds);
+    //     bytes memory data = vm.ffi(cmds);
 
-        (
-            uint256 verifierHeight,
-            bytes32 verifierStakesHash,
-            bytes memory header,
-            bytes memory stakes,
-            bytes32[] memory signatures
-        ) = abi.decode(data, (uint256, bytes32, bytes, bytes, bytes32[]));
+    //     (
+    //         uint256 verifierHeight,
+    //         bytes32 verifierStakesHash,
+    //         bytes memory header,
+    //         bytes memory stakes,
+    //         bytes32[] memory signatures
+    //     ) = abi.decode(data, (uint256, bytes32, bytes, bytes, bytes32[]));
 
-        bridgeTest.verifyHeaderHelper{gas: GAS_LIMIT}(verifierStakesHash, verifierHeight);
+    //     bridgeTest.verifyHeaderHelper{gas: GAS_LIMIT}(verifierStakesHash, verifierHeight);
 
-        bridgeTest.verifyStakes{gas: GAS_LIMIT}(stakes);
+    //     bridgeTest.verifyStakes{gas: GAS_LIMIT}(stakes);
 
-        bool success;
+    //     bool success;
 
-        while (!success) {
-            success = bridgeTest.verifyHeader{gas: GAS_LIMIT}(
-                verifierHeight,
-                header,
-                stakes,
-                signatures,
-                VERIFICATION_LIMIT
-            );
-        }
+    //     while (!success) {
+    //         success = bridgeTest.verifyHeader{gas: GAS_LIMIT}(
+    //             verifierHeight,
+    //             header,
+    //             stakes,
+    //             signatures,
+    //             VERIFICATION_LIMIT
+    //         );
+    //     }
 
-        assertTrue(success);
-    }
+    //     assertTrue(success);
+    // }
 
     function testVerifyStakesDifferentialFFI(uint8 numStakeDocs) public {
-        vm.assume(numStakeDocs < 100);
+        vm.assume(numStakeDocs > 0);
 
         string[] memory cmds = new string[](3);
         cmds[0] = FFI_PATH;
@@ -352,16 +350,23 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         bytes memory data = vm.ffi(cmds);
 
         (
-            bytes memory stakes,
-            bytes32 stakesHash
-        ) = abi.decode(data, (bytes, bytes32));
+            bytes32 stakesHash,
+            bytes memory stakesDatablock,
+            uint256 stakesIndex,
+            bytes32[] memory stakesProof
+        ) = abi.decode(data, (bytes32, bytes, uint256, bytes32[]));
 
-        bridgeTest.verifyStakes(stakes);
+        uint256 blockHeight = 42;
+        bridgeTest.verifyStakesHelper(blockHeight, stakesHash);
 
-        bytes32 savedStakesHashKey = keccak256(stakes);
-        bytes32 savedStakesHash = bridgeTest.verifyStakesHelper(savedStakesHashKey);
+        bool verified = bridgeTest.verifyStakes{gas: GAS_LIMIT}(
+            blockHeight,
+            stakesDatablock,
+            stakesIndex,
+            stakesProof
+        );
 
-        assertEq(savedStakesHash, stakesHash);
+        assert(verified);
     }
 
     function testVerifyTxDifferentialFFI(uint8 numTransactions) public {
