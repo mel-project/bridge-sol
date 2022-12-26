@@ -43,27 +43,25 @@ submitted to the bridge covenant on the Themelio network to release the specifie
 
 ## API
 
-### stakesHashes(bytes32 keccakStakesHash) returns (bytes32 blake3StakesHash)
+### leafHeights(bytes32 keccakStakesHash) returns (uint256 blockHeight)
 
 This getter function should be used to check if a particular stakes has already been submitted
 and stored via `verifyStakes()` so you don't waste gas submitting it again.
 
-* `keccakStakesHash`: the keccak256 hash of a stakes bytes array
+* `keccakStakesHash`: the keccak256 hash of a stakes tree datablock
 
 ---
 
-### verifyStakes(bytes stakes) returns (bool)
+### verifyStakes(uint256 blockHeight, bytes stakesDatablock, uint256 stakesIndex, bytes stakesProof) returns (bool)
 
 This function is used for hashing a stakes byte array using blake3 and storing it in contract
 storage for subsequent verification of Themelio headers.
+* `blockHeight_`: The block height whose stakes hash we are verifying our datablock against.
+* `stakesDatablock_`: An array of serialized Themelio `StakeDoc`s.
+* `stakesIndex_`: The index of the datablock withtin the stakes tree.
+* `stakesProof_`: The Merkle proof for the provided datablock at the specified height.
 
-* `stakes`: a `bytes` array consisting of serialized and concatenated Themelio `StakeDoc`s, which
-each represent a certain amount of `sym` coins staked on the the themelio network for a specified
-amount of time by a specific public key. The `StakeDoc`s array is prepended with the amount of
-total syms staked for the current and next epochs for more efficient verification of headers
-in the bridge contracts.
-
-Returns `true` if `stakes` were successfully hashed and stored, reverts otherwise.
+Returns `true` if `stakesDatablock` was successfully verified and stored, reverts otherwise.
 
 ----
 

@@ -8,8 +8,8 @@ import '../ThemelioBridge.sol';
 
 string constant FFI_PATH = './src/test/differentials/target/debug/bridge_differential_tests';
 
-uint256 constant GAS_LIMIT = 25_000_000;
-uint256 constant VERIFICATION_LIMIT = 20;
+uint256 constant GAS_LIMIT = 27_000_000;
+uint256 constant VERIFICATION_LIMIT = 24;
 
 contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
     using Blake3Sol for Blake3Sol.Hasher;
@@ -92,7 +92,6 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
             return "ERG";
         } else {
             string memory txHash = abi.encodePacked(denom).toHexString();
-            txHash = string(abi.encodePacked(txHash).slice(2, 64));
 
             return string(abi.encodePacked("CUSTOM-", txHash));
         }
@@ -109,10 +108,10 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
     }
 
     function verifyHeaderHelper(
-        bytes32 verifierStakesHash,
-        uint256 verifierHeight
+        bytes32 stakesLeaf,
+        uint256 blockHeight
     ) public {
-        headers[verifierHeight].stakesHash = verifierStakesHash;
+        leafHeights[stakesLeaf] = blockHeight;
     }
 
     function verifyStakesHelper(uint256 blockHeight, bytes32 stakesHash) public {
@@ -130,27 +129,29 @@ contract ThemelioBridgeTestFFI is ThemelioBridge, Test {
 
         /* =========== Differential FFI Fuzz Tests =========== */
 
-    function testBlake3DifferentialFFI(bytes memory data) public {
-        string[] memory cmds = new string[](3);
+    function testBlake3DifferentialFFI(bytes calldata data) public {
+        string[] memory cmds = new string[](4);
 
         cmds[0] = FFI_PATH;
-        cmds[1] = '--blake3';
-        cmds[2] = data.toHexString();
+        cmds[1] = 'blake3';
+        cmds[2] = '--bytes';
+        cmds[3] = data.toHexString();
 
         bytes memory result = vm.ffi(cmds);
         bytes32 rustHash = abi.decode(result, (bytes32));
 
-        bytes32 solHash = _hashNodes(data);
+        bytes32 solHash = _hashDatablock(data);
 
         assertEq(solHash, rustHash);
     }
 
     function testEd25519DifferentialFFI(bytes memory message) public {
-        string[] memory cmds = new string[](3);
+        string[] memory cmds = new string[](4);
 
         cmds[0] = FFI_PATH;
-        cmds[1] = '--ed25519';
-        cmds[2] = message.toHexString();
+        cmds[1] = 'ed25519';
+        cmds[2] = '--bytes';
+        cmds[3] = message.toHexString();
 
         bytes memory result = vm.ffi(cmds);
 
@@ -179,7 +180,7 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
     function testBigHashFFI() public {
         string[] memory cmds = new string[](2);
         cmds[0] = FFI_PATH;
-        cmds[1] = '--big-hash';
+        cmds[1] = 'big-hash';
 
         bytes memory packedData = vm.ffi(cmds);
         (bytes memory data, bytes32 dataHash) = abi.decode(packedData, (bytes, bytes32));
@@ -190,11 +191,12 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
     }
 
     function testDecodeHeaderDifferentialFFI(uint128 mod) public {
-        string[] memory cmds = new string[](3);
+        string[] memory cmds = new string[](4);
 
         cmds[0] = FFI_PATH;
-        cmds[1] = '--decode-header';
-        cmds[2] = uint256(mod).toString();
+        cmds[1] = 'decode-header';
+        cmds[2] = '--modifier';
+        cmds[3] = uint256(mod).toString();
 
         bytes memory packedData = vm.ffi(cmds);
         (
@@ -216,11 +218,12 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
     }
 
     function testDecodeIntegerDifferentialFFI(uint128 integer) public {
-        string[] memory cmds = new string[](3);
+        string[] memory cmds = new string[](4);
 
         cmds[0] = FFI_PATH;
-        cmds[1] = '--decode-integer';
-        cmds[2] = uint256(integer).toString();
+        cmds[1] = 'decode-integer';
+        cmds[2] = '--integer';
+        cmds[3] = uint256(integer).toString();
 
         bytes memory result = vm.ffi(cmds);
 
@@ -238,17 +241,18 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         uint256 denom,
         address recipient
     ) public {
-        string[] memory cmds = new string[](9);
+        string[] memory cmds = new string[](10);
 
         cmds[0] = FFI_PATH;
-        cmds[1] = '--decode-transaction';
-        cmds[2] = abi.encodePacked(covhash).toHexString();
-        cmds[3] = '--value';
-        cmds[4] = uint256(value).toString();
-        cmds[5] = '--denom';
-        cmds[6] = bridgeTest.denomToStringHelper(denom);
-        cmds[7] = '--recipient';
-        cmds[8] = abi.encodePacked(recipient).toHexString();
+        cmds[1] = 'decode-transaction';
+        cmds[2] = '--covhash';
+        cmds[3] = abi.encodePacked(covhash).toHexString();
+        cmds[4] = '--value';
+        cmds[5] = uint256(value).toString();
+        cmds[6] = '--denom';
+        cmds[7] = bridgeTest.denomToStringHelper(denom);
+        cmds[8] = '--recipient';
+        cmds[9] = abi.encodePacked(recipient).toHexString();
 
         bytes memory transaction = vm.ffi(cmds);
 
@@ -265,42 +269,57 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         assertEq(extractedRecipient, recipient);
     }
 
-    // function testVerifyHeaderDifferentialFFI(uint8 numStakeDocs) public {
-    //     vm.assume(numStakeDocs != 0 && numStakeDocs < 100);
+    function testVerifyHeaderDifferentialFFI(uint8 numStakeDocs) public {
+        vm.assume(numStakeDocs > 0 && numStakeDocs < 50);
 
-    //     string[] memory cmds = new string[](3);
-    //     cmds[0] = FFI_PATH;
-    //     cmds[1] = '--verify-header';
-    //     cmds[2] = uint256(numStakeDocs).toString();
+        string[] memory cmds = new string[](4);
+        cmds[0] = FFI_PATH;
+        cmds[1] = 'verify-header';
+        cmds[2] = '--num-stakedocs';
+        cmds[3] = uint256(numStakeDocs).toString();
 
-    //     bytes memory data = vm.ffi(cmds);
+        bytes memory data = vm.ffi(cmds);
 
-    //     (
-    //         uint256 verifierHeight,
-    //         bytes32 verifierStakesHash,
-    //         bytes memory header,
-    //         bytes memory stakes,
-    //         bytes32[] memory signatures
-    //     ) = abi.decode(data, (uint256, bytes32, bytes, bytes, bytes32[]));
+        (
+            bool enoughVotes,
+            bytes memory header,
+            uint256 stakesHeight,
+            bytes memory stakesDatablock,
+            bytes32[] memory signatures
+        ) = abi.decode(data, (bool, bytes, uint256, bytes, bytes32[]));
 
-    //     bridgeTest.verifyHeaderHelper{gas: GAS_LIMIT}(verifierStakesHash, verifierHeight);
+        bytes32 stakesLeaf = keccak256(stakesDatablock);
 
-    //     bridgeTest.verifyStakes{gas: GAS_LIMIT}(stakes);
+        bridgeTest.verifyHeaderHelper(stakesLeaf, stakesHeight);
 
-    //     bool success;
+        bool success;
+        uint256 rounds;
+        uint256 signaturesLength = signatures.length / 2;
+        while (!success) {
+            if (!enoughVotes && signaturesLength <= rounds + VERIFICATION_LIMIT) {
+                vm.expectRevert();
 
-    //     while (!success) {
-    //         success = bridgeTest.verifyHeader{gas: GAS_LIMIT}(
-    //             verifierHeight,
-    //             header,
-    //             stakes,
-    //             signatures,
-    //             VERIFICATION_LIMIT
-    //         );
-    //     }
+                success = bridgeTest.verifyHeader{gas: GAS_LIMIT}(
+                    header,
+                    stakesDatablock,
+                    signatures,
+                    VERIFICATION_LIMIT
+                );
 
-    //     assertTrue(success);
-    // }
+                break;
+            }
+
+            success = bridgeTest.verifyHeader{gas: GAS_LIMIT}(
+                header,
+                stakesDatablock,
+                signatures,
+                VERIFICATION_LIMIT
+            );
+            rounds += VERIFICATION_LIMIT;
+        }
+
+        assertTrue(success == enoughVotes);
+    }
 
     // function testVerifyHeaderCrossEpochDifferentialFFI(uint8 epoch) public {
     //     vm.assume(epoch > 0);
@@ -340,12 +359,13 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
     // }
 
     function testVerifyStakesDifferentialFFI(uint8 numStakeDocs) public {
-        vm.assume(numStakeDocs > 0);
+        vm.assume(numStakeDocs > 0 && numStakeDocs < 69);
 
-        string[] memory cmds = new string[](3);
+        string[] memory cmds = new string[](4);
         cmds[0] = FFI_PATH;
-        cmds[1] = '--verify-stakes';
-        cmds[2] = uint256(numStakeDocs).toString();
+        cmds[1] = 'verify-stakes';
+        cmds[2] = '--num-stakedocs';
+        cmds[3] = uint256(numStakeDocs).toString();
 
         bytes memory data = vm.ffi(cmds);
 
@@ -372,10 +392,11 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
     function testVerifyTxDifferentialFFI(uint8 numTransactions) public {
         vm.assume(numTransactions > 0);
 
-        string[] memory cmds = new string[](3);
+        string[] memory cmds = new string[](4);
         cmds[0] = FFI_PATH;
-        cmds[1] = '--verify-transaction';
-        cmds[2] = uint256(numTransactions).toString();
+        cmds[1] = 'verify-transaction';
+        cmds[2] = '--num-transactions';
+        cmds[3] = uint256(numTransactions).toString();
 
         bytes memory data = vm.ffi(cmds);
 
@@ -396,7 +417,6 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         uint256 preBalance = bridgeTest.balanceOf(recipient, denom);
 
         bridgeTest.verifyTxHelper(blockHeight, transactionsHash, 0);
-
         bridgeTest.verifyTx(transaction, txIndex, blockHeight, proof);
 
         uint256 postBalance = bridgeTest.balanceOf(recipient, denom);

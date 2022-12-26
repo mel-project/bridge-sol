@@ -103,7 +103,7 @@ contract ThemelioBridgeTest is ThemelioBridge, Test {
     }
 
     function verifyStakesHelper(bytes32 keccakStakesHash, uint256 blockHeight) public {
-        stakesLeaves[keccakStakesHash] = blockHeight;
+        leafHeights[keccakStakesHash] = blockHeight;
     }
 
     function verifyTxHelper(
