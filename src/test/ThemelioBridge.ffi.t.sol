@@ -321,45 +321,63 @@ contract ThemelioBridgeTestInternalCalldataFFI is Test {
         assertTrue(success == enoughVotes);
     }
 
-    // function testVerifyHeaderCrossEpochDifferentialFFI(uint8 epoch) public {
-    //     vm.assume(epoch > 0);
+    function testVerifyHeaderCrossEpochDifferentialFFI(uint8 epoch) public {
+        vm.assume(epoch > 0);
 
-    //     string[] memory cmds = new string[](3);
-    //     cmds[0] = FFI_PATH;
-    //     cmds[1] = '--verify-header-cross-epoch';
-    //     cmds[2] = uint256(epoch).toString();
+        string[] memory cmds = new string[](4);
+        cmds[0] = FFI_PATH;
+        cmds[1] = 'verify-header-cross-epoch';
+        cmds[2] = '--epoch';
+        cmds[3] = uint256(epoch).toString();
 
-    //     bytes memory data = vm.ffi(cmds);
+        bytes memory data = vm.ffi(cmds);
 
-    //     (
-    //         uint256 verifierHeight,
-    //         bytes32 verifierStakesHash,
-    //         bytes memory header,
-    //         bytes memory stakes,
-    //         bytes32[] memory signatures
-    //     ) = abi.decode(data, (uint256, bytes32, bytes, bytes, bytes32[]));
+        (
+            bool enoughVotes,
+            bytes memory header,
+            uint256 stakesHeight,
+            bytes memory stakesDatablock,
+            bytes32[] memory signatures
+        ) = abi.decode(data, (bool, bytes, uint256, bytes, bytes32[]));
 
-    //     bridgeTest.verifyHeaderHelper{gas: GAS_LIMIT}(verifierStakesHash, verifierHeight);
+        bytes32 stakesLeaf = keccak256(stakesDatablock);
 
-    //     bridgeTest.verifyStakes{gas: GAS_LIMIT}(stakes);
+        bridgeTest.verifyHeaderHelper(stakesLeaf, stakesHeight);
 
-    //     bool success;
+        bool success;
+        uint256 rounds;
+        uint256 signaturesLength = signatures.length / 2;
+        while (!success) {
+            if (!enoughVotes && signaturesLength <= rounds + VERIFICATION_LIMIT) {
+                emit log_uint(signaturesLength);
+                emit log_uint(rounds);
+                emit log_uint(VERIFICATION_LIMIT);
+                vm.expectRevert();
 
-    //     while (!success) {
-    //         success = bridgeTest.verifyHeader{gas: GAS_LIMIT}(
-    //             verifierHeight,
-    //             header,
-    //             stakes,
-    //             signatures,
-    //             VERIFICATION_LIMIT
-    //         );
-    //     }
+                success = bridgeTest.verifyHeader{gas: GAS_LIMIT}(
+                    header,
+                    stakesDatablock,
+                    signatures,
+                    VERIFICATION_LIMIT
+                );
 
-    //     assertTrue(success);
-    // }
+                break;
+            }
+
+            success = bridgeTest.verifyHeader{gas: GAS_LIMIT}(
+                header,
+                stakesDatablock,
+                signatures,
+                VERIFICATION_LIMIT
+            );
+            rounds += VERIFICATION_LIMIT;
+        }
+
+        assertTrue(success == enoughVotes);
+    }
 
     function testVerifyStakesDifferentialFFI(uint8 numStakeDocs) public {
-        vm.assume(numStakeDocs > 0 && numStakeDocs < 69);
+        vm.assume(numStakeDocs > 0 && numStakeDocs < 66);
 
         string[] memory cmds = new string[](4);
         cmds[0] = FFI_PATH;

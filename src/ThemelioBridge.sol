@@ -479,6 +479,10 @@ contract ThemelioBridge is UUPSUpgradeable, ERC1155Upgradeable {
 
                 (totalEpochSyms, offset) = _decodeInteger(stakesDatablock_, stakesOffset);
                 stakesOffset += offset;
+
+                // this skips the unneeded encoded vector length
+                (, offset) = _decodeInteger(stakesDatablock_, stakesOffset);
+                stakesOffset += offset;
             } else {
                 (totalEpochSyms,) = _decodeInteger(stakesDatablock_, offset);
             }
